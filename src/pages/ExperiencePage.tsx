@@ -131,10 +131,10 @@ export default function ExperiencePage() {
     <div className="space-y-6 font-sans">
 
       {/* Header Row */}
-      <div className="bg-white rounded-2xl border border-slate-100 p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm">
         <div>
-          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">Work Experience Records</h2>
-          <p className="text-xs text-slate-500 mt-1">
+          <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">Work Experience Records</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             Build up a timeline of hospital services, critical care placements, or rotations.
           </p>
         </div>
@@ -152,7 +152,7 @@ export default function ExperiencePage() {
       </div>
 
       {savedMsg && (
-        <div className="bg-emerald-50 border border-emerald-100 text-emerald-700 p-3.5 rounded-xl text-xs font-semibold flex items-center gap-2 animate-bounce">
+        <div className="bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 p-3.5 rounded-xl text-xs font-semibold flex items-center gap-2 animate-bounce">
           <Check className="w-4 h-4" />
           <span>{savedMsg}</span>
         </div>
@@ -160,82 +160,82 @@ export default function ExperiencePage() {
 
       {/* Experience Form Section */}
       {showForm && (
-        <div className="bg-white rounded-2xl border-2 border-teal-100 p-6 shadow-sm animate-in slide-in-from-top duration-300">
-          <h3 className="font-bold text-slate-800 text-sm mb-4">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border-2 border-teal-100 dark:border-teal-800 p-6 shadow-sm animate-in slide-in-from-top duration-300">
+          <h3 className="font-bold text-slate-800 dark:text-slate-200 text-sm mb-4">
             {editingId ? 'Update Position Details' : 'Post New Position Profile'}
           </h3>
-          <form onSubmit={handleSubmit} className="space-y-4 text-xs text-slate-700 font-medium">
+          <form onSubmit={handleSubmit} className="space-y-4 text-xs text-slate-700 dark:text-slate-300 font-medium">
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-slate-500 mb-1">Clinical Title</label>
+                <label className="block text-slate-500 dark:text-slate-400 mb-1">Clinical Title</label>
                 <input
                   required
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="e.g. Critical Care Nurse"
-                  className="w-full pl-3 pr-4 py-2 bg-slate-50 rounded-xl border border-slate-200 focus:outline-none focus:border-teal-400 focus:bg-white"
+                  className="w-full pl-3 pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-500 mb-1">Hospital / Medical Facility</label>
+                <label className="block text-slate-500 dark:text-slate-400 mb-1">Hospital / Medical Facility</label>
                 <input
                   required
                   type="text"
                   value={facility}
                   onChange={(e) => setFacility(e.target.value)}
                   placeholder="e.g. Kenyatta National Hospital"
-                  className="w-full pl-3 pr-4 py-2 bg-slate-50 rounded-xl border border-slate-200 focus:outline-none focus:border-teal-400 focus:bg-white"
+                  className="w-full pl-3 pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-slate-500 mb-1">Department (Optional)</label>
+                <label className="block text-slate-500 dark:text-slate-400 mb-1">Department (Optional)</label>
                 <input
                   type="text"
                   value={department}
                   onChange={(e) => setDepartment(e.target.value)}
                   placeholder="e.g. ICU"
-                  className="w-full pl-3 pr-4 py-2 bg-slate-50 rounded-xl border border-slate-200 focus:outline-none focus:border-teal-400 focus:bg-white"
+                  className="w-full pl-3 pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-500 mb-1">Facility Location</label>
+                <label className="block text-slate-500 dark:text-slate-400 mb-1">Facility Location</label>
                 <input
                   type="text"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                   placeholder="e.g. Nairobi"
-                  className="w-full pl-3 pr-4 py-2 bg-slate-50 rounded-xl border border-slate-200 focus:outline-none focus:border-teal-400 focus:bg-white"
+                  className="w-full pl-3 pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
               <div>
-                <label className="block text-slate-500 mb-1">Start Month/Year</label>
+                <label className="block text-slate-500 dark:text-slate-400 mb-1">Start Month/Year</label>
                 <input
                   required
                   type="month"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full pl-3 pr-4 py-2 bg-slate-50 rounded-xl border border-slate-200"
+                  className="w-full pl-3 pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-500 mb-1">End Month/Year</label>
+                <label className="block text-slate-500 dark:text-slate-400 mb-1">End Month/Year</label>
                 <input
                   type="month"
                   disabled={current}
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full pl-3 pr-4 py-2 bg-slate-50 rounded-xl border border-slate-200 disabled:opacity-30"
+                  className="w-full pl-3 pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 disabled:opacity-30 text-slate-800 dark:text-slate-200"
                 />
               </div>
 
@@ -245,21 +245,21 @@ export default function ExperiencePage() {
                     type="checkbox"
                     checked={current}
                     onChange={(e) => setCurrent(e.target.checked)}
-                    className="w-4 h-4 text-teal-600 rounded"
+                    className="w-4 h-4 text-teal-600 rounded dark:bg-slate-800"
                   />
-                  <span className="text-xs font-semibold text-slate-700">I work here currently</span>
+                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">I work here currently</span>
                 </label>
               </div>
             </div>
 
             <div>
-              <label className="block text-slate-500 mb-1">Description</label>
+              <label className="block text-slate-500 dark:text-slate-400 mb-1">Description</label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Describe your role..."
                 rows={3}
-                className="w-full pl-3 pr-4 py-2 bg-slate-50 rounded-xl border border-slate-200 focus:outline-none focus:border-teal-400 focus:bg-white"
+                className="w-full pl-3 pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200"
               ></textarea>
             </div>
 
@@ -280,45 +280,45 @@ export default function ExperiencePage() {
           <div className="w-8 h-8 border-4 border-teal-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
         </div>
       ) : experiences.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-100 p-12 text-center shadow-sm">
-          <Briefcase className="w-10 h-10 text-slate-300 mx-auto mb-4" />
-          <h4 className="font-bold text-slate-800">No experiences listed</h4>
-          <p className="text-xs text-slate-500 mt-1">Tell us where you've worked!</p>
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-12 text-center shadow-sm">
+          <Briefcase className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
+          <h4 className="font-bold text-slate-800 dark:text-slate-200">No experiences listed</h4>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Tell us where you've worked!</p>
         </div>
       ) : (
         <div className="space-y-4">
           {experiences.map((exp) => (
-            <div key={exp.id} className="bg-white border border-slate-100 p-5 rounded-2xl shadow-sm flex items-start justify-between gap-4 group">
+            <div key={exp.id} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-5 rounded-2xl shadow-sm flex items-start justify-between gap-4 group">
               <div className="space-y-2">
                 <div>
-                  <h4 className="font-extrabold text-slate-900 text-base leading-tight">{exp.title}</h4>
-                  <div className="flex items-center gap-1.5 text-xs text-teal-600 font-bold mt-1">
+                  <h4 className="font-extrabold text-slate-900 dark:text-white text-base leading-tight">{exp.title}</h4>
+                  <div className="flex items-center gap-1.5 text-xs text-teal-600 dark:text-teal-400 font-bold mt-1">
                     <Building className="w-4 h-4" />
                     <span>{exp.facility} {exp.department ? `(${exp.department})` : ''}</span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 text-xs text-slate-500">
+                <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                   <Calendar className="w-4 h-4" />
                   <span>{exp.start_date} &mdash; {exp.current ? 'Present' : exp.end_date}</span>
                 </div>
 
                 {exp.description && (
-                  <p className="text-xs text-slate-600 leading-relaxed max-w-2xl">{exp.description}</p>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed max-w-2xl">{exp.description}</p>
                 )}
               </div>
 
               <div className="flex gap-2">
                 <button
                   onClick={() => handleEditClick(exp)}
-                  className="text-slate-400 hover:text-teal-600 p-2 rounded-lg hover:bg-teal-50 transition"
+                  className="text-slate-400 dark:text-slate-500 hover:text-teal-600 dark:hover:text-teal-400 p-2 rounded-lg hover:bg-teal-50 dark:hover:bg-teal-950/50 transition"
                   title="Edit"
                 >
                   <Pencil className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => setDeleteId(exp.id)}
-                  className="text-slate-400 hover:text-rose-600 p-2 rounded-lg hover:bg-rose-50 transition"
+                  className="text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 p-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/50 transition"
                   title="Delete"
                 >
                   <Trash2 className="w-4 h-4" />

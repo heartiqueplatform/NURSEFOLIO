@@ -89,17 +89,17 @@ export default function EditProfile() {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden font-sans">
+    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden font-sans">
 
       {/* HEADER & IMAGE SECTION */}
       <div className="relative">
         {/* Cover Image */}
-        <div className="h-40 sm:h-52 bg-slate-200 relative group overflow-hidden">
+        <div className="h-40 sm:h-52 bg-slate-200 dark:bg-slate-800 relative group overflow-hidden">
           {coverUrl ? (
             <img src={coverUrl} alt="Cover" className="w-full h-full object-cover" />
           ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gradient-to-r from-slate-100 to-slate-200">
-              <ImageIcon className="w-8 h-8 text-slate-400" />
+            <div className="w-full h-full flex items-center justify-center bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700">
+              <ImageIcon className="w-8 h-8 text-slate-400 dark:text-slate-500" />
             </div>
           )}
           <button
@@ -116,11 +116,11 @@ export default function EditProfile() {
         {/* Avatar Image */}
         <div className="absolute -bottom-12 left-8">
           <div className="relative group">
-            <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-2xl border-4 border-white overflow-hidden bg-slate-100 shadow-md">
+            <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-2xl border-4 border-white dark:border-slate-900 overflow-hidden bg-slate-100 dark:bg-slate-800 shadow-md">
               {avatarUrl ? (
                 <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
               ) : (
-                <div className="w-full h-full flex items-center justify-center bg-teal-50 text-teal-600 font-bold text-2xl">
+                <div className="w-full h-full flex items-center justify-center bg-teal-50 dark:bg-teal-950/50 text-teal-600 dark:text-teal-400 font-bold text-2xl">
                   {firstName[0]}{lastName[0]}
                 </div>
               )}
@@ -138,43 +138,43 @@ export default function EditProfile() {
       </div>
 
       <div className="p-6 sm:p-8 pt-16 sm:pt-20 space-y-8">
-        <div className="border-b border-slate-100 pb-5">
-          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">Edit Portfolio Profile</h2>
-          <p className="text-xs text-slate-500 mt-1">
+        <div className="border-b border-slate-100 dark:border-slate-800 pb-5">
+          <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">Edit Portfolio Profile</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             Update your visuals and professional information.
           </p>
         </div>
 
         {saved && (
-          <div className="bg-emerald-50 border border-emerald-100 text-emerald-700 p-3.5 rounded-xl text-xs font-semibold flex items-center gap-2">
+          <div className="bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 p-3.5 rounded-xl text-xs font-semibold flex items-center gap-2">
             <Check className="w-4 h-4" />
             <span>Profile configuration saved successfully!</span>
           </div>
         )}
 
-        <form onSubmit={handleProfileSave} className="space-y-6 text-xs text-slate-700 font-medium">
+        <form onSubmit={handleProfileSave} className="space-y-6 text-xs text-slate-700 dark:text-slate-300 font-medium">
 
           {/* Name Fields */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div>
-              <label className="block text-slate-500 mb-1.5 font-bold">First Name</label>
+              <label className="block text-slate-500 dark:text-slate-400 mb-1.5 font-bold">First Name</label>
               <input
                 required
                 type="text"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                className="w-full pl-3.5 pr-4 py-2 bg-slate-50/60 rounded-xl border border-slate-205 focus:outline-none focus:border-teal-400 focus:bg-white text-slate-800 font-semibold"
+                className="w-full pl-3.5 pr-4 py-2 bg-slate-50/60 dark:bg-slate-800/60 rounded-xl border border-slate-205 dark:border-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold"
               />
             </div>
 
             <div>
-              <label className="block text-slate-500 mb-1.5 font-bold">Last Name</label>
+              <label className="block text-slate-500 dark:text-slate-400 mb-1.5 font-bold">Last Name</label>
               <input
                 required
                 type="text"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
-                className="w-full pl-3.5 pr-4 py-2 bg-slate-50/60 rounded-xl border border-slate-205 focus:outline-none focus:border-teal-400 focus:bg-white text-slate-800 font-semibold"
+                className="w-full pl-3.5 pr-4 py-2 bg-slate-50/60 dark:bg-slate-800/60 rounded-xl border border-slate-205 dark:border-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold"
               />
             </div>
           </div>
@@ -182,24 +182,24 @@ export default function EditProfile() {
           {/* Professional tag line */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div>
-              <label className="block text-slate-500 mb-1.5 font-bold">Board Qualifications</label>
+              <label className="block text-slate-500 dark:text-slate-400 mb-1.5 font-bold">Board Qualifications</label>
               <input
                 type="text"
                 value={qualification}
                 onChange={(e) => setQualification(e.target.value)}
                 placeholder="BSN, RN, CCRN"
-                className="w-full pl-3.5 pr-4 py-2 bg-slate-50/60 rounded-xl border border-slate-205 focus:outline-none focus:border-teal-400 focus:bg-white text-slate-800"
+                className="w-full pl-3.5 pr-4 py-2 bg-slate-50/60 dark:bg-slate-800/60 rounded-xl border border-slate-205 dark:border-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200"
               />
             </div>
 
             <div>
-              <label className="block text-slate-500 mb-1.5 font-bold">Nursing Level title</label>
+              <label className="block text-slate-500 dark:text-slate-400 mb-1.5 font-bold">Nursing Level title</label>
               <input
                 type="text"
                 value={nursingLevel}
                 onChange={(e) => setNursingLevel(e.target.value)}
                 placeholder="Registered Nurse (RN) - Intensive Care"
-                className="w-full pl-3.5 pr-4 py-2 bg-slate-50/60 rounded-xl border border-slate-205 focus:outline-none focus:border-teal-400 focus:bg-white text-slate-800"
+                className="w-full pl-3.5 pr-4 py-2 bg-slate-50/60 dark:bg-slate-800/60 rounded-xl border border-slate-205 dark:border-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200"
               />
             </div>
           </div>
@@ -207,7 +207,7 @@ export default function EditProfile() {
           {/* Location or years exp */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div>
-              <label className="block text-slate-500 mb-1.5 font-bold flex items-center gap-1">
+              <label className="block text-slate-500 dark:text-slate-400 mb-1.5 font-bold flex items-center gap-1">
                 <MapPin className="w-4 h-4" />
                 <span>Location</span>
               </label>
@@ -216,12 +216,12 @@ export default function EditProfile() {
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
                 placeholder="Boston, MA"
-                className="w-full pl-3.5 pr-4 py-2 bg-slate-50/60 rounded-xl border border-slate-205 focus:outline-none focus:border-teal-400 focus:bg-white text-slate-800"
+                className="w-full pl-3.5 pr-4 py-2 bg-slate-50/60 dark:bg-slate-800/60 rounded-xl border border-slate-205 dark:border-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200"
               />
             </div>
 
             <div>
-              <label className="block text-slate-500 mb-1.5 font-bold flex items-center gap-1">
+              <label className="block text-slate-500 dark:text-slate-400 mb-1.5 font-bold flex items-center gap-1">
                 <Briefcase className="w-4 h-4" />
                 <span>Years of active experience</span>
               </label>
@@ -229,14 +229,14 @@ export default function EditProfile() {
                 type="number"
                 value={yearsExperience}
                 onChange={(e) => setYearsExperience(Number(e.target.value))}
-                className="w-full pl-3.5 pr-4 py-2 bg-slate-50/60 rounded-xl border border-slate-205 focus:outline-none focus:border-teal-400 focus:bg-white text-slate-800"
+                className="w-full pl-3.5 pr-4 py-2 bg-slate-50/60 dark:bg-slate-800/60 rounded-xl border border-slate-205 dark:border-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200"
               />
             </div>
           </div>
 
           {/* Biography */}
           <div>
-            <label className="block text-slate-500 mb-1.5 font-bold flex items-center gap-1">
+            <label className="block text-slate-500 dark:text-slate-400 mb-1.5 font-bold flex items-center gap-1">
               <Clipboard className="w-4 h-4" />
               <span>Biography / Narrative</span>
             </label>
@@ -245,14 +245,14 @@ export default function EditProfile() {
               value={bio}
               onChange={(e) => setBio(e.target.value)}
               placeholder="Share details on your nursing journey..."
-              className="w-full pl-3.5 pr-4 py-2 bg-slate-50/60 rounded-xl border border-slate-205 focus:outline-none focus:border-teal-400 focus:bg-white text-slate-800 text-xs font-normal"
+              className="w-full pl-3.5 pr-4 py-2 bg-slate-50/60 dark:bg-slate-800/60 rounded-xl border border-slate-205 dark:border-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-normal"
             ></textarea>
           </div>
 
           {/* Specialty */}
           <div>
-            <label className="block text-slate-500 mb-1.5 font-bold flex items-center gap-1">
-              <Tag className="w-4 h-4 text-teal-600" />
+            <label className="block text-slate-500 dark:text-slate-400 mb-1.5 font-bold flex items-center gap-1">
+              <Tag className="w-4 h-4 text-teal-600 dark:text-teal-400" />
               <span>Nursing Specialties</span>
             </label>
             <input
@@ -260,11 +260,11 @@ export default function EditProfile() {
               value={specialtiesText}
               onChange={(e) => setSpecialtiesText(e.target.value)}
               placeholder="Intensive Care, Cardiology"
-              className="w-full pl-3.5 pr-4 py-2 bg-slate-50/60 rounded-xl border border-slate-205 focus:outline-none focus:border-teal-400 focus:bg-white text-slate-800"
+              className="w-full pl-3.5 pr-4 py-2 bg-slate-50/60 dark:bg-slate-800/60 rounded-xl border border-slate-205 dark:border-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200"
             />
           </div>
 
-          <div className="pt-4 border-t border-slate-100 flex justify-end">
+          <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-end">
             <button
               type="submit"
               disabled={saving || uploading.avatar || uploading.cover}

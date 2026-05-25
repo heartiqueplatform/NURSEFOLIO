@@ -15,9 +15,11 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useThemeMode } from '../contexts/ThemeContext';
 
 export default function PublicProfile() {
   const { username } = useParams<{ username: string }>();
+  const { themeMode } = useThemeMode();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [educations, setEducations] = useState<Education[]>([]);
@@ -93,23 +95,23 @@ export default function PublicProfile() {
 
   if (loading) {
     return (
-      <div id="profile-loading" className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-        <div className="w-12 h-12 border-4 border-slate-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
-        <p className="text-sm font-semibold text-slate-500">Formulating medical credentials & custom theme...</p>
+      <div id="profile-loading" className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-4">
+        <div className="w-12 h-12 border-4 border-slate-200 dark:border-slate-700 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+        <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Formulating medical credentials & custom theme...</p>
       </div>
     );
   }
 
   if (!profile) {
     return (
-      <div id="profile-not-found" className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-3xl p-10 max-w-md w-full text-center border border-slate-100 shadow-sm space-y-4">
-          <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto border border-amber-100">
+      <div id="profile-not-found" className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-4">
+        <div className="bg-white dark:bg-slate-900 rounded-3xl p-10 max-w-md w-full text-center border border-slate-100 dark:border-slate-800 shadow-sm space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto border border-amber-100 dark:border-amber-800">
             <HelpCircle className="w-8 h-8" />
           </div>
-          <h2 className="text-2xl font-bold text-slate-900">Portfolio Not Found</h2>
-          <p className="text-sm text-slate-500 leading-relaxed font-normal">
-            The Nursefolio user <span className="font-semibold text-slate-800">@{username}</span> does not appear to have finalized their registration or public profile links yet.
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Portfolio Not Found</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed font-normal">
+            The Nursefolio user <span className="font-semibold text-slate-800 dark:text-slate-200">@{username}</span> does not appear to have finalized their registration or public profile links yet.
           </p>
           <div className="pt-4 flex flex-col gap-2">
             <Link
@@ -122,7 +124,7 @@ export default function PublicProfile() {
             <Link
               id="notfound-landing"
               to="/"
-              className="py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50"
+              className="py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800"
             >
               Home Page
             </Link>
@@ -132,8 +134,16 @@ export default function PublicProfile() {
     );
   }
 
-  // Load target theme styles
-  const styles: ThemeStyles = THEME_MAPS[profile.profile_theme] || THEME_MAPS.modern;
+  // Load target theme styles - combine with dark mode awareness
+  const baseStyles: ThemeStyles = THEME_MAPS[profile.profile_theme] || THEME_MAPS.modern;
+
+  // Enhance styles with dark mode awareness
+  const styles: ThemeStyles = {
+    ...baseStyles,
+    bodyBg: themeMode === 'dark' ? 'bg-slate-950' : baseStyles.bodyBg,
+    cardBg: themeMode === 'dark' ? 'bg-slate-900' : baseStyles.cardBg,
+    borderStyle: themeMode === 'dark' ? 'border border-slate-800' : baseStyles.borderStyle,
+  };
 
   return (
     <div className={`min-h-screen pb-20 ${styles.bodyBg} transition-all duration-300`}>
@@ -145,7 +155,7 @@ export default function PublicProfile() {
           <ArrowLeft className="w-4 h-4" />
           <span>Back to Portal</span>
         </Link>
-        <span className={`text-[10px] font-mono px-2.5 py-1 rounded-md bg-white/10 backdrop-blur-sm border border-white/10 uppercase font-bold`}>
+        <span className={`text-[10px] font-mono px-2.5 py-1 rounded-md bg-white/10 dark:bg-slate-800/50 backdrop-blur-sm border border-white/10 dark:border-slate-700 uppercase font-bold text-slate-700 dark:text-slate-300`}>
           Mode: Public Preview
         </span>
       </header>
@@ -161,29 +171,27 @@ export default function PublicProfile() {
                 alt="Cover Banner"
                 className="w-full h-full object-cover"
                 onError={(e) => {
-                  // Handle broken image links
                   (e.target as HTMLImageElement).style.display = 'none';
                 }}
               />
-              <div className="absolute inset-0 bg-slate-950/20"></div>
+              <div className="absolute inset-0 bg-slate-950/20 dark:bg-slate-950/40"></div>
             </div>
           ) : (
-            <div className={`h-44 md:h-52 bg-gradient-to-tr ${styles.bannerGradient} relative`}>
-              <div className="absolute inset-0 bg-white/5 bg-[radial-gradient(#ffffff_1px,transparent_1px)] bg-[size:16px_16px]"></div>
+            <div className={`h-44 md:h-52 bg-gradient-to-tr ${baseStyles.bannerGradient} relative`}>
+              <div className="absolute inset-0 bg-white/5 dark:bg-black/20 bg-[radial-gradient(#ffffff_1px,transparent_1px)] dark:bg-[radial-gradient(#ffffff_0.5px,transparent_0.5px)] bg-[size:16px_16px]"></div>
             </div>
           )}
 
           {/* User Details Panel */}
           <div className="p-6 md:p-8 relative pt-14 md:pt-16">
-            {/* Avatar overlay - using avatar_url from database */}
+            {/* Avatar overlay */}
             <div className="absolute -top-16 left-6 md:left-8">
               {profile.avatar_url ? (
                 <img
                   src={profile.avatar_url}
                   alt={`${profile.first_name} ${profile.last_name}`}
-                  className={`w-28 h-28 object-cover rounded-2xl border-4 shadow bg-white ${profile.profile_theme === 'dark' ? 'border-slate-900' : 'border-white'}`}
+                  className={`w-28 h-28 object-cover rounded-2xl border-4 shadow bg-white dark:bg-slate-900 ${profile.profile_theme === 'dark' || themeMode === 'dark' ? 'border-slate-800' : 'border-white'}`}
                   onError={(e) => {
-                    // Fallback to default avatar on error
                     (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1574496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200&h=200';
                   }}
                 />
@@ -191,20 +199,24 @@ export default function PublicProfile() {
                 <img
                   src="https://images.unsplash.com/photo-1574496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200&h=200"
                   alt="Default Avatar"
-                  className={`w-28 h-28 object-cover rounded-2xl border-4 shadow bg-white ${profile.profile_theme === 'dark' ? 'border-slate-900' : 'border-white'}`}
+                  className={`w-28 h-28 object-cover rounded-2xl border-4 shadow bg-white dark:bg-slate-900 ${profile.profile_theme === 'dark' || themeMode === 'dark' ? 'border-slate-800' : 'border-white'}`}
                 />
               )}
             </div>
 
-            {/* Float availability badges or action pills */}
+            {/* Availability badges */}
             <div className="absolute top-4 right-4 md:right-8 flex flex-col sm:flex-row gap-2">
               <span className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-full ${profile.availability_status === 'available'
-                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
                 : profile.availability_status === 'open'
-                  ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                  : 'bg-slate-500/10 text-slate-400 border border-slate-500/20'
+                  ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                  : 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border border-slate-500/20'
                 }`}>
-                <span className={`w-2 h-2 rounded-full ${profile.availability_status === 'available' ? 'bg-emerald-400 animate-ping' : profile.availability_status === 'open' ? 'bg-amber-400' : 'bg-slate-400'
+                <span className={`w-2 h-2 rounded-full ${profile.availability_status === 'available'
+                  ? 'bg-emerald-500 dark:bg-emerald-400 animate-ping'
+                  : profile.availability_status === 'open'
+                    ? 'bg-amber-500 dark:bg-amber-400'
+                    : 'bg-slate-500 dark:bg-slate-400'
                   }`}></span>
                 <span className="uppercase tracking-wider">
                   {profile.availability_status === 'available' ? 'Offering Care' : profile.availability_status === 'open' ? 'Open to Offers' : 'Not Available'}
@@ -216,23 +228,23 @@ export default function PublicProfile() {
             <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
               <div className="space-y-2">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h2 className={`text-2xl md:text-3.5xl font-extrabold tracking-tight ${styles.textPrimary} ${styles.fontDisplay}`}>
+                  <h2 className={`text-2xl md:text-3.5xl font-extrabold tracking-tight ${baseStyles.textPrimary} ${baseStyles.fontDisplay}`}>
                     {profile.first_name} {profile.last_name}
                   </h2>
                   <VerificationBadge status={profile.verification_status} showText={true} />
                 </div>
 
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm">
-                  <span className={`font-semibold ${styles.accentText}`}>
+                  <span className={`font-semibold ${baseStyles.accentText}`}>
                     {profile.qualification || profile.nursing_level || 'BSN Professional'}
                   </span>
-                  <span className={styles.textSecondary}>•</span>
-                  <div className={`flex items-center gap-1 ${styles.textSecondary}`}>
+                  <span className={baseStyles.textSecondary}>•</span>
+                  <div className={`flex items-center gap-1 ${baseStyles.textSecondary}`}>
                     <MapPin className="w-4 h-4 opacity-70" />
                     <span>{profile.location || 'USA'}</span>
                   </div>
-                  <span className={styles.textSecondary}>•</span>
-                  <span className={styles.textSecondary}>{profile.years_experience || 0} Years Experience</span>
+                  <span className={baseStyles.textSecondary}>•</span>
+                  <span className={baseStyles.textSecondary}>{profile.years_experience || 0} Years Experience</span>
                 </div>
               </div>
 
@@ -242,7 +254,7 @@ export default function PublicProfile() {
                   id="pub-btn-download"
                   onClick={handleDownloadCv}
                   disabled={downloading}
-                  className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition whitespace-nowrap active:scale-[97%] cursor-pointer ${styles.buttonPrimary}`}
+                  className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition whitespace-nowrap active:scale-[97%] cursor-pointer ${baseStyles.buttonPrimary}`}
                 >
                   <Download className={`w-4 h-4 ${downloading ? 'animate-bounce' : ''}`} />
                   <span>{downloading ? 'Generating CV...' : 'Download Resume'}</span>
@@ -251,52 +263,52 @@ export default function PublicProfile() {
                 <button
                   id="pub-btn-share"
                   onClick={handleCopyLink}
-                  className="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-750 transition cursor-pointer"
+                  className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-300 transition cursor-pointer"
                   title="Copy share link to clipboard"
                 >
-                  {copied ? <Check className="w-4.5 h-4.5 text-emerald-600" /> : <Link2 className="w-4.5 h-4.5" />}
+                  {copied ? <Check className="w-4.5 h-4.5 text-emerald-600 dark:text-emerald-400" /> : <Link2 className="w-4.5 h-4.5" />}
                 </button>
               </div>
             </div>
 
             {/* Bio statement */}
             {profile.bio && (
-              <div className="mt-6 pt-6 border-t border-slate-100/40">
-                <h5 className={`text-xs uppercase font-bold tracking-wider mb-2 ${styles.textSecondary}`}>Biography Summary</h5>
-                <p className={`text-sm leading-relaxed ${styles.textSecondary} whitespace-pre-line`}>
+              <div className="mt-6 pt-6 border-t border-slate-100/40 dark:border-slate-800/40">
+                <h5 className={`text-xs uppercase font-bold tracking-wider mb-2 ${baseStyles.textSecondary}`}>Biography Summary</h5>
+                <p className={`text-sm leading-relaxed ${baseStyles.textSecondary} whitespace-pre-line`}>
                   {profile.bio}
                 </p>
               </div>
             )}
 
             {/* Specialties & Skills */}
-            <div className="mt-6 pt-6 border-t border-slate-100/40 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="mt-6 pt-6 border-t border-slate-100/40 dark:border-slate-800/40 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <h5 className={`text-xs uppercase font-bold tracking-wider mb-2.5 ${styles.textSecondary}`}>Medical Specialties</h5>
+                <h5 className={`text-xs uppercase font-bold tracking-wider mb-2.5 ${baseStyles.textSecondary}`}>Medical Specialties</h5>
                 <div className="flex flex-wrap gap-1.5">
                   {profile.specialties && profile.specialties.length > 0 ? (
                     profile.specialties.map((spec) => (
-                      <span key={spec} className={`text-xs px-2.5 py-1 rounded-full font-medium ${styles.accentBg}`}>
+                      <span key={spec} className={`text-xs px-2.5 py-1 rounded-full font-medium ${baseStyles.accentBg}`}>
                         {spec}
                       </span>
                     ))
                   ) : (
-                    <span className="text-xs text-slate-400 italic">No specialties published yet.</span>
+                    <span className="text-xs text-slate-400 dark:text-slate-500 italic">No specialties published yet.</span>
                   )}
                 </div>
               </div>
 
               <div>
-                <h5 className={`text-xs uppercase font-bold tracking-wider mb-2.5 ${styles.textSecondary}`}>Clinical Skills</h5>
+                <h5 className={`text-xs uppercase font-bold tracking-wider mb-2.5 ${baseStyles.textSecondary}`}>Clinical Skills</h5>
                 <div className="flex flex-wrap gap-1.5">
                   {profile.skills && profile.skills.length > 0 ? (
                     profile.skills.map((skill) => (
-                      <span key={skill} className="text-xs bg-slate-100/80 text-slate-755 border border-slate-200/50 px-2.5 py-1 rounded-full font-medium">
+                      <span key={skill} className="text-xs bg-slate-100/80 dark:bg-slate-800/80 text-slate-755 dark:text-slate-300 border border-slate-200/50 dark:border-slate-700 px-2.5 py-1 rounded-full font-medium">
                         {skill}
                       </span>
                     ))
                   ) : (
-                    <span className="text-xs text-slate-400 italic">No clinical skills published yet.</span>
+                    <span className="text-xs text-slate-400 dark:text-slate-500 italic">No clinical skills published yet.</span>
                   )}
                 </div>
               </div>
@@ -304,38 +316,38 @@ export default function PublicProfile() {
           </div>
         </div>
 
-        {/* Rest of your component remains the same... */}
+        {/* Two Column Layout */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mt-6">
           {/* Left Column */}
           <div className="md:col-span-8 space-y-6">
             {/* Work Experience Section */}
-            <section id="pub-section-exp" className={`p-6 md:p-8 rounded-3xl ${styles.cardBg} ${styles.borderStyle}`}>
+            <section className={`p-6 md:p-8 rounded-3xl ${styles.cardBg} ${styles.borderStyle}`}>
               <div className="flex items-center gap-2 mb-6">
-                <Briefcase className={`w-5 h-5 ${styles.iconColor}`} />
-                <h3 className={`font-bold text-lg ${styles.textPrimary} ${styles.fontDisplay}`}>Clinical Work Experience</h3>
+                <Briefcase className={`w-5 h-5 ${baseStyles.iconColor}`} />
+                <h3 className={`font-bold text-lg ${baseStyles.textPrimary} ${baseStyles.fontDisplay}`}>Clinical Work Experience</h3>
               </div>
               {experiences.length === 0 ? (
-                <p className="text-xs text-slate-450 italic py-4">Work experience details are currently pending update.</p>
+                <p className="text-xs text-slate-450 dark:text-slate-500 italic py-4">Work experience details are currently pending update.</p>
               ) : (
-                <div className="space-y-6 relative border-l border-slate-100 pl-4 ml-2">
+                <div className="space-y-6 relative border-l border-slate-100 dark:border-slate-800 pl-4 ml-2">
                   {experiences.map((exp) => (
                     <div key={exp.id} className="relative group">
-                      <span className={`absolute -left-[21px] top-1.5 w-2.5 h-2.5 rounded-full border-2 border-white bg-slate-400 group-hover:bg-indigo-500`}></span>
+                      <span className={`absolute -left-[21px] top-1.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 bg-slate-400 dark:bg-slate-600 group-hover:bg-indigo-500 dark:group-hover:bg-indigo-400`}></span>
                       <div className="flex justify-between items-start flex-wrap gap-1">
                         <div>
-                          <h4 className={`text-base font-bold ${styles.textPrimary}`}>{exp.title}</h4>
-                          <span className={`block text-xs font-semibold ${styles.accentText} mt-0.5 flex items-center gap-1`}>
+                          <h4 className={`text-base font-bold ${baseStyles.textPrimary}`}>{exp.title}</h4>
+                          <span className={`block text-xs font-semibold ${baseStyles.accentText} mt-0.5 flex items-center gap-1`}>
                             <Building className="w-3.5 h-3.5 opacity-80" />
                             {exp.facility} {exp.department ? `(${exp.department})` : ''}
                           </span>
                         </div>
-                        <div className="flex items-center gap-1 text-slate-450 text-xs mt-1">
+                        <div className="flex items-center gap-1 text-slate-450 dark:text-slate-500 text-xs mt-1">
                           <Calendar className="w-3.5 h-3.5" />
                           <span>{exp.start_date} &mdash; {exp.current ? 'Present' : exp.end_date}</span>
                         </div>
                       </div>
                       {exp.description && (
-                        <p className={`text-xs mt-3 leading-relaxed ${styles.textSecondary} max-w-2xl whitespace-pre-line`}>
+                        <p className={`text-xs mt-3 leading-relaxed ${baseStyles.textSecondary} max-w-2xl whitespace-pre-line`}>
                           {exp.description}
                         </p>
                       )}
@@ -346,29 +358,29 @@ export default function PublicProfile() {
             </section>
 
             {/* Education Section */}
-            <section id="pub-section-edu" className={`p-6 md:p-8 rounded-3xl ${styles.cardBg} ${styles.borderStyle}`}>
+            <section className={`p-6 md:p-8 rounded-3xl ${styles.cardBg} ${styles.borderStyle}`}>
               <div className="flex items-center gap-2 mb-6">
-                <GraduationCap className={`w-5 h-5 ${styles.iconColor}`} />
-                <h3 className={`font-bold text-lg ${styles.textPrimary} ${styles.fontDisplay}`}>Education & Board Degrees</h3>
+                <GraduationCap className={`w-5 h-5 ${baseStyles.iconColor}`} />
+                <h3 className={`font-bold text-lg ${baseStyles.textPrimary} ${baseStyles.fontDisplay}`}>Education & Board Degrees</h3>
               </div>
               {educations.length === 0 ? (
-                <p className="text-xs text-slate-450 italic py-4">Educational board parameters are currently pending update.</p>
+                <p className="text-xs text-slate-450 dark:text-slate-500 italic py-4">Educational board parameters are currently pending update.</p>
               ) : (
                 <div className="space-y-6">
                   {educations.map((edu) => (
                     <div key={edu.id} className="flex justify-between items-start flex-wrap gap-4">
                       <div className="space-y-1">
-                        <h4 className={`text-base font-bold ${styles.textPrimary}`}>{edu.degree}</h4>
-                        <p className={`text-xs font-semibold ${styles.accentText}`}>{edu.field_of_study}</p>
-                        <p className="text-xs text-slate-500 font-medium">{edu.institution}</p>
+                        <h4 className={`text-base font-bold ${baseStyles.textPrimary}`}>{edu.degree}</h4>
+                        <p className={`text-xs font-semibold ${baseStyles.accentText}`}>{edu.field_of_study}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">{edu.institution}</p>
                       </div>
-                      <div className="text-right text-xs text-slate-450 space-y-1">
+                      <div className="text-right text-xs text-slate-450 dark:text-slate-500 space-y-1">
                         <div className="flex items-center gap-1">
                           <Calendar className="w-3.5 h-3.5" />
                           <span>{edu.start_date} &mdash; {edu.completed ? edu.end_date : 'Ongoing'}</span>
                         </div>
                         {edu.gpa && (
-                          <span className="inline-block bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded text-[10px] font-bold">GPA: {edu.gpa}</span>
+                          <span className="inline-block bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-1.5 py-0.5 rounded text-[10px] font-bold">GPA: {edu.gpa}</span>
                         )}
                       </div>
                     </div>
@@ -381,20 +393,20 @@ export default function PublicProfile() {
           {/* Right Column */}
           <div className="md:col-span-4 space-y-6">
             {/* Certifications Section */}
-            <section id="pub-section-cert" className={`p-6 rounded-3xl ${styles.cardBg} ${styles.borderStyle}`}>
+            <section className={`p-6 rounded-3xl ${styles.cardBg} ${styles.borderStyle}`}>
               <div className="flex items-center gap-2 mb-5">
-                <Award className={`w-5 h-5 ${styles.iconColor}`} />
-                <h3 className={`font-bold text-base ${styles.textPrimary} ${styles.fontDisplay}`}>Certifications</h3>
+                <Award className={`w-5 h-5 ${baseStyles.iconColor}`} />
+                <h3 className={`font-bold text-base ${baseStyles.textPrimary} ${baseStyles.fontDisplay}`}>Certifications</h3>
               </div>
               {certifications.length === 0 ? (
-                <p className="text-xs text-slate-450 italic py-2">No credential certifications posted yet.</p>
+                <p className="text-xs text-slate-450 dark:text-slate-500 italic py-2">No credential certifications posted yet.</p>
               ) : (
                 <div className="space-y-4">
                   {certifications.map((cert) => (
-                    <div key={cert.id} className="p-3.5 rounded-xl border border-slate-100 bg-slate-50/40">
-                      <h4 className={`text-xs font-bold ${styles.textPrimary} leading-snug`}>{cert.name}</h4>
-                      <p className="text-[10px] font-semibold text-slate-500 mt-1">{cert.issuing_organization}</p>
-                      <div className="flex items-center justify-between mt-3 text-[10px] text-slate-450 font-medium">
+                    <div key={cert.id} className="p-3.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-800/40">
+                      <h4 className={`text-xs font-bold ${baseStyles.textPrimary} leading-snug`}>{cert.name}</h4>
+                      <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 mt-1">{cert.issuing_organization}</p>
+                      <div className="flex items-center justify-between mt-3 text-[10px] text-slate-450 dark:text-slate-500 font-medium">
                         <span>Issued: {cert.issue_date}</span>
                         {cert.credential_id && (
                           <span className="font-mono">ID: {cert.credential_id}</span>
@@ -408,20 +420,20 @@ export default function PublicProfile() {
 
             {/* Research Section */}
             {research.length > 0 && (
-              <section id="pub-section-res" className={`p-6 rounded-3xl ${styles.cardBg} ${styles.borderStyle}`}>
+              <section className={`p-6 rounded-3xl ${styles.cardBg} ${styles.borderStyle}`}>
                 <div className="flex items-center gap-2 mb-5">
-                  <BookOpen className={`w-5 h-5 ${styles.iconColor}`} />
-                  <h3 className={`font-bold text-base ${styles.textPrimary} ${styles.fontDisplay}`}>Clinical Research</h3>
+                  <BookOpen className={`w-5 h-5 ${baseStyles.iconColor}`} />
+                  <h3 className={`font-bold text-base ${baseStyles.textPrimary} ${baseStyles.fontDisplay}`}>Clinical Research</h3>
                 </div>
                 <div className="space-y-4">
                   {research.map((proj) => (
                     <div key={proj.id} className="space-y-2">
-                      <h4 className={`text-xs font-bold ${styles.textPrimary} leading-snug`}>{proj.title}</h4>
+                      <h4 className={`text-xs font-bold ${baseStyles.textPrimary} leading-snug`}>{proj.title}</h4>
                       {proj.journal_or_publisher && (
-                        <p className="text-[10px] font-semibold text-indigo-600">{proj.journal_or_publisher} ({proj.publication_date})</p>
+                        <p className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400">{proj.journal_or_publisher} ({proj.publication_date})</p>
                       )}
                       {proj.abstract_text && (
-                        <p className={`text-[11px] leading-relaxed ${styles.textSecondary} line-clamp-3 italic`}>
+                        <p className={`text-[11px] leading-relaxed ${baseStyles.textSecondary} line-clamp-3 italic`}>
                           "{proj.abstract_text}"
                         </p>
                       )}
@@ -430,7 +442,7 @@ export default function PublicProfile() {
                           href={proj.project_url}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:underline pt-1"
+                          className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:underline pt-1"
                         >
                           <span>Full Study Link</span>
                           <ExternalLink className="w-3 h-3" />

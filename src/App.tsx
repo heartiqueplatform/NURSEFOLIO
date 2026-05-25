@@ -8,7 +8,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
-
+import { ThemeProvider } from './contexts/ThemeContext';
 // Layouts
 import { DefaultLayout } from './layouts/DefaultLayout';
 import { DashboardLayout } from './layouts/DashboardLayout';
@@ -47,52 +47,54 @@ import AdminDashboard from './pages/AdminDashboard';
 export default function App() {
   return (
     <ToastProvider>
-      <AuthProvider>
-        <BrowserRouter>
-          <Routes>
+      <ThemeProvider>
+        <AuthProvider>
+          <BrowserRouter>
+            <Routes>
 
-            {/* Public Pages grouped under DefaultLayout (includes Header/Navbar & Footer) */}
-            <Route element={<DefaultLayout />}>
-              <Route path="/" element={<LandingPage />} />
-              <Route path="/explore" element={<ExploreNurses />} />
-              <Route path="/verification-info" element={<VerificationInfo />} />
-              <Route path="/pricing" element={<Pricing />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/contact" element={<Contact />} />
-              <Route path="/legal" element={<LegalPages />} />
-            </Route>
+              {/* Public Pages grouped under DefaultLayout (includes Header/Navbar & Footer) */}
+              <Route element={<DefaultLayout />}>
+                <Route path="/" element={<LandingPage />} />
+                <Route path="/explore" element={<ExploreNurses />} />
+                <Route path="/verification-info" element={<VerificationInfo />} />
+                <Route path="/pricing" element={<Pricing />} />
+                <Route path="/about" element={<About />} />
+                <Route path="/contact" element={<Contact />} />
+                <Route path="/legal" element={<LegalPages />} />
+              </Route>
 
-            {/* Special public standalone router (no core header) */}
-            <Route path="/nurse/:username" element={<PublicProfile />} />
+              {/* Special public standalone router (no core header) */}
+              <Route path="/nurse/:username" element={<PublicProfile />} />
 
-            {/* Auth standalone pages */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
+              {/* Auth standalone pages */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
 
-            {/* Core Dashboard Layout guardian protected routes */}
-            <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-              <Route path="/dashboard" element={<DashboardHome />} />
-              <Route path="/dashboard/edit-profile" element={<EditProfile />} />
-              <Route path="/dashboard/experiences" element={<ExperiencePage />} />
-              <Route path="/dashboard/education" element={<EducationPage />} />
-              <Route path="/dashboard/certifications" element={<CertificationsPage />} />
-              <Route path="/dashboard/publications" element={<ResearchPage />} />
-              <Route path="/dashboard/theme" element={<PortfolioThemePage />} />
-              <Route path="/dashboard/cv" element={<UploadCVPage />} />
-              <Route path="/dashboard/settings" element={<SettingsPage />} />
-              <Route path="/dashboard/analytics" element={<AnalyticsPage />} />
+              {/* Core Dashboard Layout guardian protected routes */}
+              <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+                <Route path="/dashboard" element={<DashboardHome />} />
+                <Route path="/dashboard/edit-profile" element={<EditProfile />} />
+                <Route path="/dashboard/experiences" element={<ExperiencePage />} />
+                <Route path="/dashboard/education" element={<EducationPage />} />
+                <Route path="/dashboard/certifications" element={<CertificationsPage />} />
+                <Route path="/dashboard/publications" element={<ResearchPage />} />
+                <Route path="/dashboard/theme" element={<PortfolioThemePage />} />
+                <Route path="/dashboard/cv" element={<UploadCVPage />} />
+                <Route path="/dashboard/settings" element={<SettingsPage />} />
+                <Route path="/dashboard/analytics" element={<AnalyticsPage />} />
 
-              {/* Admin administration dashboard */}
-              <Route path="/admin" element={<AdminDashboard />} />
-            </Route>
+                {/* Admin administration dashboard */}
+                <Route path="/admin" element={<AdminDashboard />} />
+              </Route>
 
-            {/* 404 Guard fallback */}
-            <Route path="*" element={<NotFound />} />
+              {/* 404 Guard fallback */}
+              <Route path="*" element={<NotFound />} />
 
-          </Routes>
-        </BrowserRouter>
-      </AuthProvider>
+            </Routes>
+          </BrowserRouter>
+        </AuthProvider>
+      </ThemeProvider>
     </ToastProvider>
   );
 }

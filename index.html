@@ -1,13 +1,54 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>My Google AI Studio App</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>
 
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nursefolio</title>
+
+  <!-- Script to prevent theme flash and set initial theme -->
+  <script>
+    (function () {
+      // Get stored theme preference
+      let storedTheme = localStorage.getItem('theme-mode');
+
+      // Check for system preference if no stored theme
+      if (!storedTheme) {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        storedTheme = prefersDark ? 'dark' : 'light';
+        // Optionally save system preference for consistency
+        localStorage.setItem('theme-mode', storedTheme);
+      }
+
+      // Apply theme class immediately before React loads
+      if (storedTheme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+
+      // Add a small style to prevent white flash
+      const style = document.createElement('style');
+      style.textContent = `
+        html:not(.dark) {
+          background-color: #f8fafc;
+        }
+        html.dark {
+          background-color: #020617;
+        }
+        body {
+          background-color: inherit;
+          transition: background-color 0.2s ease;
+        }
+      `;
+      document.head.appendChild(style);
+    })();
+  </script>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+
+</html>

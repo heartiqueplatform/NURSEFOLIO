@@ -19,11 +19,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowe
 
   if (loading) {
     return (
-      <div id="protected-route-loading" className="min-h-screen bg-slate-50 flex flex-col items-center justify-center gap-4">
+      <div id="protected-route-loading" className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center gap-4">
         <div className="w-12 h-12 rounded-2xl bg-teal-600 flex items-center justify-center text-white shadow-lg animate-bounce">
           <Activity className="w-6 h-6" />
         </div>
-        <p className="text-slate-500 font-medium text-sm animate-pulse">Initializing Portal Session...</p>
+        <p className="text-slate-500 dark:text-slate-400 font-medium text-sm animate-pulse">Initializing Portal Session...</p>
       </div>
     );
   }

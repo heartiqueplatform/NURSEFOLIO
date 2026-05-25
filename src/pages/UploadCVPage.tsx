@@ -124,25 +124,32 @@ export default function UploadCVPage() {
   return (
     <div className="space-y-6 font-sans text-xs">
       {/* Header */}
-      <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm flex justify-between items-center">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm flex justify-between items-center">
         <div>
-          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-            <FileText className="w-6 h-6 text-teal-600" />
+          <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+            <FileText className="w-6 h-6 text-teal-600 dark:text-teal-400" />
             Resume & CV Management
           </h2>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             Upload and manage your professional PDF documents.
           </p>
         </div>
-        <button onClick={fetchDocs} className="p-2 text-slate-400 hover:text-teal-600 transition">
+        <button onClick={fetchDocs} className="p-2 text-slate-400 dark:text-slate-500 hover:text-teal-600 dark:hover:text-teal-400 transition">
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>
 
       {success && (
-        <div className="bg-emerald-50 border border-emerald-100 text-emerald-700 p-4 rounded-xl font-semibold flex items-center gap-2 animate-in fade-in">
+        <div className="bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 p-4 rounded-xl font-semibold flex items-center gap-2 animate-in fade-in">
           <Check className="w-4 h-4" />
           <span>{success}</span>
+        </div>
+      )}
+
+      {error && (
+        <div className="bg-rose-50 dark:bg-rose-950/50 border border-rose-100 dark:border-rose-800 text-rose-700 dark:text-rose-400 p-4 rounded-xl font-semibold flex items-center gap-2 animate-in fade-in">
+          <AlertCircle className="w-4 h-4" />
+          <span>{error}</span>
         </div>
       )}
 
@@ -151,21 +158,23 @@ export default function UploadCVPage() {
         onDragOver={handleDrag}
         onDragLeave={() => setDragActive(false)}
         onDrop={(e) => { e.preventDefault(); setDragActive(false); e.dataTransfer.files[0] && processFile(e.dataTransfer.files[0]); }}
-        className={`border-2 border-dashed rounded-3xl p-10 text-center transition-all ${dragActive ? 'border-teal-500 bg-teal-50/20' : 'border-slate-200 bg-slate-50/30'
+        className={`border-2 border-dashed rounded-3xl p-10 text-center transition-all ${dragActive
+          ? 'border-teal-500 bg-teal-50/20 dark:bg-teal-950/20'
+          : 'border-slate-200 dark:border-slate-700 bg-slate-50/30 dark:bg-slate-800/30'
           }`}
       >
         <input ref={fileInputRef} type="file" accept=".pdf" className="hidden" onChange={(e) => e.target.files?.[0] && processFile(e.target.files[0])} />
 
         {uploading ? (
           <div className="space-y-4 max-w-xs mx-auto">
-            <div className="w-10 h-10 border-4 border-slate-200 border-t-teal-600 rounded-full animate-spin mx-auto"></div>
-            <p className="font-bold text-slate-600">Uploading {progress}%...</p>
+            <div className="w-10 h-10 border-4 border-slate-200 dark:border-slate-700 border-t-teal-600 rounded-full animate-spin mx-auto"></div>
+            <p className="font-bold text-slate-600 dark:text-slate-400">Uploading {progress}%...</p>
           </div>
         ) : (
           <div className="space-y-2">
-            <Upload className="w-8 h-8 text-teal-600 mx-auto mb-2" />
-            <p className="text-sm font-bold text-slate-800">
-              Drag & drop a new PDF or <button onClick={() => fileInputRef.current?.click()} className="text-teal-600 underline cursor-pointer">choose file</button>
+            <Upload className="w-8 h-8 text-teal-600 dark:text-teal-400 mx-auto mb-2" />
+            <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+              Drag & drop a new PDF or <button onClick={() => fileInputRef.current?.click()} className="text-teal-600 dark:text-teal-400 underline cursor-pointer">choose file</button>
             </p>
           </div>
         )}
@@ -173,27 +182,27 @@ export default function UploadCVPage() {
 
       {/* THE LIST OF PAPERS */}
       <div className="space-y-4">
-        <h3 className="font-bold text-slate-700 ml-1">My Vault ({documents.length})</h3>
+        <h3 className="font-bold text-slate-700 dark:text-slate-300 ml-1">My Vault ({documents.length})</h3>
 
         {loading ? (
-          <p className="text-center py-10 text-slate-400 italic">Nursefolio loading your papers...</p>
+          <p className="text-center py-10 text-slate-400 dark:text-slate-500 italic">Nursefolio loading your papers...</p>
         ) : documents.length === 0 ? (
-          <div className="bg-white border border-slate-100 p-10 rounded-2xl text-center text-slate-400">
+          <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-10 rounded-2xl text-center text-slate-400 dark:text-slate-500">
             No documents yet.
           </div>
         ) : (
           documents.map((doc) => (
-            <div key={doc.id} className="bg-white border-2 border-teal-50 p-5 rounded-3xl shadow-sm flex items-center justify-between group">
+            <div key={doc.id} className="bg-white dark:bg-slate-900 border-2 border-teal-50 dark:border-teal-900/30 p-5 rounded-3xl shadow-sm flex items-center justify-between group">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center border border-rose-100">
+                <div className="w-12 h-12 bg-rose-50 dark:bg-rose-950/50 text-rose-500 dark:text-rose-400 rounded-2xl flex items-center justify-center border border-rose-100 dark:border-rose-800">
                   <FileText className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900 truncate max-w-[150px] sm:max-w-xs">
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate max-w-[150px] sm:max-w-xs">
                     {/* We show a pretty name based on the date */}
                     Document_{new Date(doc.created_at).toLocaleDateString()}
                   </h3>
-                  <p className="text-[10px] text-slate-400">PDF Document • Ready for download</p>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500">PDF Document • Ready for download</p>
                 </div>
               </div>
 
@@ -202,14 +211,14 @@ export default function UploadCVPage() {
                   href={doc.file_url}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center gap-1.5 px-4 py-2 bg-teal-50 text-teal-700 rounded-xl font-bold hover:bg-teal-100 transition"
+                  className="flex items-center gap-1.5 px-4 py-2 bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-400 rounded-xl font-bold hover:bg-teal-100 dark:hover:bg-teal-900/50 transition"
                 >
                   <ExternalLink className="w-4 h-4" />
                   <span className="hidden sm:inline">View</span>
                 </a>
                 <button
                   onClick={() => handleDeleteCv(doc.id, doc.file_url)}
-                  className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition"
+                  className="p-2 text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-xl transition"
                 >
                   <Trash2 className="w-5 h-5" />
                 </button>
