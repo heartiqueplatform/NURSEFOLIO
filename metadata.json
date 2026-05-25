@@ -1,0 +1,6 @@
+{
+  "name": "Nursefolio",
+  "description": "A professional portfolio, resume builder, and digital career platform for nurses and nursing students.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
