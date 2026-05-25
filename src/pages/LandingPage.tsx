@@ -257,7 +257,7 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
 
             {/* Registered Nurses section */}
-            <div className="p-8 rounded-[24px] bg-indigo-50/20 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-800/50 flex flex-col justify-between h-full">
+            <div className="p-8 rounded-xl bg-indigo-50/20 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-800/50 flex flex-col justify-between h-full">
               <div>
                 <HeartHandshake className="w-10 h-10 text-indigo-600 dark:text-indigo-400 mb-6" />
                 <h3 className="text-2xl font-display font-bold text-slate-900 dark:text-white mb-2">For Licensed Professionals</h3>
@@ -276,7 +276,7 @@ export default function LandingPage() {
             </div>
 
             {/* Students section */}
-            <div className="p-8 rounded-[24px] bg-indigo-50/10 dark:bg-indigo-950/10 border border-slate-200/80 dark:border-slate-800/80 flex flex-col justify-between h-full">
+            <div className="p-8 rounded-xl bg-indigo-50/10 dark:bg-indigo-950/10 border border-slate-200/80 dark:border-slate-800/80 flex flex-col justify-between h-full">
               <div>
                 <Activity className="w-10 h-10 text-indigo-455 dark:text-indigo-400 mb-6" />
                 <h3 className="text-2xl font-display font-bold text-slate-900 dark:text-white mb-2">For Nursing Students</h3>

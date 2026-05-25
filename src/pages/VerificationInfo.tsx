@@ -174,7 +174,7 @@ export default function VerificationInfo() {
         </div>
 
         {/* CTA */}
-        <div className="text-center p-8 bg-indigo-50/50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-800 rounded-[24px] max-w-xl mx-auto space-y-4">
+        <div className="text-center p-8 bg-indigo-50/50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-800 rounded-xl max-w-xl mx-auto space-y-4">
           <h4 className="text-xl font-bold font-display text-slate-850 dark:text-slate-200">Ready to boost your credentials?</h4>
           <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto leading-relaxed">
             Create an account, fill out your experience panel, and submit your registration check inside your portal.

@@ -105,10 +105,10 @@ export default function DashboardHome() {
   if (!user) return null;
 
   return (
-    <div className="space-y-8 font-sans">
+    <div className="space-y-2 font-sans">
 
       {/* Greetings block */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
         <div>
           <h1 className="text-3xl font-display font-bold text-slate-900 dark:text-white leading-tight">
             Welcome back, {user.first_name}
@@ -270,7 +270,7 @@ export default function DashboardHome() {
                 </div>
               ))
             ) : (
-              <div className="py-6 text-center">
+              <div className="py-2 text-center">
                 <p className="text-slate-400 dark:text-slate-500 text-xs">No work experience or degree items added yet.</p>
                 <Link to="/dashboard/experiences" className="text-xs text-indigo-600 dark:text-indigo-400 font-bold hover:underline mt-2 inline-block">
                   Add Milestones Now
@@ -284,7 +284,7 @@ export default function DashboardHome() {
         <div className="md:col-span-3 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-[32px] p-6 sm:p-8 shadow-sm">
           <h3 className="font-display font-bold text-slate-900 dark:text-white text-base mb-6">Top Specialties</h3>
 
-          <div className="space-y-4">
+          <div className="space-y-2">
             {skills.slice(0, 4).map((skill, index) => {
               const widths = ['w-[95%]', 'w-[88%]', 'w-[91%]', 'w-[80%]'];
               const scores = ['95%', '88%', '91%', '80%'];
@@ -306,7 +306,7 @@ export default function DashboardHome() {
         </div>
 
         {/* Theme Settings Cell */}
-        <div className="md:col-span-3 bg-slate-900 dark:bg-slate-800 rounded-[32px] p-6 text-white flex flex-col justify-between shadow-lg h-full min-h-[260px]">
+        <div className="md:col-span-3 bg-slate-900 dark:bg-slate-800 rounded-xl p-6 text-white flex flex-col justify-between shadow-lg h-full min-h-[260px]">
           <div>
             <div className="flex justify-between items-start mb-4">
               <h3 className="text-sm font-bold font-display uppercase tracking-wider text-slate-300 dark:text-slate-400">Theme Profile</h3>
@@ -354,7 +354,7 @@ export default function DashboardHome() {
           <Link
             id="shortcut-edit-prof"
             to="/dashboard/edit-profile"
-            className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-[24px] p-5 hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-md transition-all flex items-start gap-4"
+            className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-xl p-5 hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-md transition-all flex items-start gap-4"
           >
             <div className="p-3 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 rounded-xl border border-indigo-100/40 dark:border-indigo-800">
               <Award className="w-5 h-5" />
@@ -368,7 +368,7 @@ export default function DashboardHome() {
           <Link
             id="shortcut-experiences"
             to="/dashboard/experiences"
-            className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-[24px] p-5 hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-md transition-all flex items-start gap-4"
+            className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-xl p-5 hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-md transition-all flex items-start gap-4"
           >
             <div className="p-3 bg-indigo-55/10 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 rounded-xl border border-indigo-100/20 dark:border-indigo-800">
               <FileSpreadsheet className="w-5 h-5" />
@@ -382,7 +382,7 @@ export default function DashboardHome() {
           <Link
             id="shortcut-theme"
             to="/dashboard/theme"
-            className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-[24px] p-5 hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-md transition-all flex items-start gap-4"
+            className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-xl p-5 hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-md transition-all flex items-start gap-4"
           >
             <div className="p-3 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 rounded-xl border border-indigo-100/40 dark:border-indigo-800">
               <Palette className="w-5 h-5" />

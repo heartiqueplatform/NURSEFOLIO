@@ -64,9 +64,9 @@ export const StatsCard: React.FC<StatsCardProps> = ({
   const scheme = colorMaps[color] || colorMaps.indigo;
 
   return (
-    <div 
+    <div
       id={id}
-      className={`relative overflow-hidden rounded-[24px] border border-slate-200/60 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5`}
+      className={`relative overflow-hidden rounded-xl border border-slate-200/60 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5`}
     >
       <div className="flex items-start justify-between">
         <div>
@@ -77,7 +77,7 @@ export const StatsCard: React.FC<StatsCardProps> = ({
           <Icon className="w-5 h-5" />
         </div>
       </div>
-      
+
       <div className="mt-4 flex items-center justify-between text-xs">
         <span className="text-slate-500 font-medium font-sans">{description}</span>
         {trend && (

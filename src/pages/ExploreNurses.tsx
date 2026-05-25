@@ -87,29 +87,30 @@ export default function ExploreNurses() {
   });
 
   return (
-    <div className="bg-slate-50/50 dark:bg-slate-950/50 min-h-screen py-10">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="w-full py-2 md:py-6">
+      <div className="max-w-7xl mx-auto">
 
         {/* Page title header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+        <div className="flex flex-col mt-20 md:flex-row md:items-end justify-between gap-2 mb-8">
           <div>
-            <span className="text-xs bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-100/50 dark:border-indigo-800/50 text-indigo-700 dark:text-indigo-400 font-bold px-3 py-1 rounded-full uppercase tracking-wider font-mono">
+            <span className="text-xs bg-indigo-50 dark:bg-indigo-950/50  border-0 text-indigo-700 dark:text-indigo-400 font-bold px-3 py-1 rounded-full uppercase tracking-wider font-mono">
               Nurse Registry
             </span>
-            <h1 className="text-3xl font-display font-extrabold tracking-tight text-slate-900 dark:text-white mt-2">
+            <h1 className="text-2xl md:text-3xl font-display font-extrabold tracking-tight text-slate-900 dark:text-white mt-2">
               Discover Certified Clinicians
             </h1>
             <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-              Verify licenses, specialties, and connect with peer leaders or nursing students.
+              Verify licenses, specialties, and connect with peer leaders.
             </p>
           </div>
-          <div className="text-xs text-slate-400 dark:text-slate-500 font-semibold bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-xl px-3.5 py-1.5 shadow-xs">
-            Showing <span className="text-indigo-600 dark:text-indigo-400 font-extrabold">{filteredProfiles.length}</span> of {profiles.length} available members
+          {/* MAMA'S TIP: Hidden on very small phones to save space */}
+          <div className="hidden sm:block text-xs text-slate-400 dark:text-slate-500 font-semibold bg-white dark:bg-slate-900 border border-0 rounded-xl px-3.5 py-1.5 shadow-xs">
+            Showing <span className="text-indigo-600 dark:text-indigo-400 font-extrabold">{filteredProfiles.length}</span> of {profiles.length}
           </div>
         </div>
 
         {/* Filter Toolbar Area */}
-        <div className="bg-white dark:bg-slate-900 rounded-[24px] border border-slate-200/60 dark:border-slate-800 p-4 sm:p-6 shadow-sm mb-8 space-y-4">
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-0 p-4 sm:p-6 shadow-sm mb-8 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
 
             {/* Search Input bar */}
@@ -212,7 +213,7 @@ export default function ExploreNurses() {
             <p className="text-xs text-slate-450 dark:text-slate-500 font-medium">Querying nurse registries...</p>
           </div>
         ) : filteredProfiles.length === 0 ? (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-2xl p-16 text-center max-w-lg mx-auto shadow-sm">
+          <div className="bg-white dark:bg-slate-900 border border-0 rounded-2xl p-16 text-center max-w-lg mx-auto shadow-sm">
             <div className="w-16 h-16 rounded-2xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-405 dark:text-slate-500 mx-auto mb-6 border border-slate-100 dark:border-slate-700">
               <Search className="w-6 h-6 text-slate-400 dark:text-slate-500" />
             </div>
@@ -243,7 +244,7 @@ export default function ExploreNurses() {
                   initial={{ opacity: 0, scale: 0.98 }}
                   animate={{ opacity: 1, scale: 1 }}
                   key={p.id}
-                  className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-[24px] shadow-sm hover:shadow-md transition duration-300 overflow-hidden flex flex-col justify-between group"
+                  className="bg-white dark:bg-slate-900 border border-0 rounded-xl shadow-sm hover:shadow-md transition duration-300 overflow-hidden flex flex-col justify-between group"
                 >
                   <div className="p-6">
                     {/* Header Row */}
@@ -348,7 +349,7 @@ export default function ExploreNurses() {
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="bg-white dark:bg-slate-900 rounded-[32px] overflow-hidden w-full max-w-sm relative shadow-xl border border-slate-200/60 dark:border-slate-800 z-10"
+              className="bg-white dark:bg-slate-900 rounded-[32px] overflow-hidden w-full max-w-sm relative shadow-xl border border-0 z-10"
             >
               {/* Colored header cover block fallback */}
               <div className="h-24 bg-gradient-to-r from-indigo-700 via-indigo-600 to-indigo-800 p-4 relative">

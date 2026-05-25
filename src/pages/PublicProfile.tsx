@@ -105,8 +105,8 @@ export default function PublicProfile() {
   if (!profile) {
     return (
       <div id="profile-not-found" className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-4">
-        <div className="bg-white dark:bg-slate-900 rounded-3xl p-10 max-w-md w-full text-center border border-slate-100 dark:border-slate-800 shadow-sm space-y-4">
-          <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto border border-amber-100 dark:border-amber-800">
+        <div className="bg-white dark:bg-slate-900 rounded-xl p-10 max-w-md w-full text-center border-0 shadow-sm space-y-4">
+          <div className="w-16 h-16 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto border-0">
             <HelpCircle className="w-8 h-8" />
           </div>
           <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Portfolio Not Found</h2>
@@ -124,7 +124,7 @@ export default function PublicProfile() {
             <Link
               id="notfound-landing"
               to="/"
-              className="py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800"
+              className="py-2.5 rounded-xl border-0 text-slate-600 dark:text-slate-400 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800"
             >
               Home Page
             </Link>
@@ -155,14 +155,14 @@ export default function PublicProfile() {
           <ArrowLeft className="w-4 h-4" />
           <span>Back to Portal</span>
         </Link>
-        <span className={`text-[10px] font-mono px-2.5 py-1 rounded-md bg-white/10 dark:bg-slate-800/50 backdrop-blur-sm border border-white/10 dark:border-slate-700 uppercase font-bold text-slate-700 dark:text-slate-300`}>
+        <span className={`text-[10px] font-mono px-2.5 py-1 rounded-md bg-white/10 dark:bg-slate-800/50 backdrop-blur-sm border-0 uppercase font-bold text-slate-700 dark:text-slate-300`}>
           Mode: Public Preview
         </span>
       </header>
 
       <div className="max-w-4xl mx-auto px-4 mt-6">
         {/* Profile Card Header Block */}
-        <div className={`rounded-3xl shadow-md overflow-hidden ${styles.cardBg} ${styles.borderStyle}`}>
+        <div className={`rounded-xl shadow-md overflow-hidden ${styles.cardBg} ${styles.borderStyle}`}>
           {/* Cover photo - using cover_url from database */}
           {profile.cover_url ? (
             <div className="h-44 md:h-52 relative">
@@ -190,7 +190,7 @@ export default function PublicProfile() {
                 <img
                   src={profile.avatar_url}
                   alt={`${profile.first_name} ${profile.last_name}`}
-                  className={`w-28 h-28 object-cover rounded-2xl border-4 shadow bg-white dark:bg-slate-900 ${profile.profile_theme === 'dark' || themeMode === 'dark' ? 'border-slate-800' : 'border-white'}`}
+                  className={`w-28 h-28 object-cover rounded-xl border-4 shadow bg-white dark:bg-slate-900 ${profile.profile_theme === 'dark' || themeMode === 'dark' ? 'border-slate-800' : 'border-white'}`}
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1574496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200&h=200';
                   }}
@@ -199,7 +199,7 @@ export default function PublicProfile() {
                 <img
                   src="https://images.unsplash.com/photo-1574496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200&h=200"
                   alt="Default Avatar"
-                  className={`w-28 h-28 object-cover rounded-2xl border-4 shadow bg-white dark:bg-slate-900 ${profile.profile_theme === 'dark' || themeMode === 'dark' ? 'border-slate-800' : 'border-white'}`}
+                  className={`w-28 h-28 object-cover rounded-xl border-4 shadow bg-white dark:bg-slate-900 ${profile.profile_theme === 'dark' || themeMode === 'dark' ? 'border-slate-800' : 'border-white'}`}
                 />
               )}
             </div>
@@ -207,10 +207,10 @@ export default function PublicProfile() {
             {/* Availability badges */}
             <div className="absolute top-4 right-4 md:right-8 flex flex-col sm:flex-row gap-2">
               <span className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-full ${profile.availability_status === 'available'
-                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-0'
                 : profile.availability_status === 'open'
-                  ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
-                  : 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border border-slate-500/20'
+                  ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-0'
+                  : 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-0'
                 }`}>
                 <span className={`w-2 h-2 rounded-full ${profile.availability_status === 'available'
                   ? 'bg-emerald-500 dark:bg-emerald-400 animate-ping'
@@ -225,7 +225,7 @@ export default function PublicProfile() {
             </div>
 
             {/* Basic Info Rows */}
-            <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
+            <div className="flex flex-col md:flex-row md:items-start justify-between gap-2">
               <div className="space-y-2">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h2 className={`text-2xl md:text-3.5xl font-extrabold tracking-tight ${baseStyles.textPrimary} ${baseStyles.fontDisplay}`}>
@@ -273,7 +273,7 @@ export default function PublicProfile() {
 
             {/* Bio statement */}
             {profile.bio && (
-              <div className="mt-6 pt-6 border-t border-slate-100/40 dark:border-slate-800/40">
+              <div className="mt-6 pt-6 border-0">
                 <h5 className={`text-xs uppercase font-bold tracking-wider mb-2 ${baseStyles.textSecondary}`}>Biography Summary</h5>
                 <p className={`text-sm leading-relaxed ${baseStyles.textSecondary} whitespace-pre-line`}>
                   {profile.bio}
@@ -282,7 +282,7 @@ export default function PublicProfile() {
             )}
 
             {/* Specialties & Skills */}
-            <div className="mt-6 pt-6 border-t border-slate-100/40 dark:border-slate-800/40 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="mt-6 pt-6 border-0 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <h5 className={`text-xs uppercase font-bold tracking-wider mb-2.5 ${baseStyles.textSecondary}`}>Medical Specialties</h5>
                 <div className="flex flex-wrap gap-1.5">
@@ -319,9 +319,9 @@ export default function PublicProfile() {
         {/* Two Column Layout */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mt-6">
           {/* Left Column */}
-          <div className="md:col-span-8 space-y-6">
+          <div className="md:col-span-8 space-y-2">
             {/* Work Experience Section */}
-            <section className={`p-6 md:p-8 rounded-3xl ${styles.cardBg} ${styles.borderStyle}`}>
+            <section className={`p-6 md:p-8 rounded-xl ${styles.cardBg} ${styles.borderStyle}`}>
               <div className="flex items-center gap-2 mb-6">
                 <Briefcase className={`w-5 h-5 ${baseStyles.iconColor}`} />
                 <h3 className={`font-bold text-lg ${baseStyles.textPrimary} ${baseStyles.fontDisplay}`}>Clinical Work Experience</h3>
@@ -329,10 +329,10 @@ export default function PublicProfile() {
               {experiences.length === 0 ? (
                 <p className="text-xs text-slate-450 dark:text-slate-500 italic py-4">Work experience details are currently pending update.</p>
               ) : (
-                <div className="space-y-6 relative border-l border-slate-100 dark:border-slate-800 pl-4 ml-2">
+                <div className="space-y-2 relative border-0 pl-4 ml-2">
                   {experiences.map((exp) => (
                     <div key={exp.id} className="relative group">
-                      <span className={`absolute -left-[21px] top-1.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 bg-slate-400 dark:bg-slate-600 group-hover:bg-indigo-500 dark:group-hover:bg-indigo-400`}></span>
+                      <span className={`absolute -left-[21px] top-1.5 w-2.5 h-2.5 rounded-full border-0 bg-slate-400 dark:bg-slate-600 group-hover:bg-indigo-500 dark:group-hover:bg-indigo-400`}></span>
                       <div className="flex justify-between items-start flex-wrap gap-1">
                         <div>
                           <h4 className={`text-base font-bold ${baseStyles.textPrimary}`}>{exp.title}</h4>
@@ -358,7 +358,7 @@ export default function PublicProfile() {
             </section>
 
             {/* Education Section */}
-            <section className={`p-6 md:p-8 rounded-3xl ${styles.cardBg} ${styles.borderStyle}`}>
+            <section className={`p-6 md:p-8 rounded-xl ${styles.cardBg} ${styles.borderStyle}`}>
               <div className="flex items-center gap-2 mb-6">
                 <GraduationCap className={`w-5 h-5 ${baseStyles.iconColor}`} />
                 <h3 className={`font-bold text-lg ${baseStyles.textPrimary} ${baseStyles.fontDisplay}`}>Education & Board Degrees</h3>
@@ -393,7 +393,7 @@ export default function PublicProfile() {
           {/* Right Column */}
           <div className="md:col-span-4 space-y-6">
             {/* Certifications Section */}
-            <section className={`p-6 rounded-3xl ${styles.cardBg} ${styles.borderStyle}`}>
+            <section className={`p-6 rounded-xl ${styles.cardBg} ${styles.borderStyle}`}>
               <div className="flex items-center gap-2 mb-5">
                 <Award className={`w-5 h-5 ${baseStyles.iconColor}`} />
                 <h3 className={`font-bold text-base ${baseStyles.textPrimary} ${baseStyles.fontDisplay}`}>Certifications</h3>
@@ -403,7 +403,7 @@ export default function PublicProfile() {
               ) : (
                 <div className="space-y-4">
                   {certifications.map((cert) => (
-                    <div key={cert.id} className="p-3.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-800/40">
+                    <div key={cert.id} className="p-3.5 rounded-xl border-0 bg-slate-50/40 dark:bg-slate-800/40">
                       <h4 className={`text-xs font-bold ${baseStyles.textPrimary} leading-snug`}>{cert.name}</h4>
                       <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 mt-1">{cert.issuing_organization}</p>
                       <div className="flex items-center justify-between mt-3 text-[10px] text-slate-450 dark:text-slate-500 font-medium">
@@ -420,7 +420,7 @@ export default function PublicProfile() {
 
             {/* Research Section */}
             {research.length > 0 && (
-              <section className={`p-6 rounded-3xl ${styles.cardBg} ${styles.borderStyle}`}>
+              <section className={`p-6 rounded-xl ${styles.cardBg} ${styles.borderStyle}`}>
                 <div className="flex items-center gap-2 mb-5">
                   <BookOpen className={`w-5 h-5 ${baseStyles.iconColor}`} />
                   <h3 className={`font-bold text-base ${baseStyles.textPrimary} ${baseStyles.fontDisplay}`}>Clinical Research</h3>
