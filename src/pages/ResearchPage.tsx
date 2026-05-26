@@ -265,8 +265,7 @@ export default function ResearchPage() {
                 <div className="pt-2 flex justify-end">
                   <a
                     href={proj.project_url}
-                    target="_blank"
-                    rel="noreferrer"
+
                     className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
                   >
                     <span>Full Published Link</span>

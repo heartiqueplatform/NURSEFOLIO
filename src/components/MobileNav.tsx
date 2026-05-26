@@ -21,28 +21,60 @@ import {
   Settings,
   Heart,
   LogOut,
-  X
+  X,
+  Compass,
+  Sun,
+  Moon
 } from 'lucide-react';
 
 export const MobileNav: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [dragY, setDragY] = React.useState(0);
+  const [dragX, setDragX] = React.useState(0);
   const [isDragging, setIsDragging] = React.useState(false);
   const [openMenu, setOpenMenu] = React.useState(false);
   const [showGoodbyeModal, setShowGoodbyeModal] = React.useState(false);
   const startY = React.useRef(0);
+  const startX = React.useRef(0);
   const currentY = React.useRef(0);
+
+  // Get theme mode from localStorage or system preference
+  const [themeMode, setThemeMode] = React.useState<'light' | 'dark'>('light');
+
+  React.useEffect(() => {
+    // Check current theme on mount
+    const isDark = document.documentElement.classList.contains('dark');
+    setThemeMode(isDark ? 'dark' : 'light');
+  }, []);
+
+  const toggleThemeMode = () => {
+    const newMode = themeMode === 'dark' ? 'light' : 'dark';
+    setThemeMode(newMode);
+
+    // Toggle dark class on html element
+    if (newMode === 'dark') {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  };
+
   const handleSignOut = async () => {
     await logout();
     navigate('/');
   };
+
   const handleExitClick = () => {
     setOpenMenu(false);
     setShowGoodbyeModal(true);
   };
+
   const onTouchStart = (e: React.TouchEvent) => {
     startY.current = e.touches[0].clientY;
+    startX.current = e.touches[0].clientX;
     setIsDragging(true);
   };
 
@@ -50,15 +82,22 @@ export const MobileNav: React.FC = () => {
     if (!isDragging) return;
 
     const y = e.touches[0].clientY;
-    const diff = y - startY.current;
+    const x = e.touches[0].clientX;
+    const diffY = y - startY.current;
+    const diffX = x - startX.current;
 
-    // only allow downward drag
-    if (diff > 0) {
-      // add resistance (feels like iOS sheet)
-      const resistance = diff * 0.6;
+    // Allow dragging left or right with resistance
+    if (Math.abs(diffX) > Math.abs(diffY)) {
+      // Horizontal drag
+      const resistance = diffX * 0.6;
+      setDragX(resistance);
+    } else if (diffY > 0) {
+      // Vertical drag (downward only, with resistance)
+      const resistance = diffY * 0.6;
       setDragY(resistance);
     }
   };
+
   const onTouchEnd = () => {
     setIsDragging(false);
 
@@ -67,8 +106,19 @@ export const MobileNav: React.FC = () => {
       setOpenMenu(false);
     }
 
-    // Always reset position (important for snap-back feel)
+    // If pulled left enough → close
+    if (dragX < -100) {
+      setOpenMenu(false);
+    }
+
+    // If pulled right enough → close
+    if (dragX > 100) {
+      setOpenMenu(false);
+    }
+
+    // Reset positions
     setDragY(0);
+    setDragX(0);
   };
 
   return (
@@ -209,20 +259,19 @@ export const MobileNav: React.FC = () => {
       {openMenu && (
         <div className="fixed inset-0 z-[9999] bg-black/50 flex items-end pb-20" onClick={() => setOpenMenu(false)}>
           <div
-            className="w-full bg-white dark:bg-zinc-950 rounded-t-3xl p-5 overflow-hidden relative transition-transform duration-200 ease-out"
+            className="w-full bg-white dark:bg-zinc-950 rounded-t-3xl rounded-b-xl p-5 overflow-hidden relative transition-transform duration-200 ease-out"
             style={{
-              transform: `translateY(${dragY}px)`,
+              transform: `translate(${dragX}px, ${dragY}px)`,
               transition: isDragging ? 'none' : 'transform 0.25s ease-out'
             }}
             onTouchStart={onTouchStart}
             onTouchMove={onTouchMove}
             onTouchEnd={onTouchEnd}
-
             onClick={e => e.stopPropagation()}
           >
 
             {/* Ghost Rubik's Cube SVG Background */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden rounded-t-3xl">
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden rounded-t-3xl rounded-b-xl">
               <div className="animate-cube-spin opacity-[0.04] dark:opacity-[0.07]">
                 <svg width="300" height="300" viewBox="0 0 260 260" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <polygon points="130,20 20,80 20,180 130,130" fill="#6366f1" stroke="#6366f1" strokeWidth="1.5" strokeLinejoin="round" />
@@ -265,6 +314,10 @@ export const MobileNav: React.FC = () => {
 
             {/* MENU GRID */}
             <div className="grid grid-cols-2 gap-2 text-sm relative z-10">
+              <NavLink to="/explore" onClick={() => setOpenMenu(false)}
+                className={({ isActive }) => `flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-medium transition-all ${isActive ? 'bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400' : 'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+                <Compass className="w-4 h-4 flex-shrink-0" />Explore Registry
+              </NavLink>
 
               <NavLink to="/dashboard" onClick={() => setOpenMenu(false)}
                 className={({ isActive }) => `flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-medium transition-all ${isActive ? 'bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400' : 'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
@@ -311,19 +364,34 @@ export const MobileNav: React.FC = () => {
                 <Settings className="w-4 h-4 flex-shrink-0" />Settings
               </NavLink>
 
+              {/* Explore Registry - New Navigation Item */}
+
             </div>
 
             {/* THEME BUTTON + LOGOUT */}
+            {/* THEME BUTTON + LOGOUT */}
             <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 relative z-10">
 
+              {/* Theme Settings Link - Go to Theme Page */}
               <NavLink
                 to="/dashboard/theme"
                 onClick={() => setOpenMenu(false)}
-                className="w-full py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-sm font-semibold flex items-center justify-center gap-2 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition"
+                className="w-full py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-sm font-semibold flex items-center justify-center gap-2 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
               >
                 <Palette className="w-4 h-4" />
                 Theme Settings
               </NavLink>
+
+              {/* Mobile Theme Toggle - Quick toggle without leaving page */}
+              <button
+                id="mobile-btn-theme"
+                onClick={toggleThemeMode}
+                className="w-full mt-2 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-sm font-semibold flex items-center justify-center gap-2 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                title={themeMode === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              >
+                {themeMode === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                {themeMode === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              </button>
 
               {/* Exit button — small & subtle, doesn't encourage logout */}
               {user && (

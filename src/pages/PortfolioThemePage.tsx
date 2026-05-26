@@ -66,8 +66,8 @@ export default function PortfolioThemePage() {
         <a
           id="theme-btn-preview"
           href={`/nurse/${user.username}`}
-          target="_blank"
-          rel="noopener noreferrer"
+
+
           className="text-xs font-semibold text-teal-605 dark:text-teal-400 hover:underline flex items-center gap-1.5"
         >
           <span>Open live page to test</span>

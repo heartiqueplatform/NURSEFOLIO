@@ -440,8 +440,7 @@ export default function PublicProfile() {
                       {proj.project_url && (
                         <a
                           href={proj.project_url}
-                          target="_blank"
-                          rel="noreferrer"
+
                           className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:underline pt-1"
                         >
                           <span>Full Study Link</span>
