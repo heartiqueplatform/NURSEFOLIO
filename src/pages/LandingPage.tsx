@@ -3,13 +3,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // Added useEffect
 import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   Activity, Search, ShieldCheck, FileText,
-  Palette, Smartphone, ArrowRight, HeartHandshake, GraduationCap, LogIn, Sun, Moon
+  Palette, Smartphone, ArrowRight, HeartHandshake,
+  Sun, Moon, MapPin, Briefcase, ChevronRight
 } from 'lucide-react';
+
+// --- NEW IMPORTS FOR REAL DATA ---
+import { databaseService } from '../services/databaseService';
+import { UserProfile } from '../types';
+import { VerificationBadge } from '../components/VerificationBadge';
 import { useThemeMode } from '../contexts/ThemeContext';
 
 export default function LandingPage() {
@@ -17,6 +23,40 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const { themeMode, toggleThemeMode } = useThemeMode();
 
+  // --- REAL DATA STATES ---
+  const [profiles, setProfiles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // --- NEW: Function to "Lock" the content ---
+  const handleProtectedAction = (e: React.MouseEvent) => {
+    e.preventDefault(); // Stop the link from working normally
+    navigate('/register'); // Send them to sign up instead!
+  };
+  useEffect(() => {
+    const loadNurses = async () => {
+      try {
+        setLoading(true);
+        const data = await databaseService.getProfiles();
+
+        // If the database is empty, don't do anything
+        if (!data || data.length === 0) return;
+
+        // TRICK: To make a marquee look "endless", we need enough items to fill the screen.
+        // If you only have a few nurses, we repeat the list so there are no gaps.
+        if (data.length < 10) {
+          setProfiles([...data, ...data, ...data, ...data]);
+        } else {
+          setProfiles([...data, ...data]); // If you have many, just doubling is enough
+        }
+      } catch (err) {
+        console.error("Database error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadNurses();
+  }, []);
+  const goToRegister = () => navigate('/register');
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
@@ -27,7 +67,7 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="bg-white dark:bg-slate-950 overflow-hidden">
+    <div className="bg-white dark:bg-zinc-950 mt-6 overflow-hidden">
       {/* Theme Toggle Button - Fixed Position */}
       <button
         onClick={toggleThemeMode}
@@ -42,7 +82,7 @@ export default function LandingPage() {
       </button>
 
       {/* Hero Section */}
-      <div className="relative pt-10 pb-20 sm:pb-24 lg:pt-16 lg:pb-32 bg-gradient-to-br from-indigo-50/30 via-white to-indigo-50/10 dark:from-indigo-950/20 dark:via-slate-950 dark:to-indigo-950/10">
+      <div className="relative pt-10 pb-20 sm:pb-24 lg:pt-16 lg:pb-32 dark:bg-zinc-950">
 
         {/* Soft floating background orb */}
         <div className="absolute top-20 right-1/4 w-96 h-96 bg-indigo-200/10 dark:bg-indigo-500/5 rounded-full blur-3xl -z-10 animate-pulse duration-[6000ms]"></div>
@@ -88,7 +128,7 @@ export default function LandingPage() {
                 transition={{ duration: 0.5, delay: 0.3 }}
                 className="mt-8 sm:max-w-lg sm:mx-auto lg:mx-0"
               >
-                <form onSubmit={handleSearchSubmit} className="relative flex items-center bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm focus-within:border-indigo-450 focus-within:ring-4 focus-within:ring-indigo-105/50 transition-all">
+                <form onSubmit={handleSearchSubmit} className="relative flex items-center bg-white dark:bg-zinc-950 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm focus-within:border-indigo-450 focus-within:ring-4 focus-within:ring-indigo-105/50 transition-all">
                   <div className="pl-3 text-slate-400 dark:text-slate-500">
                     <Search className="w-5 h-5" />
                   </div>
@@ -119,80 +159,71 @@ export default function LandingPage() {
             </div>
 
             {/* Right Column Custom Profile Cards Simulation */}
-            <div className="mt-12 sm:mt-16 lg:mt-0 lg:col-span-5 flex justify-center">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-                className="relative bg-slate-900 dark:bg-slate-800 text-white rounded-3xl p-6 w-full max-w-sm shadow-2xl border border-slate-800 dark:border-slate-700"
-              >
-                {/* Simulated Glass Cover Header */}
-                <div className="relative h-28 bg-gradient-to-br from-indigo-500 via-indigo-600 to-indigo-800 rounded-2xl overflow-hidden mb-12">
-                  <div className="absolute top-3 right-3 bg-white/10 backdrop-blur-md text-[10px] font-bold px-2.5 py-1 rounded-full text-white border border-white/20">
-                    AVAILABLE
-                  </div>
-                </div>
+            {/* Right Column - Endless Vertical Marquee */}
+            <div className="mt-12 lg:mt-0 lg:col-span-5 relative">
 
-                {/* Avatar positioning */}
-                <div className="absolute top-20 left-10">
-                  <img
-                    src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=150&h=150"
-                    alt="Simulated nurse avatar"
-                    className="w-16 h-16 rounded-2xl object-cover border-4 border-slate-900 dark:border-slate-800 shadow-lg"
-                  />
-                </div>
+              {/* This is the "Window" that hides the cards going out of bounds */}
+              <div className="h-[500px] overflow-hidden relative rounded-3xl border border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-zinc-900/30">
 
-                {/* Profile detail values */}
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <h3 className="font-bold text-lg text-white">Lucy Munini</h3>
-                      <ShieldCheck className="w-5 h-5 text-indigo-400" />
-                    </div>
-                    <p className="text-xs text-indigo-400 font-semibold tracking-wide">Registered Nurse (RN) • Boston, MA</p>
-                  </div>
+                {/* Fade Effect at top and bottom so cards "appear/disappear" smoothly */}
+                <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-white dark:from-zinc-950 to-transparent z-10"></div>
+                <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-white dark:from-zinc-950 to-transparent z-10"></div>
 
-                  <p className="text-xs text-slate-300 dark:text-slate-300 leading-relaxed font-normal">
-                    "Specializing in Neonatal Intensive Care & high-risk pediatric acute cases with 5+ years of clinical service."
-                  </p>
-
-                  <div className="flex flex-wrap gap-1.5">
-                    <span className="text-[10px] bg-slate-800 dark:bg-slate-700 text-slate-300 font-medium px-2 py-0.5 rounded-full">Pediatrics</span>
-                    <span className="text-[10px] bg-slate-800 dark:bg-slate-700 text-slate-300 font-medium px-2 py-0.5 rounded-full">NICU Clinical</span>
-                    <span className="text-[10px] bg-slate-800 dark:bg-slate-700 text-slate-300 font-medium px-2 py-0.5 rounded-full">Ventilators</span>
-                  </div>
-
-                  {/* Highlight credential list */}
-                  <div className="pt-4 border-t border-slate-800/80 dark:border-slate-700/80 mt-4 space-y-2 text-xs">
-                    <div className="flex items-center justify-between text-slate-400">
-                      <span>Verification Badge</span>
-                      <span className="text-emerald-400 font-semibold text-[10px]">VERIFIED BOARD ID</span>
-                    </div>
-                    <div className="flex items-center justify-between text-slate-400">
-                      <span>CV Downloadable</span>
-                      <span className="text-indigo-450 font-semibold text-[10px]">PDF AUTO-GEN READY</span>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 pt-1">
-                    <Link
-                      id="hero-discover-sample-btn"
-                      to="/nurse/lucymunini"
-                      className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:opacity-90 text-white font-bold py-2.5 rounded-xl text-xs transition active:scale-[98%]"
+                {/* The Moving List */}
+                <motion.div
+                  animate={{ y: ["0%", "-50%"] }} // Moves half-way up then resets instantly
+                  transition={{
+                    duration: 20, // Lower number = Faster speed
+                    repeat: Infinity,
+                    ease: "linear"
+                  }}
+                  className="flex flex-col gap-4 p-4"
+                >
+                  {profiles.map((p, index) => (
+                    <div
+                      key={index}
+                      onClick={goToRegister}
+                      className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-md cursor-pointer hover:border-indigo-400 transition-colors group w-full"
                     >
-                      <span>Explore Sample Profile</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </Link>
-                  </div>
-                </div>
-              </motion.div>
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={p.avatar_url || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=100&h=100'}
+                          className="w-12 h-12 rounded-xl object-cover border border-slate-100 dark:border-slate-800 shadow-sm"
+                          alt="Nurse"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-bold text-slate-900 dark:text-white text-sm">
+                              {p.first_name} {p.last_name}
+                            </h4>
+                            <VerificationBadge status={p.verification_status} showText={false} />
+                          </div>
+                          <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-widest">
+                            {p.qualification || 'Verified Nurse'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 flex items-center justify-between">
+                        <div className="flex items-center gap-1 text-slate-400 text-[10px]">
+                          <MapPin className="w-3 h-3" />
+                          {p.location || 'USA'}
+                        </div>
+                        <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded-md">
+                          View Profile
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </motion.div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       {/* Feature Showcase Grid Section */}
-      <section className="py-16 sm:py-24 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+      <section className="py-16 sm:py-24 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-zinc-950">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16">
             <h2 className="text-3xl font-bold font-sans tracking-tight text-slate-900 dark:text-white sm:text-4xl">
@@ -205,7 +236,7 @@ export default function LandingPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {/* Feature 1 */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-6 rounded-2xl shadow-sm hover:shadow-md transition">
+            <div className="bg-white dark:bg-zinc-950 border border-slate-100 dark:border-slate-800 p-6 rounded-2xl shadow-sm hover:shadow-md transition">
               <div className="w-12 h-12 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-6">
                 <ShieldCheck className="w-6 h-6" />
               </div>
@@ -216,7 +247,7 @@ export default function LandingPage() {
             </div>
 
             {/* Feature 2 */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-6 rounded-2xl shadow-sm hover:shadow-md transition">
+            <div className="bg-white dark:bg-zinc-950 border border-slate-100 dark:border-slate-800 p-6 rounded-2xl shadow-sm hover:shadow-md transition">
               <div className="w-12 h-12 rounded-xl bg-cyan-50 dark:bg-cyan-950/50 text-cyan-600 dark:text-cyan-400 flex items-center justify-center mb-6">
                 <Palette className="w-6 h-6" />
               </div>
@@ -227,7 +258,7 @@ export default function LandingPage() {
             </div>
 
             {/* Feature 3 */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-6 rounded-2xl shadow-sm hover:shadow-md transition">
+            <div className="bg-white dark:bg-zinc-950 border border-slate-100 dark:border-slate-800 p-6 rounded-2xl shadow-sm hover:shadow-md transition">
               <div className="w-12 h-12 rounded-xl bg-violet-50 dark:bg-violet-950/50 text-violet-600 dark:text-violet-400 flex items-center justify-center mb-6">
                 <FileText className="w-6 h-6" />
               </div>
@@ -238,7 +269,7 @@ export default function LandingPage() {
             </div>
 
             {/* Feature 4 */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-6 rounded-2xl shadow-sm hover:shadow-md transition">
+            <div className="bg-white dark:bg-zinc-950 border border-slate-100 dark:border-slate-800 p-6 rounded-2xl shadow-sm hover:shadow-md transition">
               <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-6">
                 <Smartphone className="w-6 h-6" />
               </div>
@@ -252,7 +283,7 @@ export default function LandingPage() {
       </section>
 
       {/* Target Roles segment */}
-      <section className="py-16 sm:py-20 bg-white dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800">
+      <section className="py-16 sm:py-20 bg-white dark:bg-zinc-950 border-t border-slate-100 dark:border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
 
@@ -299,7 +330,7 @@ export default function LandingPage() {
       </section>
 
       {/* Trust & CTA Section */}
-      <section className="bg-slate-900 dark:bg-slate-950 text-white py-16 sm:py-24 relative overflow-hidden">
+      <section className="bg-slate-900 dark:bg-zinc-950 text-white py-16 sm:py-24 relative overflow-hidden">
         {/* Soft grid decoration */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-35"></div>
 

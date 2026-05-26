@@ -20,7 +20,7 @@ export default function Contact() {
   };
 
   return (
-    <div className="bg-slate-50/40 dark:bg-slate-950/40 min-h-screen py-16">
+    <div className="bg-slate-50/40 dark:bg-zinc-950/40 min-h-screen py-16">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* Title */}
@@ -39,7 +39,7 @@ export default function Contact() {
         <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
 
           {/* Support options column */}
-          <div className="md:col-span-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm space-y-6">
+          <div className="md:col-span-4 bg-white dark:bg-zinc-950 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm space-y-6">
             <h3 className="font-bold text-slate-800 dark:text-slate-200 text-sm h-4">Office Resources</h3>
             <div className="space-y-4 text-xs font-normal text-slate-500 dark:text-slate-400">
               <div className="flex items-start gap-3">
@@ -58,7 +58,7 @@ export default function Contact() {
           </div>
 
           {/* Form Docket */}
-          <div className="md:col-span-8 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-8 shadow-sm">
+          <div className="md:col-span-8 bg-white dark:bg-zinc-950 rounded-2xl border border-slate-100 dark:border-slate-800 p-8 shadow-sm">
             {submitted ? (
               <div className="text-center p-8 space-y-4">
                 <div className="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-105 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto shadow-sm">

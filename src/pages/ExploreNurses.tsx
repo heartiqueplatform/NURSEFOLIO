@@ -12,6 +12,57 @@ import { VerificationBadge } from '../components/VerificationBadge';
 import { Search, MapPin, Briefcase, Filter, Sparkles, Check, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
+// Skeleton Card Component - Exact same dimensions as real cards
+const NurseCardSkeleton = () => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="bg-white dark:bg-zinc-950 border border-0 rounded-xl shadow-sm overflow-hidden flex flex-col justify-between"
+    >
+      <div className="p-6">
+        {/* Header Row - Avatar + Badge */}
+        <div className="flex items-start justify-between">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 animate-pulse"></div>
+          <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 animate-pulse"></div>
+        </div>
+
+        {/* Basic Info */}
+        <div className="mt-4 space-y-2">
+          <div className="h-5 bg-slate-200 dark:bg-slate-700 rounded-lg w-3/4 animate-pulse"></div>
+          <div className="h-3 bg-indigo-100 dark:bg-indigo-900/50 rounded w-1/2 animate-pulse"></div>
+        </div>
+
+        {/* Bio Snippet */}
+        <div className="mt-3 space-y-1.5">
+          <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-full animate-pulse"></div>
+          <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-5/6 animate-pulse"></div>
+          <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-4/6 animate-pulse"></div>
+        </div>
+
+        {/* Specialties Tags */}
+        <div className="flex flex-wrap gap-1.5 mt-4">
+          <div className="h-5 w-16 bg-slate-200 dark:bg-slate-700 rounded-lg animate-pulse"></div>
+          <div className="h-5 w-20 bg-slate-200 dark:bg-slate-700 rounded-lg animate-pulse"></div>
+          <div className="h-5 w-14 bg-slate-200 dark:bg-slate-700 rounded-lg animate-pulse"></div>
+        </div>
+      </div>
+
+      {/* Footer Block */}
+      <div className="px-6 py-3.5 bg-slate-50/70 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="h-3 w-16 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
+          <div className="h-3 w-12 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="h-3 w-12 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
+          <div className="h-3 w-8 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
 export default function ExploreNurses() {
   const [searchParams] = useSearchParams();
   const qSearch = searchParams.get('search') || '';
@@ -93,7 +144,7 @@ export default function ExploreNurses() {
         {/* Page title header */}
         <div className="flex flex-col mt-20 md:flex-row md:items-end justify-between gap-2 mb-8">
           <div>
-            <span className="text-xs bg-indigo-50 dark:bg-indigo-950/50  border-0 text-indigo-700 dark:text-indigo-400 font-bold px-3 py-1 rounded-full uppercase tracking-wider font-mono">
+            <span className="text-xs bg-indigo-50 dark:bg-indigo-950/50 border-0 text-indigo-700 dark:text-indigo-400 font-bold px-3 py-1 rounded-full uppercase tracking-wider font-mono">
               Nurse Registry
             </span>
             <h1 className="text-2xl md:text-3xl font-display font-extrabold tracking-tight text-slate-900 dark:text-white mt-2">
@@ -103,14 +154,13 @@ export default function ExploreNurses() {
               Verify licenses, specialties, and connect with peer leaders.
             </p>
           </div>
-          {/* MAMA'S TIP: Hidden on very small phones to save space */}
-          <div className="hidden sm:block text-xs text-slate-400 dark:text-slate-500 font-semibold bg-white dark:bg-slate-900 border border-0 rounded-xl px-3.5 py-1.5 shadow-xs">
+          <div className="hidden sm:block text-xs text-slate-400 dark:text-slate-500 font-semibold bg-white dark:bg-zinc-950 border border-0 rounded-xl px-3.5 py-1.5 shadow-xs">
             Showing <span className="text-indigo-600 dark:text-indigo-400 font-extrabold">{filteredProfiles.length}</span> of {profiles.length}
           </div>
         </div>
 
         {/* Filter Toolbar Area */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-0 p-4 sm:p-6 shadow-sm mb-8 space-y-4">
+        <div className="bg-white dark:bg-zinc-950 rounded-xl border border-0 p-4 sm:p-6 shadow-sm mb-8 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
 
             {/* Search Input bar */}
@@ -206,14 +256,15 @@ export default function ExploreNurses() {
           </div>
         </div>
 
-        {/* Nurses List Container Grid */}
+        {/* Nurses List Container Grid - WITH SKELETONS */}
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <div className="w-10 h-10 border-4 border-slate-200 dark:border-slate-700 border-t-indigo-600 rounded-full animate-spin"></div>
-            <p className="text-xs text-slate-450 dark:text-slate-500 font-medium">Querying nurse registries...</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <NurseCardSkeleton key={i} />
+            ))}
           </div>
         ) : filteredProfiles.length === 0 ? (
-          <div className="bg-white dark:bg-slate-900 border border-0 rounded-2xl p-16 text-center max-w-lg mx-auto shadow-sm">
+          <div className="bg-white dark:bg-zinc-950 border border-0 rounded-2xl p-16 text-center max-w-lg mx-auto shadow-sm">
             <div className="w-16 h-16 rounded-2xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-405 dark:text-slate-500 mx-auto mb-6 border border-slate-100 dark:border-slate-700">
               <Search className="w-6 h-6 text-slate-400 dark:text-slate-500" />
             </div>
@@ -244,7 +295,7 @@ export default function ExploreNurses() {
                   initial={{ opacity: 0, scale: 0.98 }}
                   animate={{ opacity: 1, scale: 1 }}
                   key={p.id}
-                  className="bg-white dark:bg-slate-900 border border-0 rounded-xl shadow-sm hover:shadow-md transition duration-300 overflow-hidden flex flex-col justify-between group"
+                  className="bg-white dark:bg-zinc-950 border border-0 rounded-xl shadow-sm hover:shadow-md transition duration-300 overflow-hidden flex flex-col justify-between group"
                 >
                   <div className="p-6">
                     {/* Header Row */}
@@ -341,7 +392,7 @@ export default function ExploreNurses() {
               animate={{ opacity: 0.5 }}
               exit={{ opacity: 0 }}
               onClick={() => setActivePreview(null)}
-              className="absolute inset-0 bg-slate-900/40 dark:bg-slate-950/80 backdrop-blur-xs"
+              className="absolute inset-0 bg-slate-900/40 dark:bg-zinc-950/80 backdrop-blur-xs"
             ></motion.div>
 
             {/* Panel */}
@@ -349,7 +400,7 @@ export default function ExploreNurses() {
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="bg-white dark:bg-slate-900 rounded-[32px] overflow-hidden w-full max-w-sm relative shadow-xl border border-0 z-10"
+              className="bg-white dark:bg-zinc-950 rounded-[32px] overflow-hidden w-full max-w-sm relative shadow-xl border border-0 z-10"
             >
               {/* Colored header cover block fallback */}
               <div className="h-24 bg-gradient-to-r from-indigo-700 via-indigo-600 to-indigo-800 p-4 relative">
@@ -369,7 +420,7 @@ export default function ExploreNurses() {
                   <img
                     src={activePreview.avatar_url || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=150&h=150'}
                     alt="Quick preview avatar"
-                    className="w-20 h-20 object-cover rounded-2xl border-4 border-white dark:border-slate-900 shadow-md bg-white dark:bg-slate-900"
+                    className="w-20 h-20 object-cover rounded-2xl border-4 border-white dark:border-slate-900 shadow-md bg-white dark:bg-zinc-950"
                   />
                 </div>
 

@@ -35,7 +35,7 @@ export default function LegalPages() {
   };
 
   return (
-    <div className="bg-slate-50 dark:bg-slate-950 min-h-screen py-10">
+    <div className="bg-slate-50 dark:bg-zinc-950 min-h-screen py-10">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* Header Breadcrumbs & Action */}
@@ -56,7 +56,7 @@ export default function LegalPages() {
           <button
             id="btn-print-legal"
             onClick={handlePrint}
-            className="flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-slate-700 hover:border-slate-350 dark:hover:border-slate-600 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs rounded-xl shadow-sm cursor-pointer transition-all duration-150"
+            className="flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-slate-700 hover:border-slate-350 dark:hover:border-slate-600 bg-white dark:bg-zinc-950 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs rounded-xl shadow-sm cursor-pointer transition-all duration-150"
           >
             <Download className="w-3.5 h-3.5" />
             <span>Print or Save PDF</span>
@@ -73,7 +73,7 @@ export default function LegalPages() {
               onClick={() => handleTabChange('privacy')}
               className={`flex items-center gap-2.5 px-4 py-3 text-left rounded-xl text-xs font-bold transition-all duration-150 whitespace-nowrap cursor-pointer flex-shrink-0 w-full ${activeTab === 'privacy'
                 ? 'bg-indigo-600 dark:bg-indigo-700 text-white shadow-md shadow-indigo-600/10'
-                : 'bg-white dark:bg-slate-900 text-slate-650 dark:text-slate-400 hover:bg-slate-100/70 dark:hover:bg-slate-800 border border-slate-200/50 dark:border-slate-700'
+                : 'bg-white dark:bg-zinc-950 text-slate-650 dark:text-slate-400 hover:bg-slate-100/70 dark:hover:bg-slate-800 border border-slate-200/50 dark:border-slate-700'
                 }`}
             >
               <Shield className="w-4 h-4" />
@@ -84,7 +84,7 @@ export default function LegalPages() {
               onClick={() => handleTabChange('terms')}
               className={`flex items-center gap-2.5 px-4 py-3 text-left rounded-xl text-xs font-bold transition-all duration-150 whitespace-nowrap cursor-pointer flex-shrink-0 w-full ${activeTab === 'terms'
                 ? 'bg-indigo-600 dark:bg-indigo-700 text-white shadow-md shadow-indigo-600/10'
-                : 'bg-white dark:bg-slate-900 text-slate-650 dark:text-slate-400 hover:bg-slate-100/70 dark:hover:bg-slate-800 border border-slate-200/50 dark:border-slate-700'
+                : 'bg-white dark:bg-zinc-950 text-slate-650 dark:text-slate-400 hover:bg-slate-100/70 dark:hover:bg-slate-800 border border-slate-200/50 dark:border-slate-700'
                 }`}
             >
               <FileText className="w-4 h-4" />
@@ -95,7 +95,7 @@ export default function LegalPages() {
               onClick={() => handleTabChange('compliance')}
               className={`flex items-center gap-2.5 px-4 py-3 text-left rounded-xl text-xs font-bold transition-all duration-150 whitespace-nowrap cursor-pointer flex-shrink-0 w-full ${activeTab === 'compliance'
                 ? 'bg-indigo-600 dark:bg-indigo-700 text-white shadow-md shadow-indigo-600/10'
-                : 'bg-white dark:bg-slate-900 text-slate-650 dark:text-slate-400 hover:bg-slate-100/70 dark:hover:bg-slate-800 border border-slate-200/50 dark:border-slate-700'
+                : 'bg-white dark:bg-zinc-950 text-slate-650 dark:text-slate-400 hover:bg-slate-100/70 dark:hover:bg-slate-800 border border-slate-200/50 dark:border-slate-700'
                 }`}
             >
               <Scale className="w-4 h-4" />
@@ -104,7 +104,7 @@ export default function LegalPages() {
           </div>
 
           {/* Policy Document Content Block */}
-          <div className="lg:col-span-3 bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 rounded-2xl shadow-sm p-6 sm:p-10">
+          <div className="lg:col-span-3 bg-white dark:bg-zinc-950 border border-slate-200/70 dark:border-slate-800 rounded-2xl shadow-sm p-6 sm:p-10">
 
             {/* TAB 1: PRIVACY POLICY */}
             {activeTab === 'privacy' && (
@@ -293,7 +293,7 @@ export default function LegalPages() {
                       </p>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1.5">
-                        <div className="bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm space-y-1">
+                        <div className="bg-white dark:bg-zinc-950 p-3.5 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm space-y-1">
                           <div className="flex items-center gap-1 text-teal-600 dark:text-teal-400 text-xs font-bold uppercase">
                             <CheckCircle className="w-3.5 h-3.5" />
                             <span>ODPC Registration</span>
@@ -303,7 +303,7 @@ export default function LegalPages() {
                           </p>
                         </div>
 
-                        <div className="bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm space-y-1">
+                        <div className="bg-white dark:bg-zinc-950 p-3.5 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm space-y-1">
                           <div className="flex items-center gap-1 text-teal-600 dark:text-teal-400 text-xs font-bold uppercase">
                             <CheckCircle className="w-3.5 h-3.5" />
                             <span>Nursing Council Laws</span>

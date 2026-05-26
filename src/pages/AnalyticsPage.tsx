@@ -65,7 +65,7 @@ export default function AnalyticsPage() {
     <div className="space-y-6 font-sans text-xs">
 
       {/* HEADER */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm">
+      <div className="bg-white dark:bg-zinc-950 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm">
         <h2 className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
           <BarChart3 className="w-5 h-5 text-teal-600 dark:text-teal-400" />
           My Portfolio Analytics
@@ -77,7 +77,7 @@ export default function AnalyticsPage() {
 
       {/* STATS CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-5 rounded-2xl shadow-sm flex justify-between">
+        <div className="bg-white dark:bg-zinc-950 border border-slate-100 dark:border-slate-800 p-5 rounded-2xl shadow-sm flex justify-between">
           <div>
             <div className="text-[10px] uppercase text-slate-400 dark:text-slate-500 font-bold">Views</div>
             <div className="text-2xl font-extrabold text-slate-900 dark:text-white">{totalViews}</div>
@@ -85,7 +85,7 @@ export default function AnalyticsPage() {
           <Users className="text-teal-600 dark:text-teal-400" />
         </div>
 
-        <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-5 rounded-2xl shadow-sm flex justify-between">
+        <div className="bg-white dark:bg-zinc-950 border border-slate-100 dark:border-slate-800 p-5 rounded-2xl shadow-sm flex justify-between">
           <div>
             <div className="text-[10px] uppercase text-slate-400 dark:text-slate-500 font-bold">CV Downloads</div>
             <div className="text-2xl font-extrabold text-slate-900 dark:text-white">{totalDownloads}</div>
@@ -93,7 +93,7 @@ export default function AnalyticsPage() {
           <DownloadIcon className="text-blue-600 dark:text-blue-400" />
         </div>
 
-        <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-5 rounded-2xl shadow-sm flex justify-between">
+        <div className="bg-white dark:bg-zinc-950 border border-slate-100 dark:border-slate-800 p-5 rounded-2xl shadow-sm flex justify-between">
           <div>
             <div className="text-[10px] uppercase text-slate-400 dark:text-slate-500 font-bold">Search</div>
             <div className="text-2xl font-extrabold text-slate-900 dark:text-white">{searchImpressions}</div>
@@ -106,7 +106,7 @@ export default function AnalyticsPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
         {/* RECENT VIEWERS */}
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-3 shadow-sm">
+        <div className="bg-white dark:bg-zinc-950 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-3 shadow-sm">
           <h3 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
             <Users className="w-4 h-4 text-slate-400 dark:text-slate-500" />
             Recent Profile Viewers
@@ -134,7 +134,7 @@ export default function AnalyticsPage() {
         </div>
 
         {/* RECENT DOWNLOADS */}
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-blue-50 dark:border-blue-900/30 space-y-3 shadow-sm">
+        <div className="bg-white dark:bg-zinc-950 p-6 rounded-2xl border border-blue-50 dark:border-blue-900/30 space-y-3 shadow-sm">
           <h3 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
             <DownloadIcon className="w-4 h-4 text-blue-500 dark:text-blue-400" />
             Recent CV Downloads

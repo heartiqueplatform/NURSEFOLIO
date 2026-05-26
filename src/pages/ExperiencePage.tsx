@@ -131,7 +131,7 @@ export default function ExperiencePage() {
     <div className="space-y-6 font-sans">
 
       {/* Header Row */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm">
+      <div className="bg-white dark:bg-zinc-950 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm">
         <div>
           <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">Work Experience Records</h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
@@ -160,7 +160,7 @@ export default function ExperiencePage() {
 
       {/* Experience Form Section */}
       {showForm && (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border-2 border-teal-100 dark:border-teal-800 p-6 shadow-sm animate-in slide-in-from-top duration-300">
+        <div className="bg-white dark:bg-zinc-950 rounded-2xl border-2 border-teal-100 dark:border-teal-800 p-6 shadow-sm animate-in slide-in-from-top duration-300">
           <h3 className="font-bold text-slate-800 dark:text-slate-200 text-sm mb-4">
             {editingId ? 'Update Position Details' : 'Post New Position Profile'}
           </h3>
@@ -280,7 +280,7 @@ export default function ExperiencePage() {
           <div className="w-8 h-8 border-4 border-teal-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
         </div>
       ) : experiences.length === 0 ? (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-12 text-center shadow-sm">
+        <div className="bg-white dark:bg-zinc-950 rounded-2xl border border-slate-100 dark:border-slate-800 p-12 text-center shadow-sm">
           <Briefcase className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
           <h4 className="font-bold text-slate-800 dark:text-slate-200">No experiences listed</h4>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Tell us where you've worked!</p>
@@ -288,7 +288,7 @@ export default function ExperiencePage() {
       ) : (
         <div className="space-y-4">
           {experiences.map((exp) => (
-            <div key={exp.id} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-5 rounded-2xl shadow-sm flex items-start justify-between gap-4 group">
+            <div key={exp.id} className="bg-white dark:bg-zinc-950 border border-slate-100 dark:border-slate-800 p-5 rounded-2xl shadow-sm flex items-start justify-between gap-4 group">
               <div className="space-y-2">
                 <div>
                   <h4 className="font-extrabold text-slate-900 dark:text-white text-base leading-tight">{exp.title}</h4>

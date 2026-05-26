@@ -23,7 +23,7 @@ export default function Pricing() {
       ],
       cta: 'Sign Up Student',
       btnId: 'pricing-btn-student',
-      color: 'border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white',
+      color: 'border-slate-100 dark:border-slate-800 bg-white dark:bg-zinc-950 text-slate-900 dark:text-white',
     },
     {
       name: 'Clinical Professional',
@@ -58,12 +58,12 @@ export default function Pricing() {
       ],
       cta: 'Contact Sales Support',
       btnId: 'pricing-btn-agency',
-      color: 'border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white',
+      color: 'border-slate-100 dark:border-slate-800 bg-white dark:bg-zinc-950 text-slate-900 dark:text-white',
     }
   ];
 
   return (
-    <div className="bg-slate-50/40 dark:bg-slate-950/40 min-h-screen py-16">
+    <div className="bg-slate-50/40 dark:bg-zinc-950/40 min-h-screen py-16">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* Title */}
@@ -133,7 +133,7 @@ export default function Pricing() {
         </div>
 
         {/* Guarantee Info */}
-        <div className="text-center p-8 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl max-w-2xl mx-auto space-y-3">
+        <div className="text-center p-8 bg-white dark:bg-zinc-950 border border-slate-100 dark:border-slate-800 rounded-3xl max-w-2xl mx-auto space-y-3">
           <HelpCircle className="w-8 h-8 text-teal-600 dark:text-teal-400 mx-auto" />
           <h4 className="text-base font-bold text-slate-850 dark:text-slate-200">Need a custom agency plan or multi-hospital dashboard?</h4>
           <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-normal max-w-md mx-auto">

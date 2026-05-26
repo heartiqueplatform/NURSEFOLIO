@@ -109,7 +109,7 @@ export default function CertificationsPage() {
   return (
     <div className="space-y-6 font-sans">
       {/* Header */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm">
+      <div className="bg-white dark:bg-zinc-950 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm">
         <div>
           <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">Focus Designations & Board Licenses</h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
@@ -135,7 +135,7 @@ export default function CertificationsPage() {
 
       {/* Form */}
       {showForm && (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border-2 border-teal-100 dark:border-teal-800 p-6 shadow-sm animate-in slide-in-from-top duration-300">
+        <div className="bg-white dark:bg-zinc-950 rounded-2xl border-2 border-teal-100 dark:border-teal-800 p-6 shadow-sm animate-in slide-in-from-top duration-300">
           <h2 className="font-bold text-slate-800 dark:text-slate-200 text-sm mb-4">
             {editingId ? 'Edit Specialty Certification' : 'Post Specialty Certification'}
           </h2>
@@ -203,14 +203,14 @@ export default function CertificationsPage() {
       {loading ? (
         <div className="py-20 text-center"><div className="w-8 h-8 border-4 border-teal-600 border-t-transparent rounded-full animate-spin mx-auto"></div></div>
       ) : certs.length === 0 ? (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-12 text-center text-slate-500 dark:text-slate-400 shadow-sm">
+        <div className="bg-white dark:bg-zinc-950 rounded-2xl border border-slate-100 dark:border-slate-800 p-12 text-center text-slate-500 dark:text-slate-400 shadow-sm">
           <Award className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
           <h4 className="font-bold text-slate-800 dark:text-slate-200">No designations listed</h4>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {certs.map((cert) => (
-            <div key={cert.id} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-5 rounded-2xl shadow-sm hover:shadow-md transition">
+            <div key={cert.id} className="bg-white dark:bg-zinc-950 border border-slate-100 dark:border-slate-800 p-5 rounded-2xl shadow-sm hover:shadow-md transition">
               <div className="flex justify-between items-start mb-4">
                 <div className="w-10 h-10 rounded-xl bg-teal-50 dark:bg-teal-950/50 text-teal-600 dark:text-teal-400 flex items-center justify-center">
                   <Award className="w-6 h-6" />

@@ -89,7 +89,7 @@ export default function EditProfile() {
   };
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden font-sans">
+    <div className="bg-white dark:bg-zinc-950 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden font-sans">
 
       {/* HEADER & IMAGE SECTION */}
       <div className="relative">

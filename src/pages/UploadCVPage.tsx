@@ -124,7 +124,7 @@ export default function UploadCVPage() {
   return (
     <div className="space-y-6 font-sans text-xs">
       {/* Header */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm flex justify-between items-center">
+      <div className="bg-white dark:bg-zinc-950 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm flex justify-between items-center">
         <div>
           <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
             <FileText className="w-6 h-6 text-teal-600 dark:text-teal-400" />
@@ -187,12 +187,12 @@ export default function UploadCVPage() {
         {loading ? (
           <p className="text-center py-10 text-slate-400 dark:text-slate-500 italic">Nursefolio loading your papers...</p>
         ) : documents.length === 0 ? (
-          <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-10 rounded-2xl text-center text-slate-400 dark:text-slate-500">
+          <div className="bg-white dark:bg-zinc-950 border border-slate-100 dark:border-slate-800 p-10 rounded-2xl text-center text-slate-400 dark:text-slate-500">
             No documents yet.
           </div>
         ) : (
           documents.map((doc) => (
-            <div key={doc.id} className="bg-white dark:bg-slate-900 border-2 border-teal-50 dark:border-teal-900/30 p-5 rounded-3xl shadow-sm flex items-center justify-between group">
+            <div key={doc.id} className="bg-white dark:bg-zinc-950 border-2 border-teal-50 dark:border-teal-900/30 p-5 rounded-3xl shadow-sm flex items-center justify-between group">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-rose-50 dark:bg-rose-950/50 text-rose-500 dark:text-rose-400 rounded-2xl flex items-center justify-center border border-rose-100 dark:border-rose-800">
                   <FileText className="w-6 h-6" />

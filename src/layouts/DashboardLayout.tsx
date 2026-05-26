@@ -24,7 +24,7 @@ export const DashboardLayout: React.FC<{ children?: React.ReactNode }> = ({ chil
 
   return (
     /* MAMA'S CHANGE: Changed min-h-screen to h-screen and added overflow-hidden to lock the page */
-    <div className="h-screen flex overflow-hidden bg-slate-50 dark:bg-slate-950 font-sans text-slate-950 dark:text-slate-50">
+    <div className="h-screen flex overflow-hidden bg-slate-50 dark:bg-zinc-950 font-sans text-slate-950 dark:text-slate-50">
       {/* Onboarding Interactive Tour */}
       <OnboardingTour />
 
@@ -35,7 +35,7 @@ export const DashboardLayout: React.FC<{ children?: React.ReactNode }> = ({ chil
       <div className="flex-1 flex flex-col min-w-0">
 
         {/* Top bar - MAMA'S CHANGE: Added flex-shrink-0 to ensure header never squishes */}
-        <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 lg:px-8 flex-shrink-0 z-10">
+        <header className="h-16 bg-white dark:bg-zinc-950 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 lg:px-8 flex-shrink-0 z-10">
           <div className="flex items-center gap-2.5 lg:hidden">
             <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-xs">N+</div>
             <span className="font-bold text-indigo-950 dark:text-indigo-400 text-base tracking-tight">Nursefolio</span>
@@ -50,19 +50,6 @@ export const DashboardLayout: React.FC<{ children?: React.ReactNode }> = ({ chil
 
           {/* Quick Stats or Actions */}
           <div className="flex items-center gap-3">
-            {/* Theme Toggle Button in Dashboard Header */}
-            <button
-              id="dashboard-header-theme-btn"
-              onClick={toggleThemeMode}
-              className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
-              title={themeMode === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-            >
-              {themeMode === 'dark' ? (
-                <Sun className="w-5 h-5" />
-              ) : (
-                <Moon className="w-5 h-5" />
-              )}
-            </button>
 
             {user && (
               <>

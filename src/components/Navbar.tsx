@@ -32,7 +32,7 @@ export const Navbar: React.FC = () => {
 
   return (
     /* MAMA'S CHANGE: Changed 'sticky' to 'fixed top-0 left-0 right-0' and ensured w-full and high z-index */
-    <nav className="fixed top-0 left-0 right-0 w-full z-[60] bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-100/80 dark:border-slate-800/80">
+    <nav className="fixed top-0 left-0 right-0 w-full z-[60] bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md border-b border-slate-100/80 dark:border-slate-800/80">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           {/* Logo */}
@@ -173,7 +173,7 @@ export const Navbar: React.FC = () => {
 
       {/* Mobile Menu Panel */}
       {mobileOpen && (
-        <div className="md:hidden border-b border-slate-150/40 dark:border-slate-800/40 bg-white dark:bg-slate-900 animate-in slide-in-from-top-4 duration-200">
+        <div className="md:hidden border-b border-slate-150/40 dark:border-slate-800/40 bg-white dark:bg-zinc-950 animate-in slide-in-from-top-4 duration-200">
           <div className="px-2 pt-2 pb-4 space-y-1">
             {navLinks.map((link) => (
               <Link

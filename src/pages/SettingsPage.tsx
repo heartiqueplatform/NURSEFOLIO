@@ -90,7 +90,7 @@ export default function SettingsPage() {
     <div className="space-y-6 font-sans text-xs">
 
       {/* Availability section */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm space-y-4">
+      <div className="bg-white dark:bg-zinc-950 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm space-y-4">
         <div>
           <h3 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight">Active Availability Status</h3>
           <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5 font-medium">Set your active placement indications for hospitals & medical agencies.</p>
@@ -102,7 +102,7 @@ export default function SettingsPage() {
             onClick={() => handleAvailabilityChange('available')}
             className={`flex items-center gap-3 p-4 border rounded-xl select-none transition-all active:scale-98 cursor-pointer ${availability === 'available'
               ? 'border-emerald-500 bg-emerald-50/20 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-300 font-bold'
-              : 'border-slate-150 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+              : 'border-slate-150 dark:border-slate-700 bg-white dark:bg-zinc-950 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
               }`}
           >
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
@@ -117,7 +117,7 @@ export default function SettingsPage() {
             onClick={() => handleAvailabilityChange('open')}
             className={`flex items-center gap-3 p-4 border rounded-xl select-none transition-all active:scale-98 cursor-pointer ${availability === 'open'
               ? 'border-amber-500 bg-amber-50/20 dark:bg-amber-950/30 text-amber-850 dark:text-amber-300 font-bold'
-              : 'border-slate-150 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+              : 'border-slate-150 dark:border-slate-700 bg-white dark:bg-zinc-950 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
               }`}
           >
             <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
@@ -132,7 +132,7 @@ export default function SettingsPage() {
             onClick={() => handleAvailabilityChange('busy')}
             className={`flex items-center gap-3 p-4 border rounded-xl select-none transition-all active:scale-98 cursor-pointer ${availability === 'busy'
               ? 'border-slate-500 bg-slate-50/30 dark:bg-slate-800/50 text-slate-710 dark:text-slate-300 font-bold'
-              : 'border-slate-150 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+              : 'border-slate-150 dark:border-slate-700 bg-white dark:bg-zinc-950 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
               }`}
           >
             <span className="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
@@ -145,7 +145,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Verification request portal upload */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm space-y-4">
+      <div className="bg-white dark:bg-zinc-950 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm space-y-4">
         <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <h3 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
@@ -256,7 +256,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Security credentials */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm space-y-4">
+      <div className="bg-white dark:bg-zinc-950 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm space-y-4">
         <div>
           <h3 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-1.5">
             <Key className="w-5.5 h-5.5 text-teal-605 dark:text-teal-400" />

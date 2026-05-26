@@ -12,7 +12,7 @@ export const MobileNav: React.FC = () => {
   const { user } = useAuth();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-100 dark:border-slate-800 lg:hidden safe-bottom shadow-lg">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md border-t border-slate-100 dark:border-slate-800 lg:hidden safe-bottom shadow-lg">
       <div className="flex h-16 items-center justify-around px-2">
         <NavLink
           id="mobilenav-link-home"

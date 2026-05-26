@@ -36,7 +36,7 @@ export default function PortfolioThemePage() {
   };
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 sm:p-8 shadow-sm space-y-8 font-sans">
+    <div className="bg-white dark:bg-zinc-950 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 sm:p-8 shadow-sm space-y-8 font-sans">
       <div className="border-b border-slate-100 dark:border-slate-800 pb-5">
         <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
           <Palette className="w-5.5 h-5.5 text-teal-600 dark:text-teal-400" />

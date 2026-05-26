@@ -22,8 +22,9 @@ interface AuthContextType {
   ) => Promise<UserProfile>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  signInWithGoogle: () => Promise<void>; // Added this
+  updateProfile: (id: string, updates: any) => Promise<UserProfile>; // Added this
 }
-
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -76,26 +77,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           setUser(mappedProfile);
         } else {
-          // Fallback: create profile if it doesn't exist
-          const parts = session.user.email?.split('@') || ['nurse'];
-          const newProfile = await databaseService.updateProfile(session.user.id, {
-            id: session.user.id,
-            email: session.user.email || '',
-            username: parts[0] + Math.floor(Math.random() * 1000),
-            first_name: 'New',
-            last_name: 'Member',
-            role: 'nurse',
-            specialties: [],
-            skills: [],
-            availability_status: 'available',
-            verification_status: 'unverified',
-            profile_theme: 'modern',
-            views_count: 0,
-            downloads_count: 0,
-            search_appearances: 0,
-            onboarding_completed: false
-          });
-          setUser(newProfile);
+          // 1. We check: Is this a Google user? (Google users have 'google' in their provider)
+          const isGoogle = session.user.app_metadata.provider === 'google';
+
+          if (isGoogle) {
+            // FOR GOOGLE: Just set temporary state.
+            // The Register.tsx will save the STUDENT/NURSE role to the DB.
+            setUser({
+              id: session.user.id,
+              email: session.user.email || '',
+              onboarding_completed: false,
+              role: 'nurse' // temporary
+            } as UserProfile);
+          } else {
+            // FOR MANUAL SIGNUP: If they got here without a profile,
+            // it means something went wrong during signup.
+            // Keep your old fallback here just in case!
+            const parts = session.user.email?.split('@') || ['nurse'];
+            const newProfile = await databaseService.updateProfile(session.user.id, {
+              id: session.user.id,
+              email: session.user.email || '',
+              username: parts[0] + Math.floor(Math.random() * 1000),
+              role: 'nurse',
+              onboarding_completed: false
+            });
+            setUser(newProfile);
+          }
         }
       } else {
         setUser(null);
@@ -212,7 +219,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
     }
   };
+  const signInWithGoogle = async () => {
+    setLoading(true);
+    try {
+      if (!isSupabaseConfigured) throw new Error('Supabase not configured');
 
+      const { error } = await supabase!.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin + '/register',
+        },
+      });
+
+      if (error) throw error;
+    } catch (err) {
+      console.error('Google Auth Error:', err);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateProfile = async (id: string, updates: any): Promise<UserProfile> => {
+    try {
+      const updated = await databaseService.updateProfile(id, updates);
+      setUser(updated);
+      return updated;
+    } catch (err) {
+      console.error('Update Profile Error:', err);
+      throw err;
+    }
+  };
   const refreshUser = async () => {
     if (user && isSupabaseConfigured) {
       const profiles = await databaseService.getProfiles();
@@ -224,7 +261,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, refreshUser }}>
+    <AuthContext.Provider value={{
+      user,
+      loading,
+      login,
+      register,
+      logout,
+      refreshUser,
+      signInWithGoogle,
+      updateProfile
+    }}>
       {children}
     </AuthContext.Provider>
   );

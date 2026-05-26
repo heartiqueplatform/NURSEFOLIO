@@ -31,7 +31,7 @@ export default function VerificationInfo() {
   ];
 
   return (
-    <div className="bg-slate-50/40 dark:bg-slate-950/40 min-h-screen py-16">
+    <div className="bg-slate-50/40 dark:bg-zinc-950/40 min-h-screen py-16">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* Header Hero */}
@@ -48,7 +48,7 @@ export default function VerificationInfo() {
         </div>
 
         {/* Big visual banner block */}
-        <div className="bg-slate-900 dark:bg-slate-950 rounded-[32px] p-8 md:p-12 mb-16 relative overflow-hidden text-white shadow-xl border border-slate-800 dark:border-slate-800">
+        <div className="bg-slate-900 dark:bg-zinc-950 rounded-[32px] p-8 md:p-12 mb-16 relative overflow-hidden text-white shadow-xl border border-slate-800 dark:border-slate-800">
           <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl -z-10"></div>
           <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
 
@@ -78,7 +78,7 @@ export default function VerificationInfo() {
             </div>
 
             <div className="md:col-span-5 flex justify-center">
-              <div className="bg-slate-800/60 dark:bg-slate-900/60 backdrop-blur-md rounded-2xl border border-slate-700/60 dark:border-slate-700/60 p-6 w-full max-w-xs space-y-4">
+              <div className="bg-slate-800/60 dark:bg-zinc-950/60 backdrop-blur-md rounded-2xl border border-slate-700/60 dark:border-slate-700/60 p-6 w-full max-w-xs space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-mono tracking-wider font-bold text-indigo-400 uppercase">Verification Check</span>
                   <span className="text-[10px] text-slate-400">ID: N-9842</span>
@@ -126,7 +126,7 @@ export default function VerificationInfo() {
             {requirements.map((item, index) => {
               const Icon = item.icon;
               return (
-                <div key={index} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-6 rounded-2xl shadow-sm space-y-4">
+                <div key={index} className="bg-white dark:bg-zinc-950 border border-slate-100 dark:border-slate-800 p-6 rounded-2xl shadow-sm space-y-4">
                   <div className={`w-12 h-12 rounded-xl border flex items-center justify-center ${item.color}`}>
                     <Icon className="w-6 h-6" />
                   </div>
@@ -139,7 +139,7 @@ export default function VerificationInfo() {
         </div>
 
         {/* FAQs */}
-        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-8 sm:p-12 mb-16 space-y-8 shadow-sm">
+        <div className="bg-white dark:bg-zinc-950 rounded-3xl border border-slate-100 dark:border-slate-800 p-8 sm:p-12 mb-16 space-y-8 shadow-sm">
           <h3 className="text-2xl font-bold font-sans text-slate-900 dark:text-white">Verification Frequently Asked Questions</h3>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-sm">

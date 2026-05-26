@@ -101,7 +101,7 @@ export default function ResearchPage() {
 
   return (
     <div className="space-y-6 font-sans">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm">
+      <div className="bg-white dark:bg-zinc-950 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm">
         <div>
           <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">Clinical Studies & Research Publications</h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
@@ -127,7 +127,7 @@ export default function ResearchPage() {
       )}
 
       {showForm && (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-teal-100 dark:border-teal-800 p-6 shadow-sm border-2 animate-in fade-in duration-200">
+        <div className="bg-white dark:bg-zinc-950 rounded-2xl border border-teal-100 dark:border-teal-800 p-6 shadow-sm border-2 animate-in fade-in duration-200">
           <h3 className="font-bold text-slate-800 dark:text-slate-200 text-sm mb-4 font-sans">Post Published Case Study</h3>
           <form onSubmit={handleCreateSubmit} className="space-y-4 text-xs text-slate-705 dark:text-slate-300 font-medium">
 
@@ -220,11 +220,11 @@ export default function ResearchPage() {
       )}
 
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800">
+        <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-zinc-950 rounded-2xl border border-slate-100 dark:border-slate-800">
           <div className="w-8 h-8 border-4 border-slate-100 dark:border-slate-700 border-t-teal-600 rounded-full animate-spin"></div>
         </div>
       ) : studies.length === 0 ? (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-12 text-center text-slate-500 dark:text-slate-400 font-sans shadow-sm">
+        <div className="bg-white dark:bg-zinc-950 rounded-2xl border border-slate-100 dark:border-slate-800 p-12 text-center text-slate-500 dark:text-slate-400 font-sans shadow-sm">
           <BookOpen className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
           <h4 className="font-bold text-slate-850 dark:text-slate-200">No published studies listed</h4>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto leading-relaxed">
@@ -234,7 +234,7 @@ export default function ResearchPage() {
       ) : (
         <div className="space-y-4">
           {studies.map((proj) => (
-            <div key={proj.id} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-5 rounded-2xl shadow-sm space-y-3">
+            <div key={proj.id} className="bg-white dark:bg-zinc-950 border border-slate-100 dark:border-slate-800 p-5 rounded-2xl shadow-sm space-y-3">
               <div className="flex items-start justify-between gap-4">
                 <div className="space-y-1">
                   <h4 className="font-extrabold text-slate-900 dark:text-white text-base leading-tight">{proj.title}</h4>

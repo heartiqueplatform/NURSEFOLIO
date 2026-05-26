@@ -13,14 +13,14 @@ export const DefaultLayout: React.FC<{ children?: React.ReactNode }> = ({ childr
   const { themeMode, toggleThemeMode } = useThemeMode();
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 font-sans text-slate-950 dark:text-slate-50">
+    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-zinc-950 font-sans text-slate-950 dark:text-slate-50">
       <Navbar />
       <main className="flex-grow">
         {children || <Outlet />}
       </main>
 
       {/* Premium minimal footer in Bento style */}
-      <footer className="bg-white dark:bg-slate-900 border-t border-slate-200/60 dark:border-slate-800/60 py-12">
+      <footer className="bg-white dark:bg-zinc-950 border-t border-slate-200/60 dark:border-slate-800/60 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
             <Link to="/" className="flex items-center gap-2 group">
@@ -31,27 +31,6 @@ export const DefaultLayout: React.FC<{ children?: React.ReactNode }> = ({ childr
                 Nurse<span className="text-indigo-600">folio</span>
               </span>
             </Link>
-
-            {/* Theme Toggle Button in Footer */}
-            <button
-              id="footer-theme-btn"
-              onClick={toggleThemeMode}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-indigo-600 dark:hover:text-indigo-400"
-              title={themeMode === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-            >
-              {themeMode === 'dark' ? (
-                <>
-                  <Sun className="w-4 h-4" />
-                  <span>Light Mode</span>
-                </>
-              ) : (
-                <>
-                  <Moon className="w-4 h-4" />
-                  <span>Dark Mode</span>
-                </>
-              )}
-            </button>
-
             <p className="text-xs text-slate-400 dark:text-slate-500 font-medium">
               &copy; {new Date().getFullYear()} Nursefolio Applet. All rights reserved.
             </p>

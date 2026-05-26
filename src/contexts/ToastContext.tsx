@@ -53,12 +53,12 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   return (
     <ToastContext.Provider value={{ toasts, showToast, removeToast, success, error, warning, info }}>
       {children}
-      
+
       {/* Toast Render Area */}
       <div className="fixed bottom-20 md:bottom-6 right-6 z-[999999] flex flex-col gap-2 max-w-sm w-full pointer-events-none">
         <AnimatePresence>
           {toasts.map((toast) => {
-            let bgClass = 'bg-white dark:bg-slate-900 border-slate-150 dark:border-slate-800 text-slate-800 dark:text-slate-100';
+            let bgClass = 'bg-white dark:bg-zinc-950 border-slate-150 dark:border-slate-800 text-slate-800 dark:text-slate-100';
             let Icon = Info;
             let iconColor = 'text-blue-500';
 

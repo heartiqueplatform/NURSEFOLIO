@@ -40,11 +40,11 @@ export const CoachMark: React.FC<CoachMarkProps> = ({
         const rect = el.getBoundingClientRect();
         // Give comfortable padding around the component
         const padding = 8;
-        
+
         // Prevent negative values if element is touching edges
         const top = Math.max(0, rect.top - padding);
         const left = Math.max(0, rect.left - padding);
-        
+
         setCoords({
           top,
           left,
@@ -149,7 +149,7 @@ export const CoachMark: React.FC<CoachMarkProps> = ({
 
   return (
     <div className="fixed inset-0 z-[99999] overflow-hidden select-none">
-      
+
       {/* SVG Absolute Overlay Mask */}
       <svg className="absolute inset-0 w-full h-full pointer-events-none">
         <defs>
@@ -170,7 +170,7 @@ export const CoachMark: React.FC<CoachMarkProps> = ({
             )}
           </mask>
         </defs>
-        
+
         {/* Semi-transparent dark overlay */}
         <rect
           x="0"
@@ -208,7 +208,7 @@ export const CoachMark: React.FC<CoachMarkProps> = ({
           animate={isCentered ? { scale: 1, opacity: 1 } : { y: 0, opacity: 1 }}
           exit={isCentered ? { scale: 0.92, opacity: 0 } : { y: -10, opacity: 0 }}
           transition={{ duration: 0.25, ease: "easeOut" }}
-          className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl shadow-xl p-6 pointer-events-auto select-text flex flex-col gap-4.5"
+          className="bg-white dark:bg-zinc-950 border border-slate-150 dark:border-slate-800 rounded-3xl shadow-xl p-6 pointer-events-auto select-text flex flex-col gap-4.5"
         >
           {/* Header row with Optional Badge and Exit Control */}
           <div className="flex items-center justify-between">
@@ -218,7 +218,7 @@ export const CoachMark: React.FC<CoachMarkProps> = ({
                 <span>{badgeText}</span>
               </span>
             )}
-            
+
             <button
               id="coachmark-btn-dismiss"
               onClick={onSkip}
@@ -249,7 +249,7 @@ export const CoachMark: React.FC<CoachMarkProps> = ({
 
           {/* Footer Controls */}
           <div className="flex items-center justify-between pt-1">
-            
+
             {/* Left Button group or skip */}
             {currentStepIndex > 0 ? (
               <button
@@ -280,8 +280,8 @@ export const CoachMark: React.FC<CoachMarkProps> = ({
                 {currentStepIndex === 0
                   ? "Start Tour"
                   : currentStepIndex === totalSteps - 1
-                  ? "Get Started"
-                  : "Next Step"}
+                    ? "Get Started"
+                    : "Next Step"}
               </span>
               <ChevronRight className="w-4 h-4" />
             </button>

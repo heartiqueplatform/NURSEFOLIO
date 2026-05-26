@@ -118,3 +118,10 @@ export interface VerificationRequest {
   nurse_name?: string;
   nurse_email?: string;
 }
+export interface NurseSkill {
+  id: string;
+  user_id: string;
+  skill_name: string;
+  proficiency?: string;
+  created_at?: string;
+}

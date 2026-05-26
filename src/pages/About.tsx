@@ -26,7 +26,7 @@ export default function About() {
   ];
 
   return (
-    <div className="bg-slate-50/40 dark:bg-slate-950/40 min-h-screen py-16 font-sans">
+    <div className="bg-slate-50/40 dark:bg-zinc-950/40 min-h-screen py-16 font-sans">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* Title */}
@@ -43,7 +43,7 @@ export default function About() {
         </div>
 
         {/* Content detail */}
-        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-8 sm:p-12 shadow-sm space-y-8 mb-12">
+        <div className="bg-white dark:bg-zinc-950 rounded-3xl border border-slate-100 dark:border-slate-800 p-8 sm:p-12 shadow-sm space-y-8 mb-12">
           <div className="space-y-4">
             <h3 className="text-2xl font-bold text-slate-900 dark:text-white">The healthcare hiring bottleneck</h3>
             <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed font-normal">

@@ -62,7 +62,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
           transition={{ duration: 0.18, ease: 'easeOut' }}
-          className="relative bg-white dark:bg-slate-900 rounded-3xl border border-slate-150 dark:border-slate-800 shadow-xl max-w-sm w-full p-6 text-slate-900 dark:text-slate-100 flex flex-col gap-5 z-10"
+          className="relative bg-white dark:bg-zinc-950 rounded-3xl border border-slate-150 dark:border-slate-800 shadow-xl max-w-sm w-full p-6 text-slate-900 dark:text-slate-100 flex flex-col gap-5 z-10"
         >
           {/* Close button top right */}
           <button

@@ -68,7 +68,7 @@ export const ThemeSelector: React.FC<ThemeSelectorProps> = ({ id, selectedTheme,
               onClick={() => onChange(opt.value)}
               className={`flex items-start text-left p-4 rounded-xl border transition-all duration-200 active:scale-[99%] cursor-pointer ${isSelected
                 ? 'border-teal-600 bg-teal-50/25 dark:bg-teal-950/30 ring-2 ring-teal-600/10'
-                : 'border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-200 dark:hover:border-slate-700 hover:shadow-sm'
+                : 'border-slate-100 dark:border-slate-800 bg-white dark:bg-zinc-950 hover:border-slate-200 dark:hover:border-slate-700 hover:shadow-sm'
                 }`}
             >
               <div className={`w-10 h-10 rounded-lg flex-shrink-0 mr-4 flex items-center justify-center text-white font-bold text-xs ${opt.preview}`}>

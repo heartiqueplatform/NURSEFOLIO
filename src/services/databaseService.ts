@@ -28,7 +28,25 @@ export const databaseService = {
     }
     return profilesService.getProfiles();
   },
+  // GET NURSE SKILLS
+  async getNurseSkills(userId: string) {
+    try {
+      if (!isSupabaseConfigured || !userId) return [];
 
+      const { data, error } = await supabase
+        .from('nurse_skills')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      return data || [];
+    } catch (err) {
+      console.error('Could not fetch nurse skills:', err);
+      return [];
+    }
+  },
   async getProfileByUsername(username: string): Promise<UserProfile | null> {
     if (!isSupabaseConfigured) {
       console.warn('Supabase not configured. Please supply VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY variables.');

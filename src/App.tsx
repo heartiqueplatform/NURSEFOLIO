@@ -43,6 +43,7 @@ import AnalyticsPage from './pages/AnalyticsPage';
 
 // Admin Page
 import AdminDashboard from './pages/AdminDashboard';
+import SkillsPage from './pages/SkillsPage';
 
 export default function App() {
   return (
@@ -76,6 +77,7 @@ export default function App() {
                 <Route path="/dashboard" element={<DashboardHome />} />
                 <Route path="/dashboard/edit-profile" element={<EditProfile />} />
                 <Route path="/dashboard/experiences" element={<ExperiencePage />} />
+                <Route path="/dashboard/skills" element={<SkillsPage />} />
                 <Route path="/dashboard/education" element={<EducationPage />} />
                 <Route path="/dashboard/certifications" element={<CertificationsPage />} />
                 <Route path="/dashboard/publications" element={<ResearchPage />} />

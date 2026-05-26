@@ -104,7 +104,7 @@ export default function EducationPage() {
 
   return (
     <div className="space-y-6 font-sans">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm">
+      <div className="bg-white dark:bg-zinc-950 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm">
         <div>
           <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">Academic Board Degrees</h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
@@ -130,7 +130,7 @@ export default function EducationPage() {
       )}
 
       {showForm && (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-teal-100 dark:border-teal-800 p-6 shadow-sm border-2 animate-in fade-in duration-200">
+        <div className="bg-white dark:bg-zinc-950 rounded-2xl border border-teal-100 dark:border-teal-800 p-6 shadow-sm border-2 animate-in fade-in duration-200">
           <h3 className="font-bold text-slate-800 dark:text-slate-200 text-sm mb-4">Post Academic Credentials</h3>
           <form onSubmit={handleCreateSubmit} className="space-y-4 text-xs text-slate-705 dark:text-slate-300 font-medium">
 
@@ -241,11 +241,11 @@ export default function EducationPage() {
       )}
 
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800">
+        <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-zinc-950 rounded-2xl border border-slate-100 dark:border-slate-800">
           <div className="w-8 h-8 border-4 border-slate-100 dark:border-slate-700 border-t-teal-600 rounded-full animate-spin"></div>
         </div>
       ) : educationList.length === 0 ? (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-12 text-center text-slate-500 dark:text-slate-400 shadow-sm">
+        <div className="bg-white dark:bg-zinc-950 rounded-2xl border border-slate-100 dark:border-slate-800 p-12 text-center text-slate-500 dark:text-slate-400 shadow-sm">
           <GraduationCap className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
           <h4 className="font-bold text-slate-800 dark:text-slate-200">No education blocks listed</h4>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto leading-relaxed">
@@ -255,7 +255,7 @@ export default function EducationPage() {
       ) : (
         <div className="space-y-4">
           {educationList.map((edu) => (
-            <div key={edu.id} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-5 rounded-2xl shadow-sm flex items-start justify-between gap-4">
+            <div key={edu.id} className="bg-white dark:bg-zinc-950 border border-slate-100 dark:border-slate-800 p-5 rounded-2xl shadow-sm flex items-start justify-between gap-4">
               <div className="space-y-1">
                 <h4 className="font-extrabold text-slate-900 dark:text-white text-base leading-tight">{edu.degree}</h4>
                 <p className="text-xs font-bold text-teal-650 dark:text-teal-400">{edu.field_of_study}</p>
