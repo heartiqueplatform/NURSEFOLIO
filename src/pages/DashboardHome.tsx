@@ -373,40 +373,52 @@ export default function DashboardHome() {
           </div>
         </div>
         {/* Theme Settings Cell */}
-        <div className="md:col-span-3 bg-zinc-900 dark:bg-zinc-800 rounded-xl p-6 text-white flex flex-col justify-between shadow-lg h-full min-h-[260px]">
+        <div className="md:col-span-3 bg-white dark:bg-zinc-900 rounded-xl p-6 text-slate-800 dark:text-white flex flex-col justify-between shadow-lg border border-slate-200 dark:border-zinc-800 h-full min-h-[260px]">
           <div>
             <div className="flex justify-between items-start mb-4">
-              <h3 className="text-sm font-bold font-display uppercase tracking-wider text-zinc-300 dark:text-zinc-400">Theme Profile</h3>
-              <Palette className="w-4 h-4 text-indigo-400 animate-spin" style={{ animationDuration: '6s' }} />
+              <h3 className="text-sm font-bold font-display uppercase tracking-wider text-slate-500 dark:text-zinc-400">Theme Profile</h3>
+              <Palette className="w-4 h-4 text-indigo-500 dark:text-indigo-400 animate-spin" style={{ animationDuration: '6s' }} />
             </div>
 
             <div className="grid grid-cols-4 gap-2 mt-4">
               <div
-                className={`aspect-square bg-indigo-600 rounded-xl cursor-default border-2 ${currentTheme === 'modern' ? 'border-white shrink-0 scale-105' : 'border-transparent opacity-60'}`}
-                title="Modern Indigo"
+                className={`aspect-square bg-gradient-to-br from-teal-500 to-emerald-500 rounded-xl cursor-default transition-all duration-200 ${currentTheme === 'modern'
+                  ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-zinc-900 ring-teal-500 scale-105 shadow-lg'
+                  : 'opacity-60 hover:opacity-80'
+                  }`}
+                title="Modern Premium"
               ></div>
               <div
-                className={`aspect-square bg-sky-500 rounded-xl cursor-default border-2 ${currentTheme === 'clinical' ? 'border-white shrink-0 scale-105' : 'border-transparent opacity-60'}`}
-                title="Clinical Blue"
+                className={`aspect-square bg-gradient-to-br from-blue-500 to-sky-400 rounded-xl cursor-default transition-all duration-200 ${currentTheme === 'clinical'
+                  ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-zinc-900 ring-blue-500 scale-105 shadow-lg'
+                  : 'opacity-60 hover:opacity-80'
+                  }`}
+                title="Clinical Clean"
               ></div>
               <div
-                className={`aspect-square bg-zinc-700 dark:bg-zinc-600 rounded-xl cursor-default border-2 ${currentTheme === 'dark' ? 'border-white shrink-0 scale-105' : 'border-transparent opacity-60'}`}
-                title="Obsidian Dark"
+                className={`aspect-square bg-gradient-to-br from-slate-700 to-slate-900 dark:from-slate-800 dark:to-slate-950 rounded-xl cursor-default transition-all duration-200 ${currentTheme === 'dark'
+                  ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-zinc-900 ring-slate-600 scale-105 shadow-lg'
+                  : 'opacity-60 hover:opacity-80'
+                  }`}
+                title="Obsidian Night"
               ></div>
               <div
-                className={`aspect-square bg-emerald-600 rounded-xl cursor-default border-2 ${currentTheme === 'minimal' ? 'border-white shrink-0 scale-105' : 'border-transparent opacity-60'}`}
-                title="Minimal Mint"
+                className={`aspect-square bg-gradient-to-br from-stone-400 to-stone-600 dark:from-stone-500 dark:to-stone-700 rounded-xl cursor-default transition-all duration-200 ${currentTheme === 'minimal'
+                  ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-zinc-900 ring-stone-500 scale-105 shadow-lg'
+                  : 'opacity-60 hover:opacity-80'
+                  }`}
+                title="Sleek Minimal"
               ></div>
             </div>
           </div>
 
-          <div className="mt-4 pt-4 border-t border-zinc-800/80 dark:border-zinc-700/80">
+          <div className="mt-4 pt-4 border-t border-slate-200 dark:border-zinc-800">
             <Link
               id="dashhome-theme-btn"
               to="/dashboard/theme"
-              className="w-full py-2.5 bg-zinc-800 dark:bg-zinc-700 hover:bg-zinc-700 dark:hover:bg-zinc-600 text-white rounded-xl text-xs font-bold text-center block transition-all"
+              className="w-full py-2.5 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-white rounded-xl text-xs font-bold text-center block transition-all"
             >
-              Configure Theme Layout
+              Customize Theme Settings
             </Link>
           </div>
         </div>
