@@ -220,7 +220,8 @@ export const MobileNav: React.FC = () => {
 
           {/* CV */}
           <NavLink
-            to="/dashboard/cv"
+            to="/explore"
+            onClick={() => setOpenMenu(false)}
             className={({ isActive }) =>
               `flex flex-col items-center justify-center flex-1 py-1 transition-all ${isActive
                 ? 'text-teal-600 dark:text-teal-400'
@@ -228,8 +229,8 @@ export const MobileNav: React.FC = () => {
               }`
             }
           >
-            <FileText className="w-5 h-5" />
-            <span className="text-[10px] font-medium mt-1">CV</span>
+            <Compass className="w-5 h-5" />
+            <span className="text-[10px] font-medium mt-1">Explore</span>
           </NavLink>
 
           {/* Live Page */}
@@ -314,10 +315,6 @@ export const MobileNav: React.FC = () => {
 
             {/* MENU GRID */}
             <div className="grid grid-cols-2 gap-2 text-sm relative z-10">
-              <NavLink to="/explore" onClick={() => setOpenMenu(false)}
-                className={({ isActive }) => `flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-medium transition-all ${isActive ? 'bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400' : 'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
-                <Compass className="w-4 h-4 flex-shrink-0" />Explore Registry
-              </NavLink>
 
               <NavLink to="/dashboard" onClick={() => setOpenMenu(false)}
                 className={({ isActive }) => `flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-medium transition-all ${isActive ? 'bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400' : 'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
@@ -333,7 +330,19 @@ export const MobileNav: React.FC = () => {
                 className={({ isActive }) => `flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-medium transition-all ${isActive ? 'bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400' : 'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
                 <Briefcase className="w-4 h-4 flex-shrink-0" />Experience
               </NavLink>
-
+              <NavLink
+                to="/dashboard/cv"
+                onClick={() => setOpenMenu(false)}
+                className={({ isActive }) =>
+                  `flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-medium transition-all ${isActive
+                    ? 'bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400'
+                    : 'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`
+                }
+              >
+                <FileText className="w-4 h-4 flex-shrink-0" />
+                Upload CV
+              </NavLink>
               <NavLink to="/dashboard/skills" onClick={() => setOpenMenu(false)}
                 className={({ isActive }) => `flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-medium transition-all ${isActive ? 'bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400' : 'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
                 <Award className="w-4 h-4 flex-shrink-0" />Skills
@@ -363,12 +372,7 @@ export const MobileNav: React.FC = () => {
                 className={({ isActive }) => `flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-medium transition-all ${isActive ? 'bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400' : 'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
                 <Settings className="w-4 h-4 flex-shrink-0" />Settings
               </NavLink>
-
-              {/* Explore Registry - New Navigation Item */}
-
             </div>
-
-            {/* THEME BUTTON + LOGOUT */}
             {/* THEME BUTTON + LOGOUT */}
             <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 relative z-10">
 

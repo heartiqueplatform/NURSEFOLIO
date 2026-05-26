@@ -56,7 +56,7 @@ export default function App() {
               {/* Public Pages grouped under DefaultLayout (includes Header/Navbar & Footer) */}
               <Route element={<DefaultLayout />}>
                 <Route path="/" element={<LandingPage />} />
-                <Route path="/explore" element={<ExploreNurses />} />
+
                 <Route path="/verification-info" element={<VerificationInfo />} />
                 <Route path="/pricing" element={<Pricing />} />
                 <Route path="/about" element={<About />} />
@@ -85,7 +85,7 @@ export default function App() {
                 <Route path="/dashboard/cv" element={<UploadCVPage />} />
                 <Route path="/dashboard/settings" element={<SettingsPage />} />
                 <Route path="/dashboard/analytics" element={<AnalyticsPage />} />
-
+                <Route path="/explore" element={<ExploreNurses />} />
                 {/* Admin administration dashboard */}
                 <Route path="/admin" element={<AdminDashboard />} />
               </Route>
