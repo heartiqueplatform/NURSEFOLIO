@@ -6,7 +6,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Activity, Menu, X, User, LogOut, CheckSquare, Sun, Moon, Heart } from 'lucide-react';
+import { Activity, Menu, X, User, LogOut, CheckSquare, Sun, Moon, Heart, RefreshCw } from 'lucide-react';
 import { useThemeMode } from '../contexts/ThemeContext';
 
 export const Navbar: React.FC = () => {
@@ -25,7 +25,9 @@ export const Navbar: React.FC = () => {
     await logout();
     navigate('/');
   };
-
+  const handleRefresh = () => {
+    window.location.reload();
+  };
   // ── NEW: open overlay instead of signing out directly ──
   const handleExitClick = () => {
     setMobileOpen(false);
@@ -133,7 +135,18 @@ export const Navbar: React.FC = () => {
             </div>
 
             {/* Auth Controls */}
-            <div className="hidden md:flex items-center gap-4">
+            <div className="hidden md:flex items-center gap-4 flex-shrink-0"> {/* Added flex-shrink-0 here */}
+
+              {/* Refresh Button */}
+              <button
+                id="nav-btn-refresh"
+                onClick={handleRefresh}
+                className="p-2 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all cursor-pointer group"
+                title="Refresh Application"
+              >
+                <RefreshCw className="w-5 h-5 group-active:rotate-180 transition-transform duration-500" />
+              </button>
+
               {/* Theme Toggle Button */}
               <button
                 id="nav-btn-theme"
@@ -141,11 +154,7 @@ export const Navbar: React.FC = () => {
                 className="p-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all cursor-pointer"
                 title={themeMode === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
               >
-                {themeMode === 'dark' ? (
-                  <Sun className="w-5 h-5" />
-                ) : (
-                  <Moon className="w-5 h-5" />
-                )}
+                {themeMode === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </button>
 
               {user ? (
@@ -219,6 +228,13 @@ export const Navbar: React.FC = () => {
 
             {/* Mobile Hamburguer */}
             <div className="flex md:hidden items-center gap-2">
+              <button
+                id="mobile-btn-refresh"
+                onClick={handleRefresh}
+                className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <RefreshCw className="w-5 h-5 active:rotate-180 transition-transform duration-500" />
+              </button>
               {/* Mobile Theme Toggle */}
               <button
                 id="mobile-btn-theme"
