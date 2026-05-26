@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Nursefolio</string>
+    <string name="title_activity_main">Nursefolio</string>
+    <string name="package_name">com.nursefolio.app</string>
+    <string name="custom_url_scheme">com.nursefolio.app</string>
+</resources>
