@@ -139,19 +139,19 @@ export default function DashboardHome() {
   const downloadsCount = profileData?.downloads_count || user?.downloads_count || 0;
 
   return (
-    <div className="space-y-2 font-sans">
+    <div className="space-y-0 md:space-y-2 font-sans">
 
-      {/* Greetings block */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
-        <div>
-          <h1 className="text-3xl font-display font-bold text-slate-900 dark:text-white leading-tight">
+      {/* Greetings block - compact on mobile */}
+      <div className="flex flex-col gap-3 md:flex-row md:justify-between md:items-center px-0 md:px-0 py-2 md:py-0">
+        <div className="space-y-0.5">
+          <h1 className="text-xl md:text-3xl font-display font-bold text-slate-900 dark:text-white leading-tight">
             Welcome back, {user.first_name || 'Clinician'}
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
+          <p className="text-slate-500 dark:text-slate-400 text-xs md:text-sm">
             Your clinical portfolio and credential networks are fully active this week.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="hidden md:flex items-center gap-2">
           <div className="px-3.5 py-1.5 bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 rounded-full flex items-center gap-2 text-xs text-slate-500 dark:text-zinc-400 font-medium">
             <span>Search live index...</span>
             <span className="bg-slate-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-[10px] font-mono">⌘K</span>
@@ -159,18 +159,18 @@ export default function DashboardHome() {
         </div>
       </div>
 
-      {/* Verification alerts if unverified */}
+      {/* Verification alerts if unverified - full width on mobile */}
       {user.verification_status !== 'verified' && (
-        <div className="bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200/50 dark:border-amber-800/50 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400 flex items-center justify-center flex-shrink-0">
-              <ShieldAlert className="w-5 h-5" />
+        <div className="bg-amber-50/60 dark:bg-amber-950/30 border-t border-b md:border md:border-amber-200/50 md:dark:border-amber-800/50 md:rounded-2xl p-3 md:p-4 md:p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 md:gap-4 -mx-3 md:mx-0">
+          <div className="flex items-start gap-2 md:gap-3">
+            <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400 flex items-center justify-center flex-shrink-0">
+              <ShieldAlert className="w-4 h-4 md:w-5 md:h-5" />
             </div>
-            <div className="space-y-1">
-              <h4 className="font-bold text-slate-900 dark:text-white text-sm">
+            <div className="space-y-0.5 md:space-y-1">
+              <h4 className="font-bold text-slate-900 dark:text-white text-xs md:text-sm">
                 {user.verification_status === 'pending' ? 'Verification Sent for Review' : 'Profile Credentials Unverified'}
               </h4>
-              <p className="text-xs text-slate-600 dark:text-slate-400 max-w-xl font-medium leading-relaxed">
+              <p className="text-[11px] md:text-xs text-slate-600 dark:text-slate-400 max-w-xl font-medium leading-relaxed">
                 {user.verification_status === 'pending'
                   ? "Audit admins are reviewing your practicing licenses or board registrations. Verification resolves in under one business day."
                   : "Upload license numbers or graduation files to claim a Verified Practitioner badge. Verified nurses are prioritized in clinical searches."}
@@ -181,7 +181,7 @@ export default function DashboardHome() {
             <Link
               id="dashhome-verify-link"
               to="/dashboard/settings"
-              className="px-4 py-2 bg-amber-100 dark:bg-amber-900/50 hover:bg-amber-200/80 dark:hover:bg-amber-800/50 text-amber-900 dark:text-amber-300 font-bold text-xs rounded-xl border border-amber-200/30 dark:border-amber-700 whitespace-nowrap transition-colors"
+              className="px-3 md:px-4 py-1.5 md:py-2 bg-amber-100 dark:bg-amber-900/50 hover:bg-amber-200/80 dark:hover:bg-amber-800/50 text-amber-900 dark:text-amber-300 font-bold text-[10px] md:text-xs rounded-lg md:rounded-xl border border-amber-200/30 dark:border-amber-700 whitespace-nowrap transition-colors w-full sm:w-auto text-center"
             >
               Verify License Now
             </Link>
@@ -189,129 +189,131 @@ export default function DashboardHome() {
         </div>
       )}
 
-      {/* Bento Grid Panel Area */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+      {/* Bento Grid Panel Area - feed on mobile, grid on desktop */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-0 md:gap-6 -mx-3 md:mx-0">
 
-        {/* Hero Profile Cell */}
-        <div className="md:col-span-8 bg-white dark:bg-zinc-950 border border-slate-200/60 dark:border-zinc-800 rounded-[32px] p-6 sm:p-8 shadow-sm relative overflow-hidden flex flex-col justify-between">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/40 dark:bg-indigo-950/20 rounded-bl-[100px] -mr-4 -mt-4 -z-0"></div>
+        {/* Hero Profile Cell - full width feed on mobile */}
+        <div className="md:col-span-8 bg-white dark:bg-zinc-950 md:border md:border-slate-200/60 md:dark:border-zinc-800 md:rounded-[32px] p-4 md:p-6 md:shadow-sm relative overflow-hidden flex flex-col justify-between border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-200/60">
+          <div className="absolute top-0 right-0 w-24 md:w-32 h-24 md:h-32 bg-indigo-50/40 dark:bg-indigo-950/20 rounded-bl-[80px] md:rounded-bl-[100px] -mr-4 -mt-4 -z-0"></div>
 
-          <div className="z-10 flex flex-col sm:flex-row gap-6 items-start">
-            <div className="w-20 h-20 rounded-2xl overflow-hidden shadow-lg border-2 border-white dark:border-zinc-800 ring-4 ring-slate-100 dark:ring-zinc-800">
+          <div className="z-10 flex flex-col sm:flex-row gap-4 md:gap-6 items-start">
+            <div className="w-16 h-16 md:w-20 md:h-20 rounded-xl md:rounded-2xl overflow-hidden shadow-lg border-2 border-white dark:border-zinc-800 ring-4 ring-slate-100 dark:ring-zinc-800">
               <img
                 src={user.avatar_url || profileData?.avatar_url || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200&h=200'}
                 alt="Avatar"
                 className="w-full h-full object-cover"
               />
             </div>
-            <div className="space-y-1.5 flex-1">
+            <div className="space-y-1 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-2xl font-display font-bold text-slate-900 dark:text-white">
+                <h2 className="text-lg md:text-2xl font-display font-bold text-slate-900 dark:text-white">
                   {user.first_name || profileData?.first_name} {user.last_name || profileData?.last_name}
                 </h2>
                 {user.verification_status === 'verified' && (
-                  <span className="inline-flex items-center gap-1 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-indigo-100 dark:border-indigo-800">
-                    <CheckCircle2 className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
+                  <span className="inline-flex items-center gap-1 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-400 text-[9px] md:text-[10px] font-bold px-1.5 md:px-2 py-0.5 rounded-full border border-indigo-100 dark:border-indigo-800">
+                    <CheckCircle2 className="w-2.5 h-2.5 md:w-3 md:h-3 text-indigo-600 dark:text-indigo-400" />
                     <span>VERIFIED RN</span>
                   </span>
                 )}
               </div>
-              <p className="text-indigo-600 dark:text-indigo-400 font-semibold text-sm">
+              <p className="text-indigo-600 dark:text-indigo-400 font-semibold text-xs md:text-sm">
                 {user.qualification || profileData?.qualification || user.nursing_level || profileData?.nursing_level || 'Registered ICU Clinician & Scholar'}
               </p>
 
               {/* Specialties from database */}
-              <div className="flex flex-wrap gap-1.5 pt-2">
+              <div className="flex flex-wrap gap-1 md:gap-1.5 pt-1.5">
                 {profileData?.specialties && profileData.specialties.length > 0 ? (
                   profileData.specialties.slice(0, 4).map((specialty: string, idx: number) => (
-                    <span key={idx} className="px-2.5 py-1 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 rounded-lg text-[10px] font-bold tracking-tight">
+                    <span key={idx} className="px-2 md:px-2.5 py-0.5 md:py-1 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 rounded-md md:rounded-lg text-[9px] md:text-[10px] font-bold tracking-tight">
                       {specialty}
                     </span>
                   ))
                 ) : skills.length > 0 ? (
                   skills.slice(0, 4).map((skill, idx) => (
-                    <span key={idx} className="px-2.5 py-1 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 rounded-lg text-[10px] font-bold tracking-tight">
+                    <span key={idx} className="px-2 md:px-2.5 py-0.5 md:py-1 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 rounded-md md:rounded-lg text-[9px] md:text-[10px] font-bold tracking-tight">
                       {skill.skill_name}
                     </span>
                   ))
                 ) : (
-                  <span className="text-xs text-slate-400 dark:text-zinc-500 italic">No specialties added yet</span>
+                  <span className="text-[10px] md:text-xs text-slate-400 dark:text-zinc-500 italic">No specialties added yet</span>
                 )}
               </div>
             </div>
           </div>
 
-          <div className="z-10 mt-6 pt-6 border-t border-slate-100 dark:border-zinc-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="z-10 mt-4 md:mt-6 pt-4 md:pt-6 border-t border-slate-100 dark:border-zinc-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 md:gap-4">
             <div className="flex-1 max-w-sm">
-              <h4 className="text-[10px] font-bold text-slate-450 dark:text-zinc-500 uppercase tracking-widest">Biography Summary</h4>
-              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1 line-clamp-2 leading-relaxed font-medium">
+              <h4 className="text-[9px] md:text-[10px] font-bold text-slate-450 dark:text-zinc-500 uppercase tracking-widest">Biography Summary</h4>
+              <p className="text-[11px] md:text-xs text-slate-500 dark:text-zinc-400 mt-0.5 md:mt-1 line-clamp-2 leading-relaxed font-medium">
                 {user.bio || profileData?.bio || 'Professional practicing clinician with a strong focus on clinical documentation, patient safety, and peer teaching portfolios.'}
               </p>
             </div>
             <a
               id="dashhome-hero-btn"
               href={`/nurse/${user.username || profileData?.username}`}
-              className="px-5 py-2.5 bg-indigo-600 text-white hover:bg-indigo-700 rounded-xl text-xs font-bold shadow-md shadow-indigo-600/10 flex items-center gap-1.5 transition-all self-end sm:self-auto"
+              className="w-full sm:w-auto px-4 md:px-5 py-2 md:py-2.5 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg md:rounded-xl text-xs font-bold shadow-md shadow-indigo-600/10 flex items-center justify-center gap-1.5 transition-all"
             >
               <span>View Public Page</span>
-              <ExternalLink className="w-3.5 h-3.5" />
+              <ExternalLink className="w-3 h-3 md:w-3.5 md:h-3.5" />
             </a>
           </div>
         </div>
 
-        {/* views count bento box */}
-        <div className="md:col-span-4 bg-indigo-600 dark:bg-indigo-700 rounded-[32px] p-6 sm:p-8 text-white flex flex-col justify-between shadow-lg shadow-indigo-600/10 relative overflow-hidden min-h-[220px]">
-          <div className="absolute top-0 right-0 w-44 h-44 bg-white/5 rounded-full blur-2xl"></div>
+        {/* views count bento box - full width on mobile */}
+        <div className="md:col-span-4 bg-indigo-600 dark:bg-indigo-700 md:rounded-[32px] p-4 md:p-6 text-white flex flex-row md:flex-col justify-between md:justify-between items-center md:items-stretch shadow-lg shadow-indigo-600/10 relative overflow-hidden border-b border-indigo-500/20 md:border-b-0">
+          <div className="absolute top-0 right-0 w-32 md:w-44 h-32 md:h-44 bg-white/5 rounded-full blur-2xl"></div>
 
-          <div className="flex justify-between items-start z-10">
-            <div className="p-3 bg-white/10 rounded-2xl border border-white/10">
-              <Eye className="w-6 h-6 text-white" />
+          <div className="flex md:flex-col md:justify-between md:h-full items-center md:items-start gap-4 md:gap-0 z-10 w-full">
+            <div className="flex items-center gap-3 md:flex-col md:items-start md:gap-0">
+              <div className="p-2 md:p-3 bg-white/10 rounded-lg md:rounded-2xl border border-white/10">
+                <Eye className="w-5 h-5 md:w-6 md:h-6 text-white" />
+              </div>
+              <span className="text-[9px] md:text-[10px] bg-white/15 text-white tracking-widest uppercase rounded-md px-2 py-0.5 md:px-2.5 md:py-1 font-bold md:mt-4 md:self-start">
+                MONTHLY TRAFFIC
+              </span>
             </div>
-            <span className="text-[10px] bg-white/15 text-white tracking-widest uppercase rounded-md px-2.5 py-1 font-bold">
-              MONTHLY TRAFFIC
-            </span>
-          </div>
 
-          <div className="z-10 mt-4">
-            <div className="text-4xl font-display font-bold leading-none">{viewsCount || 0}</div>
-            <div className="text-indigo-150 text-xs font-semibold mt-1.5 flex items-center gap-1">
-              <span>Portfolio view count</span>
+            <div className="text-right md:text-left">
+              <div className="text-2xl md:text-4xl font-display font-bold leading-none">{viewsCount || 0}</div>
+              <div className="text-indigo-150 text-[10px] md:text-xs font-semibold mt-0.5 md:mt-1.5 flex items-center gap-1 justify-end md:justify-start">
+                <span>Portfolio view count</span>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Milestones / Recent Achievements Box */}
-        <div className="md:col-span-6 bg-white dark:bg-zinc-950 border border-slate-200/60 dark:border-zinc-800 rounded-[32px] p-6 sm:p-8 shadow-sm shadow-slate-100/40 dark:shadow-zinc-900/40">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="font-display font-bold text-slate-900 dark:text-white text-base">Key Milestones & Education</h3>
-            <Link to="/dashboard/experiences" className="text-xs text-indigo-600 dark:text-indigo-400 font-bold hover:underline flex items-center">
+        {/* Milestones / Recent Achievements Box - feed style on mobile */}
+        <div className="md:col-span-6 bg-white dark:bg-zinc-950 md:border md:border-slate-200/60 md:dark:border-zinc-800 md:rounded-[32px] p-4 md:p-6 md:shadow-sm shadow-slate-100/40 dark:shadow-zinc-900/40 border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-200/60">
+          <div className="flex justify-between items-center mb-4 md:mb-6">
+            <h3 className="font-display font-bold text-slate-900 dark:text-white text-sm md:text-base">Key Milestones & Education</h3>
+            <Link to="/dashboard/experiences" className="text-[10px] md:text-xs text-indigo-600 dark:text-indigo-400 font-bold hover:underline flex items-center">
               <span>Manage</span>
-              <ChevronRight className="w-3.5 h-3.5" />
+              <ChevronRight className="w-3 h-3 md:w-3.5 md:h-3.5" />
             </Link>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-2 md:space-y-4">
             {loading ? (
-              <div className="space-y-3 py-2 animate-pulse">
-                <div className="h-10 bg-slate-50 dark:bg-zinc-800 rounded-xl"></div>
-                <div className="h-10 bg-slate-50 dark:bg-zinc-800 rounded-xl"></div>
+              <div className="space-y-2 md:space-y-3 py-1 animate-pulse">
+                <div className="h-8 md:h-10 bg-slate-50 dark:bg-zinc-800 rounded-lg md:rounded-xl"></div>
+                <div className="h-8 md:h-10 bg-slate-50 dark:bg-zinc-800 rounded-lg md:rounded-xl"></div>
               </div>
             ) : milestones.length > 0 ? (
               milestones.map((item) => (
-                <div key={item.id} className="flex gap-4 items-center p-3 hover:bg-slate-50 dark:hover:bg-zinc-800 border border-transparent hover:border-slate-100 dark:hover:border-zinc-700 rounded-2xl transition-all">
-                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-lg flex-shrink-0 ${item.bgSide}`}>
+                <div key={item.id} className="flex gap-3 md:gap-4 items-center p-2 md:p-3 hover:bg-slate-50 dark:hover:bg-zinc-800 md:border md:border-transparent md:hover:border-slate-100 md:dark:hover:border-zinc-700 rounded-xl md:rounded-2xl transition-all">
+                  <div className={`w-9 h-9 md:w-11 md:h-11 rounded-lg md:rounded-xl flex items-center justify-center text-base md:text-lg flex-shrink-0 ${item.bgSide}`}>
                     {item.icon}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm truncate">{item.title}</h4>
-                    <p className="text-xs text-slate-400 dark:text-zinc-500 font-medium truncate mt-0.5">{item.subtitle}</p>
+                    <h4 className="font-bold text-slate-800 dark:text-slate-200 text-xs md:text-sm truncate">{item.title}</h4>
+                    <p className="text-[10px] md:text-xs text-slate-400 dark:text-zinc-500 font-medium truncate mt-0.5">{item.subtitle}</p>
                   </div>
                 </div>
               ))
             ) : (
               <div className="py-2 text-center">
-                <p className="text-slate-400 dark:text-zinc-500 text-xs">No work experience or degree items added yet.</p>
-                <Link to="/dashboard/experiences" className="text-xs text-indigo-600 dark:text-indigo-400 font-bold hover:underline mt-2 inline-block">
+                <p className="text-slate-400 dark:text-zinc-500 text-[11px] md:text-xs">No work experience or degree items added yet.</p>
+                <Link to="/dashboard/experiences" className="text-[10px] md:text-xs text-indigo-600 dark:text-indigo-400 font-bold hover:underline mt-1 md:mt-2 inline-block">
                   Add Milestones Now
                 </Link>
               </div>
@@ -319,13 +321,13 @@ export default function DashboardHome() {
           </div>
         </div>
 
-        {/* Skills Bento Progress Panel */}
-        <div className="md:col-span-3 bg-white dark:bg-zinc-950 border border-slate-200/60 dark:border-zinc-800 rounded-[32px] p-6 sm:p-8 shadow-sm">
-          <h3 className="font-display font-bold text-slate-900 dark:text-white text-base mb-6">
+        {/* Skills Bento Progress Panel - full width on mobile */}
+        <div className="md:col-span-3 bg-white dark:bg-zinc-950 md:border md:border-slate-200/60 md:dark:border-zinc-800 md:rounded-[32px] p-4 md:p-6 md:shadow-sm border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-200/60">
+          <h3 className="font-display font-bold text-slate-900 dark:text-white text-sm md:text-base mb-4 md:mb-6">
             Top Specialties
           </h3>
 
-          <div className="space-y-2">
+          <div className="space-y-1.5 md:space-y-2">
             {skills.length > 0 ? (
               skills.slice(0, 4).map((skill: any, index) => {
                 const proficiencyMap: any = {
@@ -345,18 +347,16 @@ export default function DashboardHome() {
                 ];
 
                 return (
-                  <div key={index} className="space-y-1">
-                    <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+                  <div key={index} className="space-y-0.5 md:space-y-1">
+                    <div className="flex justify-between items-center text-[9px] md:text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
                       <span className="truncate max-w-[120px] dark:text-zinc-400">
                         {skill.skill_name}
                       </span>
-
-                      <span className="text-[10px] text-slate-500 dark:text-zinc-400">
+                      <span className="text-[9px] md:text-[10px] text-slate-500 dark:text-zinc-400">
                         {percentage}%
                       </span>
                     </div>
-
-                    <div className="w-full h-2 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                    <div className="w-full h-1.5 md:h-2 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full ${bgColors[index] || 'bg-indigo-500'}`}
                         style={{ width: `${percentage}%` }}
@@ -366,44 +366,45 @@ export default function DashboardHome() {
                 );
               })
             ) : (
-              <p className="text-xs text-slate-400 dark:text-zinc-500 italic">
+              <p className="text-[11px] md:text-xs text-slate-400 dark:text-zinc-500 italic">
                 No specialties added yet
               </p>
             )}
           </div>
         </div>
-        {/* Theme Settings Cell */}
-        <div className="md:col-span-3 bg-white dark:bg-zinc-900 rounded-xl p-6 text-slate-800 dark:text-white flex flex-col justify-between shadow-lg border border-slate-200 dark:border-zinc-800 h-full min-h-[260px]">
+
+        {/* Theme Settings Cell - full width on mobile */}
+        <div className="md:col-span-3 bg-white dark:bg-zinc-900 md:rounded-xl p-4 md:p-6 text-slate-800 dark:text-white flex flex-col justify-between shadow-lg border-t md:border md:border-slate-200 dark:border-zinc-800 border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-200 h-full md:min-h-[260px]">
           <div>
-            <div className="flex justify-between items-start mb-4">
-              <h3 className="text-sm font-bold font-display uppercase tracking-wider text-slate-500 dark:text-zinc-400">Theme Profile</h3>
-              <Palette className="w-4 h-4 text-indigo-500 dark:text-indigo-400 animate-spin" style={{ animationDuration: '6s' }} />
+            <div className="flex justify-between items-start mb-3 md:mb-4">
+              <h3 className="text-xs md:text-sm font-bold font-display uppercase tracking-wider text-slate-500 dark:text-zinc-400">Theme Profile</h3>
+              <Palette className="w-3.5 h-3.5 md:w-4 md:h-4 text-indigo-500 dark:text-indigo-400 animate-spin" style={{ animationDuration: '6s' }} />
             </div>
 
-            <div className="grid grid-cols-4 gap-2 mt-4">
+            <div className="grid grid-cols-4 gap-1.5 md:gap-2 mt-3 md:mt-4">
               <div
-                className={`aspect-square bg-gradient-to-br from-teal-500 to-emerald-500 rounded-xl cursor-default transition-all duration-200 ${currentTheme === 'modern'
+                className={`aspect-square bg-gradient-to-br from-teal-500 to-emerald-500 rounded-lg md:rounded-xl cursor-default transition-all duration-200 ${currentTheme === 'modern'
                   ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-zinc-900 ring-teal-500 scale-105 shadow-lg'
                   : 'opacity-60 hover:opacity-80'
                   }`}
                 title="Modern Premium"
               ></div>
               <div
-                className={`aspect-square bg-gradient-to-br from-blue-500 to-sky-400 rounded-xl cursor-default transition-all duration-200 ${currentTheme === 'clinical'
+                className={`aspect-square bg-gradient-to-br from-blue-500 to-sky-400 rounded-lg md:rounded-xl cursor-default transition-all duration-200 ${currentTheme === 'clinical'
                   ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-zinc-900 ring-blue-500 scale-105 shadow-lg'
                   : 'opacity-60 hover:opacity-80'
                   }`}
                 title="Clinical Clean"
               ></div>
               <div
-                className={`aspect-square bg-gradient-to-br from-slate-700 to-slate-900 dark:from-slate-800 dark:to-slate-950 rounded-xl cursor-default transition-all duration-200 ${currentTheme === 'dark'
+                className={`aspect-square bg-gradient-to-br from-slate-700 to-slate-900 dark:from-slate-800 dark:to-slate-950 rounded-lg md:rounded-xl cursor-default transition-all duration-200 ${currentTheme === 'dark'
                   ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-zinc-900 ring-slate-600 scale-105 shadow-lg'
                   : 'opacity-60 hover:opacity-80'
                   }`}
                 title="Obsidian Night"
               ></div>
               <div
-                className={`aspect-square bg-gradient-to-br from-stone-400 to-stone-600 dark:from-stone-500 dark:to-stone-700 rounded-xl cursor-default transition-all duration-200 ${currentTheme === 'minimal'
+                className={`aspect-square bg-gradient-to-br from-stone-400 to-stone-600 dark:from-stone-500 dark:to-stone-700 rounded-lg md:rounded-xl cursor-default transition-all duration-200 ${currentTheme === 'minimal'
                   ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-zinc-900 ring-stone-500 scale-105 shadow-lg'
                   : 'opacity-60 hover:opacity-80'
                   }`}
@@ -412,11 +413,11 @@ export default function DashboardHome() {
             </div>
           </div>
 
-          <div className="mt-4 pt-4 border-t border-slate-200 dark:border-zinc-800">
+          <div className="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-slate-200 dark:border-zinc-800">
             <Link
               id="dashhome-theme-btn"
               to="/dashboard/theme"
-              className="w-full py-2.5 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-white rounded-xl text-xs font-bold text-center block transition-all"
+              className="w-full py-2 md:py-2.5 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-white rounded-lg md:rounded-xl text-[10px] md:text-xs font-bold text-center block transition-all"
             >
               Customize Theme Settings
             </Link>
@@ -425,50 +426,50 @@ export default function DashboardHome() {
 
       </div>
 
-      {/* Grid bottom fast links row */}
-      <div className="space-y-4 pt-4">
-        <h3 className="font-display font-bold text-slate-900 dark:text-white text-base">Direct Management Operations</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+      {/* Grid bottom fast links row - stacked on mobile, grid on desktop */}
+      <div className="space-y-3 md:space-y-4 pt-2 md:pt-4">
+        <h3 className="font-display font-bold text-slate-900 dark:text-white text-sm md:text-base px-0">Direct Management Operations</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-0 md:gap-6 -mx-3 md:mx-0">
 
           <Link
             id="shortcut-edit-prof"
             to="/dashboard/edit-profile"
-            className="bg-white dark:bg-zinc-950 border border-slate-200/60 dark:border-zinc-800 rounded-xl p-5 hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-md transition-all flex items-start gap-4"
+            className="bg-white dark:bg-zinc-950 md:border md:border-slate-200/60 md:dark:border-zinc-800 md:rounded-xl p-3 md:p-5 hover:border-indigo-300 dark:hover:border-indigo-700 md:hover:shadow-md transition-all flex items-start gap-3 md:gap-4 border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-200/60"
           >
-            <div className="p-3 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 rounded-xl border border-indigo-100/40 dark:border-indigo-800">
-              <Award className="w-5 h-5" />
+            <div className="p-2 md:p-3 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 rounded-lg md:rounded-xl border border-indigo-100/40 dark:border-indigo-800">
+              <Award className="w-4 h-4 md:w-5 md:h-5" />
             </div>
-            <div className="space-y-1">
-              <h4 className="font-bold text-slate-850 dark:text-slate-200 text-sm">Specialties & Biography</h4>
-              <p className="text-slate-500 dark:text-zinc-400 text-xs">Update practicing tags, medical items or write bio statement.</p>
+            <div className="space-y-0.5">
+              <h4 className="font-bold text-slate-850 dark:text-slate-200 text-xs md:text-sm">Specialties & Biography</h4>
+              <p className="text-slate-500 dark:text-zinc-400 text-[10px] md:text-xs">Update practicing tags, medical items or write bio statement.</p>
             </div>
           </Link>
 
           <Link
             id="shortcut-experiences"
             to="/dashboard/experiences"
-            className="bg-white dark:bg-zinc-950 border border-slate-200/60 dark:border-zinc-800 rounded-xl p-5 hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-md transition-all flex items-start gap-4"
+            className="bg-white dark:bg-zinc-950 md:border md:border-slate-200/60 md:dark:border-zinc-800 md:rounded-xl p-3 md:p-5 hover:border-indigo-300 dark:hover:border-indigo-700 md:hover:shadow-md transition-all flex items-start gap-3 md:gap-4 border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-200/60"
           >
-            <div className="p-3 bg-indigo-55/10 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 rounded-xl border border-indigo-100/20 dark:border-indigo-800">
-              <FileSpreadsheet className="w-5 h-5" />
+            <div className="p-2 md:p-3 bg-indigo-55/10 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 rounded-lg md:rounded-xl border border-indigo-100/20 dark:border-indigo-800">
+              <FileSpreadsheet className="w-4 h-4 md:w-5 md:h-5" />
             </div>
-            <div className="space-y-1">
-              <h4 className="font-bold text-slate-850 dark:text-slate-200 text-sm">Clinical Hours & History</h4>
-              <p className="text-slate-500 dark:text-zinc-400 text-xs">Register nursing credentials, medical wards or degrees.</p>
+            <div className="space-y-0.5">
+              <h4 className="font-bold text-slate-850 dark:text-slate-200 text-xs md:text-sm">Clinical Hours & History</h4>
+              <p className="text-slate-500 dark:text-zinc-400 text-[10px] md:text-xs">Register nursing credentials, medical wards or degrees.</p>
             </div>
           </Link>
 
           <Link
             id="shortcut-theme"
             to="/dashboard/theme"
-            className="bg-white dark:bg-zinc-950 border border-slate-200/60 dark:border-zinc-800 rounded-xl p-5 hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-md transition-all flex items-start gap-4"
+            className="bg-white dark:bg-zinc-950 md:border md:border-slate-200/60 md:dark:border-zinc-800 md:rounded-xl p-3 md:p-5 hover:border-indigo-300 dark:hover:border-indigo-700 md:hover:shadow-md transition-all flex items-start gap-3 md:gap-4 border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-200/60"
           >
-            <div className="p-3 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 rounded-xl border border-indigo-100/40 dark:border-indigo-800">
-              <Palette className="w-5 h-5" />
+            <div className="p-2 md:p-3 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 rounded-lg md:rounded-xl border border-indigo-100/40 dark:border-indigo-800">
+              <Palette className="w-4 h-4 md:w-5 md:h-5" />
             </div>
-            <div className="space-y-1">
-              <h4 className="font-bold text-slate-850 dark:text-slate-200 text-sm">Configure Portfolio Theme</h4>
-              <p className="text-slate-500 dark:text-zinc-400 text-xs">Alter portfolio coloring schemes, typography, and banners.</p>
+            <div className="space-y-0.5">
+              <h4 className="font-bold text-slate-850 dark:text-slate-200 text-xs md:text-sm">Configure Portfolio Theme</h4>
+              <p className="text-slate-500 dark:text-zinc-400 text-[10px] md:text-xs">Alter portfolio coloring schemes, typography, and banners.</p>
             </div>
           </Link>
 

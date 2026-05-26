@@ -5,7 +5,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-// We use the certificatesService we fixed
 import { certificatesService } from '../services/certificatesService';
 import { Certification } from '../types';
 import { Award, Calendar, Trash2, Plus, X, Check, Globe, Pencil } from 'lucide-react';
@@ -107,83 +106,84 @@ export default function CertificationsPage() {
   if (!user) return null;
 
   return (
-    <div className="space-y-6 font-sans">
-      {/* Header */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm">
+    <div className="space-y-0 md:space-y-6 font-sans -mx-3 md:mx-0">
+
+      {/* Header - full width on mobile */}
+      <div className="bg-white dark:bg-slate-900 md:rounded-2xl md:border md:border-slate-100 md:dark:border-slate-800 p-4 md:p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 md:gap-4 md:shadow-sm border-b border-slate-100 dark:border-slate-800 md:border-b md:border-slate-100">
         <div>
-          <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">Focus Designations & Board Licenses</h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+          <h2 className="text-lg md:text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">Focus Designations & Board Licenses</h2>
+          <p className="text-[10px] md:text-xs text-slate-500 dark:text-slate-400 mt-0.5 md:mt-1">
             Publish credentials like ACLS, CCRN, or state licenses.
           </p>
         </div>
 
         <button
           onClick={() => (showForm ? resetForm() : setShowForm(true))}
-          className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 transition active:scale-95 shadow-sm"
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2 md:py-2.5 rounded-lg md:rounded-xl text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 transition active:scale-95 md:shadow-sm"
         >
-          {showForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+          {showForm ? <X className="w-3.5 h-3.5 md:w-4 md:h-4" /> : <Plus className="w-3.5 h-3.5 md:w-4 md:h-4" />}
           <span>{showForm ? 'Cancel' : 'Add Certification'}</span>
         </button>
       </div>
 
       {msg && (
-        <div className="bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 p-3.5 rounded-xl text-xs font-semibold flex items-center gap-2 animate-bounce">
-          <Check className="w-4 h-4" />
+        <div className="mx-3 md:mx-0 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 p-2.5 md:p-3.5 rounded-lg md:rounded-xl text-[10px] md:text-xs font-semibold flex items-center gap-1.5 md:gap-2">
+          <Check className="w-3.5 h-3.5 md:w-4 md:h-4" />
           <span>{msg}</span>
         </div>
       )}
 
-      {/* Form */}
+      {/* Form - full width on mobile */}
       {showForm && (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border-2 border-teal-100 dark:border-teal-800 p-6 shadow-sm animate-in slide-in-from-top duration-300">
-          <h2 className="font-bold text-slate-800 dark:text-slate-200 text-sm mb-4">
+        <div className="mx-3 md:mx-0 bg-white dark:bg-slate-900 md:rounded-2xl md:border-2 md:border-teal-100 md:dark:border-teal-800 p-4 md:p-6 md:shadow-sm border-b-2 border-teal-100 dark:border-teal-800 md:border-b-2 md:border-teal-100">
+          <h2 className="font-bold text-slate-800 dark:text-slate-200 text-xs md:text-sm mb-3 md:mb-4">
             {editingId ? 'Edit Specialty Certification' : 'Post Specialty Certification'}
           </h2>
-          <form onSubmit={handleSubmit} className="space-y-4 text-xs text-slate-705 dark:text-slate-300 font-medium">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <form onSubmit={handleSubmit} className="space-y-3 md:space-y-4 text-[11px] md:text-xs text-slate-700 dark:text-slate-300 font-medium">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
               <div>
-                <label className="block text-slate-500 dark:text-slate-400 mb-1">Certification Name</label>
+                <label className="block text-slate-500 dark:text-slate-400 mb-1 text-[10px] md:text-xs">Certification Name</label>
                 <input
                   required
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. ACLS"
-                  className="w-full pl-3 pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200"
+                  className="w-full pl-3 pr-3 md:pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-lg md:rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs"
                 />
               </div>
               <div>
-                <label className="block text-slate-500 dark:text-slate-400 mb-1">Issuing Organization</label>
+                <label className="block text-slate-500 dark:text-slate-400 mb-1 text-[10px] md:text-xs">Issuing Organization</label>
                 <input
                   required
                   type="text"
                   value={issuingOrg}
                   onChange={(e) => setIssuingOrg(e.target.value)}
                   placeholder="e.g. Nursing Council"
-                  className="w-full pl-3 pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200"
+                  className="w-full pl-3 pr-3 md:pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-lg md:rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
               <div>
-                <label className="block text-slate-500 dark:text-slate-400 mb-1">Issue Date</label>
+                <label className="block text-slate-500 dark:text-slate-400 mb-1 text-[10px] md:text-xs">Issue Date</label>
                 <input
                   required
                   type="month"
                   value={issueDate}
                   onChange={(e) => setIssueDate(e.target.value)}
-                  className="w-full pl-3 pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200"
+                  className="w-full pl-3 pr-3 md:pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-lg md:rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs"
                 />
               </div>
               <div>
-                <label className="block text-slate-500 dark:text-slate-400 mb-1">Verification URL (Optional)</label>
+                <label className="block text-slate-500 dark:text-slate-400 mb-1 text-[10px] md:text-xs">Verification URL (Optional)</label>
                 <input
                   type="url"
                   value={verificationUrl}
                   onChange={(e) => setVerificationUrl(e.target.value)}
                   placeholder="https://..."
-                  className="w-full pl-3 pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200"
+                  className="w-full pl-3 pr-3 md:pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-lg md:rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs"
                 />
               </div>
             </div>
@@ -191,7 +191,7 @@ export default function CertificationsPage() {
             <button
               type="submit"
               disabled={saving}
-              className="w-full py-3 text-xs bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl transition"
+              className="w-full py-2.5 md:py-3 text-[11px] md:text-xs bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg md:rounded-xl transition disabled:opacity-50"
             >
               {saving ? 'Saving...' : editingId ? 'Update Certification' : 'Add Certification'}
             </button>
@@ -199,33 +199,56 @@ export default function CertificationsPage() {
         </div>
       )}
 
-      {/* List */}
+      {/* List - single column feed on mobile, grid on desktop */}
       {loading ? (
-        <div className="py-20 text-center"><div className="w-8 h-8 border-4 border-teal-600 border-t-transparent rounded-full animate-spin mx-auto"></div></div>
+        <div className="py-16 md:py-20 text-center">
+          <div className="w-6 h-6 md:w-8 md:h-8 border-3 md:border-4 border-teal-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+          <p className="text-[10px] md:text-xs text-slate-400 dark:text-slate-500">Loading certifications...</p>
+        </div>
       ) : certs.length === 0 ? (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-12 text-center text-slate-500 dark:text-slate-400 shadow-sm">
-          <Award className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
-          <h4 className="font-bold text-slate-800 dark:text-slate-200">No designations listed</h4>
+        <div className="mx-3 md:mx-0 bg-white dark:bg-slate-900 md:rounded-2xl md:border md:border-slate-100 md:dark:border-slate-800 p-8 md:p-12 text-center text-slate-500 dark:text-slate-400 md:shadow-sm">
+          <Award className="w-8 h-8 md:w-10 md:h-10 text-slate-300 dark:text-slate-600 mx-auto mb-3 md:mb-4" />
+          <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm md:text-base">No designations listed</h4>
+          <p className="text-[10px] md:text-xs text-slate-400 dark:text-slate-500 mt-1">Add your first certification above</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-0 md:gap-6">
           {certs.map((cert) => (
-            <div key={cert.id} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-5 rounded-2xl shadow-sm hover:shadow-md transition">
-              <div className="flex justify-between items-start mb-4">
-                <div className="w-10 h-10 rounded-xl bg-teal-50 dark:bg-teal-950/50 text-teal-600 dark:text-teal-400 flex items-center justify-center">
-                  <Award className="w-6 h-6" />
+            <div key={cert.id} className="bg-white dark:bg-slate-900 md:border md:border-slate-100 md:dark:border-slate-800 p-4 md:p-5 md:rounded-2xl md:shadow-sm md:hover:shadow-md transition border-b border-slate-100 dark:border-slate-800 md:border-b md:border-slate-100 last:border-b-0 md:last:border-b">
+              <div className="flex justify-between items-start mb-3 md:mb-4">
+                <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-teal-50 dark:bg-teal-950/50 text-teal-600 dark:text-teal-400 flex items-center justify-center">
+                  <Award className="w-5 h-5 md:w-6 md:h-6" />
                 </div>
-                <div className="flex gap-1">
-                  <button onClick={() => handleEditClick(cert)} className="text-slate-400 dark:text-slate-500 hover:text-teal-600 dark:hover:text-teal-400 p-1.5 rounded-lg hover:bg-teal-50 dark:hover:bg-teal-950/50"><Pencil className="w-4 h-4" /></button>
-                  <button onClick={() => setDeleteId(cert.id)} className="text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/50"><Trash2 className="w-4 h-4" /></button>
+                <div className="flex gap-0.5 md:gap-1">
+                  <button
+                    onClick={() => handleEditClick(cert)}
+                    className="text-slate-400 dark:text-slate-500 hover:text-teal-600 dark:hover:text-teal-400 p-1.5 rounded-lg hover:bg-teal-50 dark:hover:bg-teal-950/50 transition"
+                    title="Edit certification"
+                  >
+                    <Pencil className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                  </button>
+                  <button
+                    onClick={() => setDeleteId(cert.id)}
+                    className="text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/50 transition"
+                    title="Delete certification"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                  </button>
                 </div>
               </div>
-              <h4 className="font-extrabold text-slate-900 dark:text-white text-sm">{cert.name}</h4>
-              <p className="text-[11px] font-bold text-teal-700 dark:text-teal-400">{cert.issuing_organization}</p>
-              <div className="mt-3 pt-3 border-t border-slate-50 dark:border-slate-800 text-[10px] text-slate-500 dark:text-slate-400 flex justify-between">
+
+              <h4 className="font-extrabold text-slate-900 dark:text-white text-sm md:text-base">{cert.name}</h4>
+              <p className="text-[10px] md:text-[11px] font-bold text-teal-700 dark:text-teal-400 mt-0.5">{cert.issuing_organization}</p>
+
+              <div className="mt-2.5 md:mt-3 pt-2.5 md:pt-3 border-t border-slate-50 dark:border-slate-800 text-[9px] md:text-[10px] text-slate-500 dark:text-slate-400 flex justify-between items-center flex-wrap gap-2">
                 <span>Issued: <span className="font-semibold text-slate-700 dark:text-slate-300">{cert.issue_date}</span></span>
                 {cert.verification_url && (
-                  <a href={cert.verification_url} className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1">
+                  <a
+                    href={cert.verification_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 font-medium"
+                  >
                     <Globe className="w-3 h-3" /> Verify
                   </a>
                 )}
