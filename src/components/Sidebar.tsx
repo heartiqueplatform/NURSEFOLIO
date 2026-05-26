@@ -136,9 +136,18 @@ export const Sidebar: React.FC = () => {
 
         {/* Header (Non-scrolling) */}
         <div className={`flex items-center gap-2 mb-8 mt-2 flex-shrink-0 ${isCollapsed ? 'justify-center' : 'px-2'}`}>
-          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-sm tracking-tighter flex-shrink-0 shadow-sm shadow-indigo-650/10">N+</div>
+          {/* Replaced the div with your image */}
+          <img
+            src="/192.png"
+            alt="Logo"
+            className="w-8 h-8 rounded-lg flex-shrink-0 shadow-sm shadow-indigo-600/10 object-cover"
+          />
+
           {!isCollapsed && (
-            <Link to="/" className="font-sans font-bold text-xl text-indigo-900 dark:text-indigo-400 tracking-tight transition animate-fade-in">
+            <Link
+              to="/"
+              className="font-sans font-bold text-xl text-indigo-900 dark:text-indigo-400 tracking-tight transition animate-fade-in"
+            >
               Nursefolio
             </Link>
           )}

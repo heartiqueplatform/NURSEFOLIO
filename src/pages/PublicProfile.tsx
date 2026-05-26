@@ -196,12 +196,12 @@ export default function PublicProfile() {
                   alt={`${profile.first_name} ${profile.last_name}`}
                   className="w-24 h-24 md:w-28 md:h-28 object-cover rounded-xl border-3 md:border-4 shadow bg-white dark:bg-zinc-900 border-white dark:border-zinc-800"
                   onError={(e) => {
-                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1574496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200&h=200';
+                    (e.target as HTMLImageElement).src = '/192.png';
                   }}
                 />
               ) : (
                 <img
-                  src="https://images.unsplash.com/photo-1574496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200&h=200"
+                  src="/192.png"
                   alt="Default Avatar"
                   className="w-24 h-24 md:w-28 md:h-28 object-cover rounded-xl border-3 md:border-4 shadow bg-white dark:bg-zinc-900 border-white dark:border-zinc-800"
                 />

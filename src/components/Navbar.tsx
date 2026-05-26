@@ -102,9 +102,13 @@ export const Navbar: React.FC = () => {
             {/* Logo */}
             <div className="flex items-center">
               <Link id="nav-logo" to="/" className="flex items-center gap-2 group">
-                <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold group-hover:scale-105 transition-transform shadow-md shadow-indigo-600/10">
-                  <span className="text-sm tracking-tighter">N+</span>
-                </div>
+                {/* This replaces the blue box with your actual PNG icon */}
+                <img
+                  src="/192.png"
+                  alt="Nursefolio Logo"
+                  className="w-9 h-9 rounded-xl object-cover group-hover:scale-105 transition-transform shadow-md shadow-indigo-600/10"
+                />
+
                 <span className="font-display font-bold text-xl tracking-tight text-slate-900 dark:text-white">
                   Nurse<span className="text-indigo-600">folio</span>
                 </span>

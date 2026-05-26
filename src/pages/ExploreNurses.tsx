@@ -142,7 +142,7 @@ export default function ExploreNurses() {
       <div className="max-w-7xl mx-auto">
 
         {/* Page title header - compact on mobile */}
-        <div className="flex flex-col mt-4 md:mt-20 md:flex-row md:items-end justify-between gap-2 md:gap-2 mb-4 md:mb-8 px-3 md:px-0">
+        <div className="flex flex-col mt-2 md:mt-2 md:flex-row md:items-end justify-between gap-2 md:gap-2 mb-4 md:mb-8 px-3 md:px-0">
           <div>
             <span className="text-[10px] md:text-xs bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-400 font-bold px-2 md:px-3 py-0.5 md:py-1 rounded-full uppercase tracking-wider font-mono">
               Nurse Registry
@@ -301,7 +301,7 @@ export default function ExploreNurses() {
                     {/* Header Row */}
                     <div className="flex items-start justify-between">
                       <img
-                        src={p.avatar_url || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=150&h=150'}
+                        src={p.avatar_url || '/192.png'}
                         alt={p.username}
                         className="w-12 h-12 md:w-14 md:h-14 object-cover rounded-xl md:rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm"
                       />
@@ -427,7 +427,7 @@ export default function ExploreNurses() {
                 {/* Avatar positioning overlay */}
                 <div className="absolute -top-8 md:-top-10 left-4 md:left-6">
                   <img
-                    src={activePreview.avatar_url || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=150&h=150'}
+                    src={activePreview.avatar_url || '/192.png'}
                     alt="Quick preview avatar"
                     className="w-16 h-16 md:w-20 md:h-20 object-cover rounded-xl md:rounded-2xl border-3 md:border-4 border-white dark:border-slate-900 shadow-md bg-white dark:bg-zinc-950"
                   />

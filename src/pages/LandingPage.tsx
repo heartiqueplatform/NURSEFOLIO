@@ -185,7 +185,7 @@ export default function LandingPage() {
                     >
                       <div className="flex items-center gap-2 md:gap-3">
                         <img
-                          src={p.avatar_url || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=100&h=100'}
+                          src={p.avatar_url || '/192.png'}
                           className="w-10 h-10 md:w-12 md:h-12 rounded-lg md:rounded-xl object-cover border border-slate-100 dark:border-slate-800 shadow-sm"
                           alt="Nurse"
                         />

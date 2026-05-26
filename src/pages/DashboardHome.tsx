@@ -199,7 +199,7 @@ export default function DashboardHome() {
           <div className="z-10 flex flex-col sm:flex-row gap-4 md:gap-6 items-start">
             <div className="w-16 h-16 md:w-20 md:h-20 rounded-xl md:rounded-2xl overflow-hidden shadow-lg border-2 border-white dark:border-zinc-800 ring-4 ring-slate-100 dark:ring-zinc-800">
               <img
-                src={user.avatar_url || profileData?.avatar_url || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200&h=200'}
+                src={user.avatar_url || profileData?.avatar_url || '/192.png'}
                 alt="Avatar"
                 className="w-full h-full object-cover"
               />
