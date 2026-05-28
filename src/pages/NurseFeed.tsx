@@ -137,7 +137,24 @@ const PostCard: React.FC<{
                         <div>
                             <div className="flex items-center gap-1 md:gap-1.5 flex-wrap">
                                 <h3 className="font-bold text-slate-900 dark:text-white text-xs md:text-sm">
-                                    {post.author?.first_name} {post.author?.last_name}
+                                    {(() => {
+                                        const p = post.author;
+                                        if (!p) return 'Anonymous Nurse';
+
+                                        // 1. Try Full Name
+                                        if (p.full_name && p.full_name !== 'null') return p.full_name;
+
+                                        // 2. Try First + Last Name
+                                        if (p.first_name && p.first_name !== 'null') {
+                                            return `${p.first_name} ${p.last_name !== 'null' ? p.last_name : ''}`.trim();
+                                        }
+
+                                        // 3. Try Username
+                                        if (p.username && p.username !== 'null') return p.username;
+
+                                        // 4. Default
+                                        return 'Healthcare Professional';
+                                    })()}
                                 </h3>
                                 {post.author?.verification_status === 'verified' && (
                                     <CheckCircle2 className="w-3 h-3 md:w-3.5 md:h-3.5 text-indigo-500 dark:text-indigo-400" />
@@ -248,6 +265,7 @@ export default function NurseFeed() {
           *,
           author:profiles (
             id,
+             full_name,
             first_name,
             last_name,
             username,
@@ -336,8 +354,16 @@ export default function NurseFeed() {
     }, [currentUserId, fetchPosts]);
 
     // Handle creating a new post
+    // Inside handleCreatePost in NurseFeed.tsx
     const handleCreatePost = async () => {
         if (!currentUserId || !newPostContent.trim()) return;
+
+        // First, fetch your own profile to get your name
+        const { data: myProfile } = await supabase
+            .from('profiles')
+            .select('full_name, first_name, last_name, username, avatar_url')
+            .eq('id', currentUserId)
+            .single();
 
         const tempId = `temp-${Date.now()}`;
         const tempPost: NursePost = {
@@ -347,10 +373,11 @@ export default function NurseFeed() {
             created_at: new Date().toISOString(),
             author: {
                 id: currentUserId,
-                first_name: 'You',
-                last_name: '',
-                username: '',
-                avatar_url: null,
+                // Use your actual name instead of just 'You'
+                first_name: myProfile?.first_name || myProfile?.full_name || 'You',
+                last_name: myProfile?.last_name || '',
+                username: myProfile?.username || '',
+                avatar_url: myProfile?.avatar_url || null,
                 qualification: null,
                 verification_status: 'unverified'
             },
@@ -358,6 +385,8 @@ export default function NurseFeed() {
             share_count: 0,
             is_liked_by_user: false
         };
+
+        // ... rest of your code
 
         setPosts(prev => [tempPost, ...prev]);
         setNewPostContent('');
@@ -632,16 +661,22 @@ export default function NurseFeed() {
             </div>
 
             {/* Endorsement Modal */}
+            {/* Endorsement Modal in NurseFeed.tsx */}
             <AnimatePresence>
                 {endorsementModal.isOpen && endorsementModal.profile && currentUserId && (
                     <EndorsementManager
                         isOpen={endorsementModal.isOpen}
                         onClose={() => setEndorsementModal({ isOpen: false, profile: null })}
                         profileId={endorsementModal.profile.id}
-                        profileName={`${endorsementModal.profile.first_name} ${endorsementModal.profile.last_name}`}
+                        // FIX: Use a proper name fallback logic here
+                        profileName={
+                            endorsementModal.profile.first_name && endorsementModal.profile.first_name !== 'null'
+                                ? `${endorsementModal.profile.first_name} ${endorsementModal.profile.last_name || ''}`.trim()
+                                : (endorsementModal.profile.username || 'Nurse')
+                        }
                         currentUserId={currentUserId}
                         onEndorsementChange={() => {
-                            console.log('Endorsement added/removed');
+                            fetchPosts(); // Refresh counts on the feed when someone is endorsed
                         }}
                     />
                 )}

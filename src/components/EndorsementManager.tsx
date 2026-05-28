@@ -82,43 +82,54 @@ export const EndorsementManager: React.FC<EndorsementManagerProps> = ({
     const fetchEndorsements = async () => {
         setLoading(true);
         try {
-            // Fetch all endorsements for this profile
-            const { data: endorsementsData, error } = await supabase
+            // Fetch endorsements and JOIN with profiles in ONE step
+            const { data, error } = await supabase
                 .from('profile_endorsements')
-                .select('*')
+                .select(`
+                *,
+                endorser:profiles!endorser_id (
+                    full_name,
+                    first_name,
+                    last_name,
+                    username,
+                    avatar_url,
+                    qualification,
+                    nursing_level
+                )
+            `)
                 .eq('profile_id', profileId)
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
 
-            // Fetch endorser details for each endorsement
-            const endorsementsWithDetails = await Promise.all(
-                (endorsementsData || []).map(async (endorsement) => {
-                    const { data: endorserProfile } = await supabase
-                        .from('profiles')
-                        .select('id, first_name, last_name, username, avatar_url, qualification, nursing_level')
-                        .eq('id', endorsement.endorser_id)
-                        .single();
+            const formatted = (data || []).map((endorsement: any) => {
+                const p = endorsement.endorser;
 
-                    return {
-                        ...endorsement,
-                        endorser_name: endorserProfile?.first_name && endorserProfile?.last_name
-                            ? `${endorserProfile.first_name} ${endorserProfile.last_name}`
-                            : endorserProfile?.username || 'A Colleague',
-                        endorser_avatar: endorserProfile?.avatar_url,
-                        endorser_title: endorserProfile?.qualification || endorserProfile?.nursing_level || 'Healthcare Professional'
-                    };
-                })
-            );
+                // Logic to prevent "null" strings appearing in the list
+                let name = 'A Colleague';
+                if (p?.full_name && p.full_name !== 'null') {
+                    name = p.full_name;
+                } else if (p?.first_name && p.first_name !== 'null') {
+                    name = `${p.first_name} ${p.last_name || ''}`.trim();
+                } else if (p?.username && p.username !== 'null') {
+                    name = p.username;
+                }
 
-            setEndorsements(endorsementsWithDetails);
+                return {
+                    ...endorsement,
+                    endorser_name: name,
+                    endorser_avatar: p?.avatar_url,
+                    endorser_title: p?.qualification || p?.nursing_level || 'Healthcare Professional'
+                };
+            });
+
+            setEndorsements(formatted);
         } catch (err) {
             console.error('Error fetching endorsements:', err);
         } finally {
             setLoading(false);
         }
     };
-
     const checkIfUserHasEndorsed = async () => {
         try {
             const { data, error } = await supabase
