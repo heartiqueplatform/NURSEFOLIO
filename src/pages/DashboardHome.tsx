@@ -10,17 +10,27 @@ import { StatsCard } from '../components/StatsCard';
 import {
   BarChart3, Eye, Download, Search, ArrowRight,
   ShieldAlert, Award, FileSpreadsheet, Palette,
-  GraduationCap, Briefcase, ExternalLink, ChevronRight, CheckCircle2
+  GraduationCap, Hospital, Briefcase, ExternalLink, ChevronRight, CheckCircle2, Star, UserCheck
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-
 interface CombinedMilestone {
   type: 'experience' | 'education' | 'certification';
   title: string;
   subtitle: string;
-  icon: string;
+  icon: any; // Changed from string to any
   bgSide: string;
   id: string;
+}
+interface Endorsement {
+  id: string;
+  endorser_id: string;
+  profile_id: string;
+  specialty: string;
+  message: string;
+  created_at: string;
+  endorser_name?: string;
+  endorser_avatar?: string;
+  endorser_title?: string;
 }
 
 export default function DashboardHome() {
@@ -29,6 +39,8 @@ export default function DashboardHome() {
   const [skills, setSkills] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [profileData, setProfileData] = useState<any>(null);
+  const [endorsements, setEndorsements] = useState<Endorsement[]>([]);
+  const [endorsementsLoading, setEndorsementsLoading] = useState(true);
 
   useEffect(() => {
     async function fetchDashboardData() {
@@ -42,20 +54,54 @@ export default function DashboardHome() {
           edus,
           certs,
           profileDetails,
-          nurseSkills
+          nurseSkills,
+          endorsementsData
         ] = await Promise.all([
           databaseService.getExperiences(user.id),
           databaseService.getEducations(user.id),
           databaseService.getCertifications(user.id),
           databaseService.getProfileByUsername(user.username || ''),
-          databaseService.getNurseSkills ? databaseService.getNurseSkills(user.id) : Promise.resolve([])
+          databaseService.getNurseSkills ? databaseService.getNurseSkills(user.id) : Promise.resolve([]),
+          databaseService.getProfileEndorsements ? databaseService.getProfileEndorsements(user.id) : Promise.resolve([])
         ]);
 
         // Set profile data for bio, specialties, etc.
         setProfileData(profileDetails);
 
+        // Process endorsements with endorser info
+        if (endorsementsData && endorsementsData.length > 0) {
+          // Fetch endorser details for each endorsement
+          const endorsementsWithDetails = await Promise.all(
+            endorsementsData.map(async (endorsement: any) => {
+              try {
+                const endorserProfile = await databaseService.getProfileById(endorsement.endorser_id);
+                return {
+                  ...endorsement,
+                  endorser_name: endorserProfile?.first_name && endorserProfile?.last_name
+                    ? `${endorserProfile.first_name} ${endorserProfile.last_name}`
+                    : endorserProfile?.username || 'A Colleague',
+                  endorser_avatar: endorserProfile?.avatar_url,
+                  endorser_title: endorserProfile?.qualification || endorserProfile?.nursing_level || 'Healthcare Professional'
+                };
+              } catch (err) {
+                console.error('Error fetching endorser details:', err);
+                return {
+                  ...endorsement,
+                  endorser_name: 'A Colleague',
+                  endorser_title: 'Healthcare Professional'
+                };
+              }
+            })
+          );
+          setEndorsements(endorsementsWithDetails);
+        }
+        setEndorsementsLoading(false);
+
         // Build milestones from real data
         const items: CombinedMilestone[] = [];
+
+
+        // ... inside your function ...
 
         // Map experiences (max 2)
         if (exps && exps.length > 0) {
@@ -65,7 +111,7 @@ export default function DashboardHome() {
               type: 'experience',
               title: exp.position || exp.title || 'Clinical Position',
               subtitle: `${exp.hospital_name || exp.facility || 'Healthcare Facility'}${exp.department ? ' • ' + exp.department : ''}`,
-              icon: '🏥',
+              icon: Hospital, // Changed from '🏥'
               bgSide: 'bg-amber-50/60 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 border border-amber-100 dark:border-amber-800',
             });
           });
@@ -79,7 +125,7 @@ export default function DashboardHome() {
               type: 'education',
               title: edu.course || edu.degree || 'Degree Program',
               subtitle: `${edu.institution || 'Academic Institution'}${edu.field_of_study ? ' • ' + edu.field_of_study : ''}`,
-              icon: '🎓',
+              icon: GraduationCap, // Changed from '🎓'
               bgSide: 'bg-indigo-50 dark:bg-indigo-950/30 text-indigo-900 dark:text-indigo-200 border border-indigo-100/40 dark:border-indigo-800',
             });
           });
@@ -93,12 +139,11 @@ export default function DashboardHome() {
               type: 'certification',
               title: cert.title || cert.name || 'Certification',
               subtitle: cert.issuer || cert.issuing_organization || 'Issuing Organization',
-              icon: '📜',
+              icon: Award, // Changed from '📜'
               bgSide: 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-900 dark:text-emerald-200 border border-emerald-100 dark:border-emerald-800',
             });
           });
         }
-
         setMilestones(items);
 
         // Fetch skills from nurse_skills table or use specialties from profile
@@ -118,6 +163,8 @@ export default function DashboardHome() {
         // Set empty arrays to avoid undefined errors
         setMilestones([]);
         setSkills([]);
+        setEndorsements([]);
+        setEndorsementsLoading(false);
       } finally {
         setLoading(false);
       }
@@ -137,6 +184,7 @@ export default function DashboardHome() {
   // Calculate views from profile data or user object
   const viewsCount = profileData?.views_count || user?.views_count || 0;
   const downloadsCount = profileData?.downloads_count || user?.downloads_count || 0;
+  const endorsementsCount = endorsements.length;
 
   return (
     <div className="space-y-0 md:space-y-2 font-sans">
@@ -260,7 +308,7 @@ export default function DashboardHome() {
         </div>
 
         {/* views count bento box - full width on mobile */}
-        <div className="md:col-span-4 bg-indigo-600 dark:bg-indigo-700 md:rounded-[32px] p-4 md:p-6 text-white flex flex-row md:flex-col justify-between md:justify-between items-center md:items-stretch shadow-lg shadow-indigo-600/10 relative overflow-hidden border-b border-indigo-500/20 md:border-b-0">
+        <div className="md:col-span-4 bg-gradient-to-br from-indigo-600 to-indigo-700 dark:from-indigo-700 dark:to-indigo-800 md:rounded-[32px] p-4 md:p-6 text-white flex flex-row md:flex-col justify-between md:justify-between items-center md:items-stretch shadow-lg shadow-indigo-600/10 relative overflow-hidden border-b border-indigo-500/20 md:border-b-0">
           <div className="absolute top-0 right-0 w-32 md:w-44 h-32 md:h-44 bg-white/5 rounded-full blur-2xl"></div>
 
           <div className="flex md:flex-col md:justify-between md:h-full items-center md:items-start gap-4 md:gap-0 z-10 w-full">
@@ -283,7 +331,7 @@ export default function DashboardHome() {
         </div>
 
         {/* Milestones / Recent Achievements Box - feed style on mobile */}
-        <div className="md:col-span-6 bg-white dark:bg-zinc-950 md:border md:border-slate-200/60 md:dark:border-zinc-800 md:rounded-[32px] p-4 md:p-6 md:shadow-sm shadow-slate-100/40 dark:shadow-zinc-900/40 border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-200/60">
+        <div className="md:col-span-5 bg-white dark:bg-zinc-950 md:border md:border-slate-200/60 md:dark:border-zinc-800 md:rounded-[32px] p-4 md:p-6 md:shadow-sm shadow-slate-100/40 dark:shadow-zinc-900/40 border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-200/60">
           <div className="flex justify-between items-center mb-4 md:mb-6">
             <h3 className="font-display font-bold text-slate-900 dark:text-white text-sm md:text-base">Key Milestones & Education</h3>
             <Link to="/dashboard/experiences" className="text-[10px] md:text-xs text-indigo-600 dark:text-indigo-400 font-bold hover:underline flex items-center">
@@ -299,17 +347,23 @@ export default function DashboardHome() {
                 <div className="h-8 md:h-10 bg-slate-50 dark:bg-zinc-800 rounded-lg md:rounded-xl"></div>
               </div>
             ) : milestones.length > 0 ? (
-              milestones.map((item) => (
-                <div key={item.id} className="flex gap-3 md:gap-4 items-center p-2 md:p-3 hover:bg-slate-50 dark:hover:bg-zinc-800 md:border md:border-transparent md:hover:border-slate-100 md:dark:hover:border-zinc-700 rounded-xl md:rounded-2xl transition-all">
-                  <div className={`w-9 h-9 md:w-11 md:h-11 rounded-lg md:rounded-xl flex items-center justify-center text-base md:text-lg flex-shrink-0 ${item.bgSide}`}>
-                    {item.icon}
+              milestones.map((item) => {
+                // 1. Create a Capitalized reference to the icon component
+                const Icon = item.icon;
+
+                return (
+                  <div key={item.id} className="flex gap-3 md:gap-4 items-center p-2 md:p-3 hover:bg-slate-50 dark:hover:bg-zinc-800 md:border md:border-transparent md:hover:border-slate-100 md:dark:hover:border-zinc-700 rounded-xl md:rounded-2xl transition-all">
+                    <div className={`w-9 h-9 md:w-11 md:h-11 rounded-lg md:rounded-xl flex items-center justify-center flex-shrink-0 ${item.bgSide}`}>
+                      {/* 2. Render it as a component tag */}
+                      <Icon size={20} strokeWidth={2.5} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="font-bold text-slate-800 dark:text-slate-200 text-xs md:text-sm truncate">{item.title}</h4>
+                      <p className="text-[10px] md:text-xs text-slate-400 dark:text-zinc-500 font-medium truncate mt-0.5">{item.subtitle}</p>
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <h4 className="font-bold text-slate-800 dark:text-slate-200 text-xs md:text-sm truncate">{item.title}</h4>
-                    <p className="text-[10px] md:text-xs text-slate-400 dark:text-zinc-500 font-medium truncate mt-0.5">{item.subtitle}</p>
-                  </div>
-                </div>
-              ))
+                );
+              })
             ) : (
               <div className="py-2 text-center">
                 <p className="text-slate-400 dark:text-zinc-500 text-[11px] md:text-xs">No work experience or degree items added yet.</p>
@@ -317,6 +371,79 @@ export default function DashboardHome() {
                   Add Milestones Now
                 </Link>
               </div>
+            )}
+          </div>
+        </div>
+
+        {/* Endorsements Panel - New! */}
+        <div className="md:col-span-4 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 md:border md:border-amber-200/60 md:dark:border-amber-800/40 md:rounded-[32px] p-4 md:p-6 md:shadow-sm border-b border-amber-100 dark:border-amber-800/30 md:border-b md:border-amber-200/60">
+          <div className="flex justify-between items-center mb-4 md:mb-6">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-amber-100 dark:bg-amber-900/50 rounded-lg">
+                <UserCheck className="w-4 h-4 text-amber-700 dark:text-amber-400" />
+              </div>
+              <h3 className="font-display font-bold text-slate-900 dark:text-white text-sm md:text-base">Peer Endorsements</h3>
+            </div>
+            <span className="text-xs font-bold text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/50 px-2 py-1 rounded-full">
+              {endorsementsCount}
+            </span>
+          </div>
+
+          <div className="space-y-3 md:space-y-4">
+            {endorsementsLoading ? (
+              <div className="space-y-3 animate-pulse">
+                <div className="h-16 bg-white/50 dark:bg-white/5 rounded-xl"></div>
+                <div className="h-16 bg-white/50 dark:bg-white/5 rounded-xl"></div>
+              </div>
+            ) : endorsements.length > 0 ? (
+              endorsements.slice(0, 3).map((endorsement) => (
+                <div key={endorsement.id} className="bg-white/60 dark:bg-zinc-900/40 rounded-xl p-3 md:p-4 hover:shadow-md transition-all border border-amber-200/40 dark:border-amber-800/30">
+                  <div className="flex items-start gap-2 md:gap-3">
+                    <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center flex-shrink-0 text-white font-bold text-sm">
+                      {endorsement.endorser_name?.charAt(0) || 'P'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between flex-wrap gap-1">
+                        <h4 className="font-bold text-slate-800 dark:text-slate-200 text-xs md:text-sm truncate">
+                          {endorsement.endorser_name}
+                        </h4>
+                        <span className="text-[9px] md:text-[10px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-1.5 py-0.5 rounded-full">
+                          {endorsement.specialty || 'Clinical Skill'}
+                        </span>
+                      </div>
+                      <p className="text-[10px] md:text-xs text-slate-500 dark:text-zinc-400 mt-0.5 line-clamp-2">
+                        {endorsement.message || `Endorsed your expertise in ${endorsement.specialty || 'clinical practice'}`}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <div className="flex items-center gap-0.5">
+                          <Star className="w-2.5 h-2.5 text-amber-500 fill-amber-500" />
+                          <span className="text-[9px] text-slate-400 dark:text-zinc-500">Endorsement</span>
+                        </div>
+                        <span className="text-[9px] text-slate-400 dark:text-zinc-500">
+                          {new Date(endorsement.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-6 md:py-8">
+                <div className="w-12 h-12 mx-auto bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mb-3">
+                  <UserCheck className="w-6 h-6 text-amber-400 dark:text-amber-500" />
+                </div>
+                <p className="text-slate-500 dark:text-zinc-400 text-xs md:text-sm">No endorsements yet</p>
+                <p className="text-slate-400 dark:text-zinc-500 text-[10px] md:text-xs mt-1">Share your profile to receive peer endorsements</p>
+              </div>
+            )}
+
+            {endorsementsCount > 3 && (
+              <Link
+                to="/dashboard/endorsements"
+                className="block text-center text-[10px] md:text-xs text-amber-700 dark:text-amber-400 font-bold hover:underline mt-2"
+              >
+                View all {endorsementsCount} endorsements →
+              </Link>
             )}
           </div>
         </div>
@@ -429,7 +556,7 @@ export default function DashboardHome() {
       {/* Grid bottom fast links row - stacked on mobile, grid on desktop */}
       <div className="space-y-3 md:space-y-4 pt-2 md:pt-4">
         <h3 className="font-display font-bold text-slate-900 dark:text-white text-sm md:text-base px-0">Direct Management Operations</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-0 md:gap-6 -mx-3 md:mx-0">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-0 md:gap-6 -mx-3 md:mx-0">
 
           <Link
             id="shortcut-edit-prof"
@@ -456,6 +583,20 @@ export default function DashboardHome() {
             <div className="space-y-0.5">
               <h4 className="font-bold text-slate-850 dark:text-slate-200 text-xs md:text-sm">Clinical Hours & History</h4>
               <p className="text-slate-500 dark:text-zinc-400 text-[10px] md:text-xs">Register nursing credentials, medical wards or degrees.</p>
+            </div>
+          </Link>
+
+          <Link
+            id="shortcut-endorsements"
+            to="/dashboard/endorsements"
+            className="bg-white dark:bg-zinc-950 md:border md:border-slate-200/60 md:dark:border-zinc-800 md:rounded-xl p-3 md:p-5 hover:border-amber-300 dark:hover:border-amber-700 md:hover:shadow-md transition-all flex items-start gap-3 md:gap-4 border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-200/60"
+          >
+            <div className="p-2 md:p-3 bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 rounded-lg md:rounded-xl border border-amber-100/40 dark:border-amber-800">
+              <UserCheck className="w-4 h-4 md:w-5 md:h-5" />
+            </div>
+            <div className="space-y-0.5">
+              <h4 className="font-bold text-slate-850 dark:text-slate-200 text-xs md:text-sm">Peer Endorsements</h4>
+              <p className="text-slate-500 dark:text-zinc-400 text-[10px] md:text-xs">View and manage endorsements from colleagues.</p>
             </div>
           </Link>
 

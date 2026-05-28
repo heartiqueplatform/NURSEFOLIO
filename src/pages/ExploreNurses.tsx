@@ -9,8 +9,51 @@ import { databaseService } from '../services/databaseService';
 import { analyticsService } from '../services/analyticsService';
 import { UserProfile } from '../types';
 import { VerificationBadge } from '../components/VerificationBadge';
-import { Search, MapPin, Briefcase, Filter, Sparkles, Check, ChevronRight } from 'lucide-react';
+import { Search, MapPin, Briefcase, Filter, Sparkles, Check, ChevronRight, Users, ThumbsUp, X, MessageSquare, Tag } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { supabase } from '../lib/supabase';
+import { EndorsementManager } from '../components/EndorsementManager';
+
+// Type for endorsement state (used for optimistic updates)
+interface EndorsementState {
+  [profileId: string]: {
+    count: number;
+    isEndorsedByCurrentUser: boolean;
+    userEndorsementMessage?: string | null;
+    userEndorsementSpecialty?: string | null;
+  };
+}
+
+// Types for the endorsement modal
+interface EndorsementModalData {
+  profile: UserProfile;
+  isOpen: boolean;
+}
+
+// Quick message templates (Facebook-style)
+const QUICK_MESSAGES = [
+  "Great clinical skills",
+  "Excellent teamwork",
+  "Strong leadership in patient care",
+  "Very helpful in training students",
+  "Reliable and professional nurse",
+  "Compassionate and dedicated",
+  "Always goes above and beyond",
+  "Wonderful mentor to new nurses"
+];
+
+// Predefined specialty options (future-ready categories)
+const ENDORSEMENT_SPECIALTIES = [
+  "ICU",
+  "Emergency",
+  "Pediatrics",
+  "Oncology",
+  "Cardiology",
+  "Neurology",
+  "Student Helper",
+  "Mentor",
+  "Peer Support"
+];
 
 // Skeleton Card Component - responsive dimensions
 const NurseCardSkeleton = () => {
@@ -63,13 +106,197 @@ const NurseCardSkeleton = () => {
   );
 };
 
+// Endorsement Modal Component
+const EndorsementModal = ({
+  isOpen,
+  onClose,
+  onSubmit,
+  profile,
+  isUpdating = false
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (message: string | null, specialty: string | null) => Promise<void>;
+  profile: UserProfile;
+  isUpdating?: boolean;
+}) => {
+  const [selectedMessages, setSelectedMessages] = useState<string[]>([]);
+  const [customMessage, setCustomMessage] = useState('');
+  const [selectedSpecialty, setSelectedSpecialty] = useState<string>('');
+
+  // Reset form when modal opens/closes
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedMessages([]);
+      setCustomMessage('');
+      setSelectedSpecialty('');
+    }
+  }, [isOpen]);
+
+  const handleMessageToggle = (message: string) => {
+    setSelectedMessages(prev =>
+      prev.includes(message)
+        ? prev.filter(m => m !== message)
+        : [...prev, message]
+    );
+  };
+
+  const getFinalMessage = (): string | null => {
+    const combined = [...selectedMessages];
+    if (customMessage.trim()) {
+      combined.push(customMessage.trim());
+    }
+    return combined.length > 0 ? combined.join('. ') : null;
+  };
+
+  const handleSubmit = async () => {
+    const message = getFinalMessage();
+    await onSubmit(message, selectedSpecialty || null);
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.95, opacity: 0, y: 20 }}
+        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+        className="bg-white dark:bg-zinc-900 rounded-2xl max-w-md w-full shadow-xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Modal Header */}
+        <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800">
+          <div className="flex items-center gap-3">
+            <ThumbsUp className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+            <div>
+              <h3 className="font-display font-bold text-slate-900 dark:text-white">
+                Endorse {profile.first_name} {profile.last_name}
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Share what makes them exceptional
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+          >
+            <X className="w-5 h-5 text-slate-400" />
+          </button>
+        </div>
+
+        {/* Modal Body */}
+        <div className="p-4 space-y-5 max-h-[60vh] overflow-y-auto">
+          {/* Quick Message Templates */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-2 flex items-center gap-1">
+              <MessageSquare className="w-3.5 h-3.5" />
+              Quick praise (select one or more)
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {QUICK_MESSAGES.map((msg) => (
+                <button
+                  key={msg}
+                  type="button"
+                  onClick={() => handleMessageToggle(msg)}
+                  className={`text-xs px-3 py-1.5 rounded-full transition-all duration-200 ${selectedMessages.includes(msg)
+                    ? 'bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border-indigo-300 dark:border-indigo-700'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 border border-transparent'
+                    } border`}
+                >
+                  {msg}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Custom Message Input */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-2">
+              Add personal note (optional)
+            </label>
+            <textarea
+              value={customMessage}
+              onChange={(e) => setCustomMessage(e.target.value)}
+              placeholder="Write something meaningful..."
+              rows={2}
+              className="w-full text-sm px-3 py-2 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200 transition resize-none"
+            />
+          </div>
+
+          {/* Specialty Selector (Optional) */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-2 flex items-center gap-1">
+              <Tag className="w-3.5 h-3.5" />
+              Specialty category (optional)
+            </label>
+            <select
+              value={selectedSpecialty}
+              onChange={(e) => setSelectedSpecialty(e.target.value)}
+              className="w-full text-sm px-3 py-2 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-800 text-slate-700 dark:text-slate-300 transition"
+            >
+              <option value="">Select a specialty (optional)</option>
+              {ENDORSEMENT_SPECIALTIES.map((spec) => (
+                <option key={spec} value={spec}>{spec}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Modal Footer */}
+        <div className="flex gap-3 p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={isUpdating}
+            className="flex-1 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition shadow-md shadow-indigo-600/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {isUpdating ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Submitting...
+              </>
+            ) : (
+              <>
+                <ThumbsUp className="w-4 h-4" />
+                Submit Endorsement
+              </>
+            )}
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
+
 export default function ExploreNurses() {
   const [searchParams] = useSearchParams();
   const qSearch = searchParams.get('search') || '';
   const qSpecialty = searchParams.get('specialty') || '';
-
+  const [endorsementManagerOpen, setEndorsementManagerOpen] = useState<{ isOpen: boolean; profile: UserProfile | null }>({ isOpen: false, profile: null });
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
+  const [profileViews, setProfileViews] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  // New state for endorsements: counts and current user's endorsement status per profile
+  const [endorsements, setEndorsements] = useState<EndorsementState>({});
+
+  // Endorsement modal state
+  const [endorsementModal, setEndorsementModal] = useState<EndorsementModalData>({ profile: null as any, isOpen: false });
+  const [isSubmittingEndorsement, setIsSubmittingEndorsement] = useState(false);
 
   // Filter States
   const [searchTerm, setSearchTerm] = useState(qSearch);
@@ -80,21 +307,269 @@ export default function ExploreNurses() {
 
   // Preview Drawer/Modal State
   const [activePreview, setActivePreview] = useState<UserProfile | null>(null);
+  // Current logged-in user ID (null if not authenticated)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
+  // Tooltip state for endorsement message preview
+  const [hoveredProfileId, setHoveredProfileId] = useState<string | null>(null);
+  const [tooltipData, setTooltipData] = useState<{ message: string; specialty: string } | null>(null);
+
+  const handleViewAllEndorsements = (profile: UserProfile) => {
+    setEndorsementManagerOpen({ isOpen: true, profile });
+  };
   useEffect(() => {
-    const fetchProfiles = async () => {
+    if (!currentUserId || profiles.length === 0) return;
+
+    fetchEndorsementData(profiles.map(p => p.id));
+  }, [currentUserId, profiles]);
+  // Fetch current user on mount
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUserId(user?.id || null);
+    };
+    getCurrentUser();
+  }, []);
+
+  // Fetch profiles and endorsement data
+  useEffect(() => {
+    const fetchData = async () => {
       try {
         setLoading(true);
+
+        // 1. Fetch profiles
         const data = await databaseService.getProfiles();
         setProfiles(data);
+
+        // 2. Fetch view counts
+        const { data: viewsData } = await supabase!
+          .from('profile_view_counts')
+          .select('profile_id, views_count');
+        if (viewsData) {
+          const counts: Record<string, number> = {};
+          viewsData.forEach((row) => {
+            counts[row.profile_id] = row.views_count;
+          });
+          setProfileViews(counts);
+        }
+
+        // 3. Fetch endorsement data (counts and user's endorsements)
+        await fetchEndorsementData(data.map(p => p.id));
+
       } catch (err) {
         console.error('Failed to load profiles:', err);
       } finally {
         setLoading(false);
       }
     };
-    fetchProfiles();
+    fetchData();
   }, []);
+
+  // Fetch endorsement counts and user's endorsements for given profile IDs
+  const fetchEndorsementData = async (profileIds: string[]) => {
+    if (!profileIds.length) return;
+
+    try {
+      // Fetch endorsement counts from the view (or fallback to table count)
+      const { data: countsData, error: countsError } = await supabase!
+        .from('profile_endorsement_counts')
+        .select('profile_id, endorsement_count');
+
+      let countsMap: Record<string, number> = {};
+      if (!countsError && countsData) {
+        countsData.forEach((item: any) => {
+          countsMap[item.profile_id] = item.endorsement_count;
+        });
+      } else {
+        // Fallback: manually count endorsements if view is missing
+        const { data: allEndorsements, error: fallbackError } = await supabase!
+          .from('profile_endorsements')
+          .select('profile_id');
+        if (!fallbackError && allEndorsements) {
+          countsMap = allEndorsements.reduce((acc: Record<string, number>, e: any) => {
+            acc[e.profile_id] = (acc[e.profile_id] || 0) + 1;
+            return acc;
+          }, {});
+        }
+      }
+
+      // Fetch current user's endorsements with message and specialty (if logged in)
+      let userEndorsementsMap: Record<string, { endorsed: boolean; message?: string | null; specialty?: string | null }> = {};
+      if (currentUserId) {
+        const { data: userEndorsements, error: userEndError } = await supabase!
+          .from('profile_endorsements')
+          .select('profile_id, message, specialty')
+          .eq('endorser_id', currentUserId);
+
+        if (!userEndError && userEndorsements) {
+          userEndorsements.forEach((end: any) => {
+            userEndorsementsMap[end.profile_id] = {
+              endorsed: true,
+              message: end.message,
+              specialty: end.specialty
+            };
+          });
+        }
+      }
+
+      // Build final state
+      const newEndorsements: EndorsementState = {};
+      profileIds.forEach(id => {
+        const userEndorsement = userEndorsementsMap[id];
+        newEndorsements[id] = {
+          count: countsMap[id] || 0,
+          isEndorsedByCurrentUser: userEndorsement?.endorsed || false,
+          userEndorsementMessage: userEndorsement?.message,
+          userEndorsementSpecialty: userEndorsement?.specialty
+        };
+      });
+      setEndorsements(newEndorsements);
+
+    } catch (err) {
+      console.error('Failed to fetch endorsement data:', err);
+    }
+  };
+
+  // Handle opening the endorsement modal
+  const handleEndorseClick = (profile: UserProfile) => {
+    if (!currentUserId) {
+      alert('Please sign in to endorse nurses.');
+      return;
+    }
+    setEndorsementModal({ profile, isOpen: true });
+  };
+
+  // Handle submitting an endorsement from modal
+  const handleEndorsementSubmit = async (message: string | null, specialty: string | null) => {
+    if (!currentUserId || !endorsementModal.profile) return;
+
+    const profile = endorsementModal.profile;
+    const currentState = endorsements[profile.id];
+    const currentCount = currentState?.count || 0;
+
+    // Optimistic update
+    setEndorsements(prev => ({
+      ...prev,
+      [profile.id]: {
+        count: currentCount + 1,
+        isEndorsedByCurrentUser: true,
+        userEndorsementMessage: message,
+        userEndorsementSpecialty: specialty
+      }
+    }));
+
+    setIsSubmittingEndorsement(true);
+
+    try {
+      // Insert new endorsement with message and specialty
+      const { error: insertError } = await supabase!
+        .from('profile_endorsements')
+        .upsert({
+          endorser_id: currentUserId,
+          profile_id: profile.id,
+          specialty,
+          message,
+        }, { onConflict: 'endorser_id,profile_id' });
+
+      if (insertError) throw insertError;
+
+      // After successful DB operation, refresh counts to ensure consistency
+      await fetchEndorsementData(profiles.map(p => p.id));
+
+    } catch (err) {
+      console.error('Endorsement submission failed:', err);
+      // Revert optimistic update on error
+      setEndorsements(prev => ({
+        ...prev,
+        [profile.id]: {
+          count: currentCount,
+          isEndorsedByCurrentUser: false,
+          userEndorsementMessage: undefined,
+          userEndorsementSpecialty: undefined
+        }
+      }));
+      alert('Failed to submit endorsement. Please try again.');
+    } finally {
+      setIsSubmittingEndorsement(false);
+      setEndorsementModal({ profile: null as any, isOpen: false });
+    }
+  };
+
+  // Handle undo endorsement
+  const handleUndoEndorse = async (profile: UserProfile) => {
+    if (!currentUserId) return;
+
+    const currentState = endorsements[profile.id];
+    const currentCount = currentState?.count || 0;
+
+    // Optimistic update
+    setEndorsements(prev => ({
+      ...prev,
+      [profile.id]: {
+        count: Math.max(0, currentCount - 1),
+        isEndorsedByCurrentUser: false,
+        userEndorsementMessage: undefined,
+        userEndorsementSpecialty: undefined
+      }
+    }));
+
+    try {
+      const { error: deleteError } = await supabase!
+        .from('profile_endorsements')
+        .delete()
+        .eq('endorser_id', currentUserId)
+        .eq('profile_id', profile.id);
+
+      if (deleteError) throw deleteError;
+
+      // After successful DB operation, refresh counts
+      await fetchEndorsementData([profile.id]);
+
+    } catch (err) {
+      console.error('Undo endorsement failed:', err);
+      // Revert optimistic update on error
+      setEndorsements(prev => ({
+        ...prev,
+        [profile.id]: {
+          count: currentCount,
+          isEndorsedByCurrentUser: true,
+          userEndorsementMessage: currentState?.userEndorsementMessage,
+          userEndorsementSpecialty: currentState?.userEndorsementSpecialty
+        }
+      }));
+      alert('Failed to undo endorsement. Please try again.');
+    }
+  };
+
+  // Fetch endorsement message preview when hovering over count
+  const handleCountHover = async (profileId: string) => {
+    if (hoveredProfileId === profileId) return;
+
+    setHoveredProfileId(profileId);
+
+    // Fetch latest endorsement message for this profile (from any user, for preview)
+    try {
+      const { data, error } = await supabase!
+        .from('profile_endorsements')
+        .select('message, specialty')
+        .eq('profile_id', profileId)
+        .not('message', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (!error && data && data.length > 0 && data[0].message) {
+        setTooltipData({
+          message: data[0].message,
+          specialty: data[0].specialty || ''
+        });
+      } else {
+        setTooltipData(null);
+      }
+    } catch (err) {
+      console.error('Failed to fetch endorsement preview:', err);
+      setTooltipData(null);
+    }
+  };
 
   // Sync state with query parameters if they change
   useEffect(() => {
@@ -289,6 +764,12 @@ export default function ExploreNurses() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-0 md:gap-6 -mx-3 md:mx-0">
             {filteredProfiles.map((p) => {
+              const endorsementData = endorsements[p.id] || {
+                count: 0,
+                isEndorsedByCurrentUser: false,
+                userEndorsementMessage: undefined,
+                userEndorsementSpecialty: undefined
+              };
               return (
                 <motion.div
                   layout
@@ -306,6 +787,10 @@ export default function ExploreNurses() {
                         className="w-12 h-12 md:w-14 md:h-14 object-cover rounded-xl md:rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm"
                       />
                       <VerificationBadge status={p.verification_status} showText={false} />
+                      <span className="flex items-center gap-0.5 md:gap-1">
+                        <Users className="w-3 h-3 md:w-3.5 md:h-3.5 text-slate-400 dark:text-slate-500" />
+                        {profileViews[p.id] || 0} views
+                      </span>
                     </div>
 
                     {/* Basic Info */}
@@ -339,11 +824,11 @@ export default function ExploreNurses() {
                   </div>
 
                   {/* Info Footer Block */}
-                  <div className="px-4 md:px-6 py-2.5 md:py-3.5 bg-slate-50/70 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-slate-500 dark:text-slate-400 text-[10px] md:text-[11px] font-semibold">
+                  <div className="px-4 md:px-6 py-2.5 md:py-3.5 bg-slate-50/70 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between text-slate-500 dark:text-slate-400 text-[10px] md:text-[11px] font-semibold gap-2">
                     <div className="flex items-center gap-2 md:gap-3">
                       <span className="flex items-center gap-0.5 md:gap-1">
                         <MapPin className="w-3 h-3 md:w-3.5 md:h-3.5 text-slate-400 dark:text-slate-500" />
-                        {p.location || 'USA'}
+                        {p.location || 'Location not set'}
                       </span>
                       <span className="flex items-center gap-0.5 md:gap-1">
                         <Briefcase className="w-3 h-3 md:w-3.5 md:h-3.5 text-slate-400 dark:text-slate-500" />
@@ -352,6 +837,27 @@ export default function ExploreNurses() {
                     </div>
 
                     <div className="flex items-center gap-1.5 md:gap-2 text-xs font-bold">
+                      {/* Endorsement Button with Tooltip on Count */}
+                      {/* Endorsement Button - Compact version */}
+                      {/* Endorsement Button - Click to open manager when already endorsed */}
+                      <button
+                        onClick={() => {
+                          if (endorsementData.isEndorsedByCurrentUser) {
+                            handleViewAllEndorsements(p);
+                          } else {
+                            handleEndorseClick(p);
+                          }
+                        }}
+                        className={`flex items-center gap-1 px-2 py-0.5 rounded-md transition-all duration-200 text-[10px] md:text-xs font-semibold ${endorsementData.isEndorsedByCurrentUser
+                          ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/60'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 dark:hover:text-indigo-400'
+                          }`}
+                      >
+                        <ThumbsUp className={`w-3 h-3 ${endorsementData.isEndorsedByCurrentUser ? 'fill-current' : ''}`} />
+                        <span>{endorsementData.isEndorsedByCurrentUser ? 'Endorsed' : 'Endorse'}</span>
+                        <span className="ml-0.5 text-[10px] font-mono opacity-80">({endorsementData.count})</span>
+                      </button>
+
                       <button
                         id={`explore-preview-${p.username}`}
                         onClick={async () => {
@@ -366,7 +872,6 @@ export default function ExploreNurses() {
                       <Link
                         id={`explore-view-${p.username}`}
                         to={`/nurse/${p.username}`}
-                        onClick={() => analyticsService.recordProfileView(p.id)}
                         className="text-slate-700 dark:text-slate-300 hover:text-indigo-700 dark:hover:text-indigo-400 font-bold flex items-center gap-0.5 text-[10px] md:text-xs"
                       >
                         Hub
@@ -492,6 +997,34 @@ export default function ExploreNurses() {
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+      {/* Endorsement Manager Modal */}
+      <AnimatePresence>
+        {endorsementManagerOpen.isOpen && endorsementManagerOpen.profile && (
+          <EndorsementManager
+            isOpen={endorsementManagerOpen.isOpen}
+            onClose={() => setEndorsementManagerOpen({ isOpen: false, profile: null })}
+            profileId={endorsementManagerOpen.profile.id}
+            profileName={`${endorsementManagerOpen.profile.first_name} ${endorsementManagerOpen.profile.last_name}`}
+            currentUserId={currentUserId || ''}
+            onEndorsementChange={() => {
+              // Refresh endorsement data for all profiles
+              fetchEndorsementData(profiles.map(p => p.id));
+            }}
+          />
+        )}
+      </AnimatePresence>
+      {/* Endorsement Modal */}
+      <AnimatePresence>
+        {endorsementModal.isOpen && endorsementModal.profile && (
+          <EndorsementModal
+            isOpen={endorsementModal.isOpen}
+            onClose={() => setEndorsementModal({ profile: null as any, isOpen: false })}
+            onSubmit={handleEndorsementSubmit}
+            profile={endorsementModal.profile}
+            isUpdating={isSubmittingEndorsement}
+          />
         )}
       </AnimatePresence>
     </div>

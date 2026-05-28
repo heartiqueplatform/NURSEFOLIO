@@ -218,6 +218,21 @@ export const MobileNav: React.FC = () => {
             <span className="text-[10px] font-medium mt-1">Profile</span>
           </NavLink>
 
+
+
+          <NavLink
+            to="/feed"
+            onClick={() => setOpenMenu(false)}
+            className={({ isActive }) =>
+              `flex flex-col items-center justify-center flex-1 py-1 transition-all ${isActive
+                ? 'text-teal-600 dark:text-teal-400'
+                : 'text-slate-500 dark:text-slate-400'
+              }`
+            }
+          >
+            <FileText className="w-5 h-5" />
+            <span className="text-[10px] font-medium mt-1">Pulse</span>
+          </NavLink>
           {/* CV */}
           <NavLink
             to="/explore"
@@ -232,18 +247,6 @@ export const MobileNav: React.FC = () => {
             <Compass className="w-5 h-5" />
             <span className="text-[10px] font-medium mt-1">Explore</span>
           </NavLink>
-
-          {/* Live Page */}
-          {user && (
-            <a
-              href={`/nurse/${user.username}`}
-              className="flex flex-col items-center justify-center flex-1 py-1 text-emerald-600 dark:text-emerald-400"
-            >
-              <ArrowUpRight className="w-5 h-5" />
-              <span className="text-[10px] font-semibold mt-1">Live</span>
-            </a>
-          )}
-
           {/* MENU BUTTON */}
           <button
             onClick={() => setOpenMenu(true)}
@@ -367,7 +370,21 @@ export const MobileNav: React.FC = () => {
                 className={({ isActive }) => `flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-medium transition-all ${isActive ? 'bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400' : 'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
                 <BarChart3 className="w-4 h-4 flex-shrink-0" />Analytics
               </NavLink>
-
+              {user && (
+                <NavLink
+                  to={`/nurse/${user.username}`}
+                  onClick={() => setOpenMenu(false)}
+                  className={({ isActive }) =>
+                    `flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-medium transition-all ${isActive
+                      ? 'bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400'
+                      : 'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`
+                  }
+                >
+                  <ArrowUpRight className="w-4 h-4 flex-shrink-0" />
+                  Live
+                </NavLink>
+              )}
               <NavLink to="/dashboard/settings" onClick={() => setOpenMenu(false)}
                 className={({ isActive }) => `flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-medium transition-all ${isActive ? 'bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400' : 'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
                 <Settings className="w-4 h-4 flex-shrink-0" />Settings

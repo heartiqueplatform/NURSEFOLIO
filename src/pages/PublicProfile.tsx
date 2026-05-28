@@ -16,10 +16,13 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useThemeMode } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
+import PageLoader from '../components/PageLoader';
 
 export default function PublicProfile() {
   const { username } = useParams<{ username: string }>();
   const { themeMode } = useThemeMode();
+  const { user } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [educations, setEducations] = useState<Education[]>([]);
@@ -47,9 +50,19 @@ export default function PublicProfile() {
             databaseService.getEducations(p.id),
             databaseService.getCertifications(p.id),
             databaseService.getResearchProjects(p.id),
-            // Track profile view asynchronously
-            databaseService.recordProfileView(p.id)
           ]);
+
+          // Prevent self-profile views
+          // Prevent self views + duplicate session views
+          const viewKey = `viewed_profile_${p.id}`;
+
+          const alreadyViewed = sessionStorage.getItem(viewKey);
+
+          if (user?.id !== p.id && !alreadyViewed) {
+            databaseService.recordProfileView(p.id);
+
+            sessionStorage.setItem(viewKey, 'true');
+          }
           setExperiences(exp);
           setEducations(edu);
           setCertifications(cert);
@@ -94,12 +107,7 @@ export default function PublicProfile() {
   };
 
   if (loading) {
-    return (
-      <div id="profile-loading" className="min-h-screen bg-white dark:bg-zinc-950 flex flex-col items-center justify-center">
-        <div className="w-10 h-10 border-3 border-gray-200 dark:border-zinc-800 border-t-indigo-600 rounded-full animate-spin mb-3"></div>
-        <p className="text-xs font-medium text-gray-600 dark:text-zinc-400 px-4 text-center">Formulating medical credentials & custom theme...</p>
-      </div>
-    );
+    return <PageLoader />;
   }
 
   if (!profile) {

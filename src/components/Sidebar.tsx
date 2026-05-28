@@ -54,6 +54,12 @@ export const Sidebar: React.FC = () => {
   };
 
   const menuItems = [
+    {
+      id: 'feed',
+      name: 'Daily Pulse',
+      path: '/feed',
+      icon: FileText
+    },
     { id: 'overview', name: 'Overview', path: '/dashboard', icon: Home },
     { id: 'explore', name: 'Explore Registry', path: '/explore', icon: Compass },
     { id: 'edit-profile', name: 'Edit Profile', path: '/dashboard/edit-profile', icon: UserPlus },

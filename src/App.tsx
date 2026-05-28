@@ -44,6 +44,7 @@ import AnalyticsPage from './pages/AnalyticsPage';
 // Admin Page
 import AdminDashboard from './pages/AdminDashboard';
 import SkillsPage from './pages/SkillsPage';
+import NurseFeed from './pages/NurseFeed';
 
 export default function App() {
   return (
@@ -65,7 +66,7 @@ export default function App() {
               </Route>
 
               {/* Special public standalone router (no core header) */}
-              <Route path="/nurse/:username" element={<PublicProfile />} />
+
 
               {/* Auth standalone pages */}
               <Route path="/login" element={<Login />} />
@@ -86,6 +87,8 @@ export default function App() {
                 <Route path="/dashboard/settings" element={<SettingsPage />} />
                 <Route path="/dashboard/analytics" element={<AnalyticsPage />} />
                 <Route path="/explore" element={<ExploreNurses />} />
+                <Route path="/nurse/:username" element={<PublicProfile />} />
+                <Route path="/feed" element={<NurseFeed />} />
                 {/* Admin administration dashboard */}
                 <Route path="/admin" element={<AdminDashboard />} />
               </Route>

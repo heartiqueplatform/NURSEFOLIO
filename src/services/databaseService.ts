@@ -406,7 +406,85 @@ export const databaseService = {
       state_country: 'USA'
     };
   },
+  // Add to databaseService.ts
+  // Get endorsements for a profile
+  async getProfileEndorsements(profileId: string): Promise<any[]> {
+    if (!isSupabaseConfigured) return [];
 
+    const { data, error } = await supabase!
+      .from('profile_endorsements')
+      .select('*')
+      .eq('profile_id', profileId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('getProfileEndorsements error:', error);
+      return [];
+    }
+
+    return data || [];
+  },
+
+  // Get profile by ID (for endorser info)
+  async getProfileById(profileId: string): Promise<any> {
+    if (!isSupabaseConfigured) return null;
+
+    const { data, error } = await supabase!
+      .from('profiles')
+      .select('id, first_name, last_name, username, avatar_url, qualification, nursing_level')
+      .eq('id', profileId)
+      .single();
+
+    if (error) {
+      console.error('getProfileById error:', error);
+      return null;
+    }
+
+    return data;
+  },
+
+  // Create a new endorsement
+  async createEndorsement(
+    endorserId: string,
+    profileId: string,
+    specialty?: string,
+    message?: string
+  ): Promise<any> {
+    if (!isSupabaseConfigured) throw new Error('Supabase not configured');
+
+    const { data, error } = await supabase!
+      .from('profile_endorsements')
+      .insert({
+        endorser_id: endorserId,
+        profile_id: profileId,
+        specialty: specialty || null,
+        message: message || null
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('createEndorsement error:', error);
+      throw error;
+    }
+
+    return data;
+  },
+
+  // Delete an endorsement
+  async deleteEndorsement(endorsementId: string): Promise<void> {
+    if (!isSupabaseConfigured) return;
+
+    const { error } = await supabase!
+      .from('profile_endorsements')
+      .delete()
+      .eq('id', endorsementId);
+
+    if (error) {
+      console.error('deleteEndorsement error:', error);
+      throw error;
+    }
+  },
   async reviewVerificationRequest(reqId: string, status: VerificationStatus, note?: string): Promise<VerificationRequest> {
     if (!isSupabaseConfigured) {
       throw new Error('Supabase client not configured.');

@@ -205,7 +205,7 @@ export default function LandingPage() {
                       <div className="mt-2 md:mt-3 flex items-center justify-between">
                         <div className="flex items-center gap-1 text-slate-400 text-[9px] md:text-[10px]">
                           <MapPin className="w-2.5 h-2.5 md:w-3 md:h-3" />
-                          {p.location || 'USA'}
+                          {p.location || 'Location not set'}
                         </div>
                         <span className="text-[9px] md:text-[10px] font-bold text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 md:px-2 py-0.5 rounded-md">
                           View Profile
@@ -328,15 +328,15 @@ export default function LandingPage() {
       </section>
 
       {/* Trust & CTA Section */}
-      <section className="bg-slate-900 dark:bg-zinc-950 text-white py-12 md:py-16 lg:py-24 relative overflow-hidden">
+      <section className="bg-gray-50 dark:bg-zinc-900 py-12 md:py-16 lg:py-24 relative overflow-hidden">
         {/* Soft grid decoration */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:3rem_3rem] md:bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-35"></div>
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#e5e7eb_1px,transparent_1px),linear-gradient(to_bottom,#e5e7eb_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:3rem_3rem] md:bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-40 dark:opacity-35"></div>
 
         <div className="relative max-w-5xl mx-auto px-3 md:px-4 text-center sm:px-6 lg:px-8 space-y-4 md:space-y-6">
-          <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight text-white">
+          <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight text-gray-900 dark:text-white">
             Begin presenting your nursing career professionally today
           </h2>
-          <p className="text-slate-400 text-sm md:text-base max-w-2xl mx-auto leading-relaxed">
+          <p className="text-gray-600 dark:text-gray-400 text-sm md:text-base max-w-2xl mx-auto leading-relaxed">
             Join other nurses and student nurse practitioners in digitizing medical CVs, earning verified trust credentials, and sharing career experiences easily.
           </p>
 
@@ -344,14 +344,14 @@ export default function LandingPage() {
             <Link
               id="cta-trust-signup"
               to="/register"
-              className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 font-bold px-6 md:px-8 py-3 md:py-3.5 rounded-lg md:rounded-xl text-white text-sm hover:shadow-lg transition cursor-pointer select-none text-center"
+              className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 font-bold px-6 md:px-8 py-3 md:py-3.5 rounded-lg md:rounded-xl text-white text-sm hover:shadow-lg transition cursor-pointer select-none text-center"
             >
               Build My Nursefolio
             </Link>
             <Link
               id="cta-trust-explore"
               to="/explore"
-              className="w-full sm:w-auto px-6 md:px-8 py-3 md:py-3.5 rounded-lg md:rounded-xl border border-slate-700 dark:border-slate-700 hover:bg-slate-800 dark:hover:bg-slate-800 text-slate-200 hover:text-white text-sm font-semibold transition text-center"
+              className="w-full sm:w-auto px-6 md:px-8 py-3 md:py-3.5 rounded-lg md:rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white text-sm font-semibold transition text-center"
             >
               Explore Registered Specialists
             </Link>
