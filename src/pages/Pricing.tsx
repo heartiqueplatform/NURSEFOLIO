@@ -45,7 +45,7 @@ export default function Pricing() {
     },
     {
       name: 'Agency Enterprise',
-      price: '$49',
+      price: '$0',
       period: 'per month',
       desc: 'For acute medical centers, hospital recruiters and contracting boards.',
       features: [
