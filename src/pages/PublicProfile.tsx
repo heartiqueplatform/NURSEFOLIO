@@ -148,13 +148,9 @@ export default function PublicProfile() {
   // Enhance styles with dark mode awareness using zinc-950
   const styles: ThemeStyles = {
     ...baseStyles,
-    bodyBg: themeMode === 'dark' ? 'bg-zinc-950' : 'bg-white',
-    cardBg: themeMode === 'dark' ? 'bg-zinc-900' : 'bg-white',
-    borderStyle: themeMode === 'dark' ? 'border-zinc-800' : 'border-gray-200',
   };
-
   return (
-    <div className={`min-h-screen pb-16 md:pb-20 ${styles.bodyBg} transition-all duration-300`}>
+    <div className="min-h-screen pb-16 md:pb-20 bg-white dark:bg-zinc-950 transition-all duration-300">
       {/* Header - compact on mobile, spacious on desktop */}
       <header className="max-w-4xl mx-auto pt-4 md:pt-6 px-3 md:px-4 flex items-center justify-between">
         <Link
@@ -173,7 +169,7 @@ export default function PublicProfile() {
       <div className="max-w-4xl mx-auto mt-4 md:mt-6">
         {/* Profile Header Block - full width on mobile, card on desktop */}
         <div className={`
-          md:rounded-xl md:shadow-sm md:overflow-hidden md:${styles.cardBg} md:border md:${styles.borderStyle}
+          md:rounded-xl md:shadow-sm md:overflow-hidden md:bg-white md:dark:bg-zinc-900 md:border md:border-gray-200 md:dark:border-zinc-800
         `}>
           {/* Cover photo */}
           {profile.cover_url ? (
@@ -334,7 +330,7 @@ export default function PublicProfile() {
           <div className="md:col-span-8 divide-y divide-gray-100 dark:divide-zinc-800 md:divide-y-0 md:space-y-2">
             {/* Work Experience Section */}
             <section className={`
-              py-4 px-3 md:p-8 md:rounded-xl md:${styles.cardBg} md:border md:${styles.borderStyle}
+              py-4 px-3 md:p-8 md:rounded-xl md:bg-white md:dark:bg-zinc-900 md:border md:border-gray-200 md:dark:border-zinc-800
             `}>
               <div className="flex items-center gap-2 mb-4 md:mb-6">
                 <Briefcase className="w-4 h-4 md:w-5 md:h-5 text-indigo-600 dark:text-indigo-400" />
@@ -373,7 +369,7 @@ export default function PublicProfile() {
 
             {/* Education Section */}
             <section className={`
-              py-4 px-3 md:p-8 md:rounded-xl md:${styles.cardBg} md:border md:${styles.borderStyle}
+              py-4 px-3 md:p-8 md:rounded-xl md:bg-white md:dark:bg-zinc-900 md:border md:border-gray-200 md:dark:border-zinc-800
             `}>
               <div className="flex items-center gap-2 mb-4 md:mb-6">
                 <GraduationCap className="w-4 h-4 md:w-5 md:h-5 text-indigo-600 dark:text-indigo-400" />
@@ -410,7 +406,7 @@ export default function PublicProfile() {
           <div className="md:col-span-4">
             {/* Certifications Section */}
             <section className={`
-              py-4 px-3 md:p-6 md:rounded-xl md:${styles.cardBg} md:border md:${styles.borderStyle}
+              py-4 px-3 md:p-6 md:rounded-xl md:bg-white md:dark:bg-zinc-900 md:border md:border-gray-200 md:dark:border-zinc-800
               border-t border-gray-100 dark:border-zinc-800 md:border-t md:border-gray-200 md:dark:border-zinc-800
             `}>
               <div className="flex items-center gap-2 mb-4 md:mb-5">
@@ -440,7 +436,7 @@ export default function PublicProfile() {
             {/* Research Section */}
             {research.length > 0 && (
               <section className={`
-                py-4 px-3 md:p-6 md:rounded-xl md:${styles.cardBg} md:border md:${styles.borderStyle} md:mt-6
+                py-4 px-3 md:p-6 md:rounded-xl md:bg-white md:dark:bg-zinc-900 md:border md:border-gray-200 md:dark:border-zinc-800 md:mt-6
                 border-t border-gray-100 dark:border-zinc-800 md:border-t md:border-gray-200 md:dark:border-zinc-800
               `}>
                 <div className="flex items-center gap-2 mb-4 md:mb-5">
