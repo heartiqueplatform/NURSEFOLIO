@@ -23,14 +23,28 @@ export const DefaultLayout: React.FC<{ children?: React.ReactNode }> = ({ childr
       <footer className="bg-white dark:bg-zinc-950 border-t border-slate-200/60 dark:border-slate-800/60 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-            <Link to="/" className="flex items-center gap-2 group">
-              <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-sm shadow-indigo-600/10 group-hover:scale-105 transition-transform">
-                <span className="font-bold text-sm tracking-tighter">N+</span>
+            <div className="flex justify-between h-16">
+              {/* Logo */}
+              <div className="flex items-center">
+                <Link
+                  id="nav-logo"
+                  to="/"
+                  className="flex items-center gap-2 group"
+                >
+                  {/* Logo Image */}
+                  <img
+                    src="/192.png"
+                    alt="Nursefolio Logo"
+                    className="w-9 h-9 rounded-xl object-cover shadow-md shadow-indigo-600/10 transition-transform group-hover:scale-105"
+                  />
+
+                  {/* Brand Text */}
+                  <span className="font-display font-bold text-xl tracking-tight text-slate-900 dark:text-white">
+                    Nurse<span className="text-indigo-600">folio</span>
+                  </span>
+                </Link>
               </div>
-              <span className="font-display font-bold text-slate-900 dark:text-white tracking-tight">
-                Nurse<span className="text-indigo-600">folio</span>
-              </span>
-            </Link>
+            </div>
             <p className="text-xs text-slate-400 dark:text-slate-500 font-medium">
               &copy; {new Date().getFullYear()} Nursefolio Applet. All rights reserved.
             </p>

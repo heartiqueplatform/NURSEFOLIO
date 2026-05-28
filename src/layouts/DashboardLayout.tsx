@@ -95,8 +95,14 @@ export const DashboardLayout: React.FC<{ children?: React.ReactNode }> = ({ chil
           {/* Top bar - MAMA'S CHANGE: Added flex-shrink-0 to ensure header never squishes */}
           <header className="h-16 bg-white dark:bg-zinc-950 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 lg:px-8 flex-shrink-0 z-10">
             <div className="flex items-center gap-2.5 lg:hidden">
-              <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-xs">N+</div>
-              <span className="font-bold text-indigo-950 dark:text-indigo-400 text-base tracking-tight">Nursefolio</span>
+              <img
+                src="/192.png"
+                alt="Nursefolio Logo"
+                className="w-8 h-8 rounded-lg object-cover shadow-md shadow-indigo-600/10"
+              />
+              <span className="font-bold text-indigo-950 dark:text-indigo-400 text-base tracking-tight">
+                Nurse<span className="text-indigo-600">folio</span>
+              </span>
             </div>
 
             <div className="hidden lg:flex items-center gap-2">
