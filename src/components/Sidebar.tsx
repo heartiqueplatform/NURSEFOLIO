@@ -240,18 +240,34 @@ export const Sidebar: React.FC = () => {
           </button>
 
           {user && (
-            <div className="p-4 bg-slate-900 dark:bg-slate-800 rounded-2xl text-white hidden sm:block">
+            <div className="p-4 bg-white dark:bg-slate-800 rounded-2xl text-slate-900 dark:text-white shadow-sm dark:shadow-none hidden sm:block">
               {!isCollapsed ? (
                 <>
-                  <p className="text-[10px] text-slate-400 mb-1 font-mono uppercase tracking-wider">Verification Status</p>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 mb-1 font-mono uppercase tracking-wider">
+                    Verification Status
+                  </p>
+
                   <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${user.verification_status === 'verified' ? 'bg-emerald-400' : 'bg-rose-450'}`}></div>
-                    <span className="text-xs font-semibold capitalize">{user.verification_status}</span>
+                    <div
+                      className={`w-2 h-2 rounded-full ${user.verification_status === 'verified'
+                        ? 'bg-emerald-500'
+                        : 'bg-rose-500'
+                        }`}
+                    />
+
+                    <span className="text-xs font-semibold capitalize">
+                      {user.verification_status}
+                    </span>
                   </div>
                 </>
               ) : (
                 <div className="flex justify-center">
-                  <div className={`w-2 h-2 rounded-full ${user.verification_status === 'verified' ? 'bg-emerald-400' : 'bg-rose-450'}`}></div>
+                  <div
+                    className={`w-2 h-2 rounded-full ${user.verification_status === 'verified'
+                      ? 'bg-emerald-500'
+                      : 'bg-rose-500'
+                      }`}
+                  />
                 </div>
               )}
             </div>

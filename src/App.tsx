@@ -23,7 +23,7 @@ import About from './pages/About';
 import Contact from './pages/Contact';
 import LegalPages from './pages/LegalPages';
 import NotFound from './pages/NotFound';
-
+import NotificationBell from './components/notifications/NotificationBell';
 // Auth Pages
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -97,6 +97,7 @@ export default function App() {
               <Route path="*" element={<NotFound />} />
 
             </Routes>
+            <NotificationBell />
           </BrowserRouter>
         </AuthProvider>
       </ThemeProvider>
