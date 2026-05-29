@@ -857,14 +857,17 @@ export default function ExploreNurses() {
                         <span>{endorsementData.isEndorsedByCurrentUser ? 'Endorsed' : 'Endorse'}</span>
                         <span className="ml-0.5 text-[10px] font-mono opacity-80">({endorsementData.count})</span>
                       </button>
-
                       <button
                         id={`explore-preview-${p.username}`}
                         onClick={async () => {
+                          if (!currentUserId || currentUserId === p.id) return;
+
                           setActivePreview(p);
                           await analyticsService.recordProfileView(p.id);
                         }}
-                        className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 hover:underline cursor-pointer text-[10px] md:text-xs"
+                        disabled={currentUserId === p.id}
+                        className={`text-indigo-600 dark:text-indigo-400 hover:underline text-[10px] md:text-xs ${currentUserId === p.id ? 'opacity-40 cursor-not-allowed pointer-events-none' : 'cursor-pointer'
+                          }`}
                       >
                         Preview
                       </button>
