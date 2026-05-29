@@ -19,7 +19,21 @@ import {
     Award,
     CheckCircle2,
     Copy,
-    Check
+    Check,
+    X,
+    Eye,
+    Sparkles,
+    TrendingUp,
+    Users,
+    Lightbulb,
+    Smile,
+    Target,
+    Zap,
+    Coffee,
+    Briefcase,
+    HeartHandshake,
+    GraduationCap,
+    FileText
 } from 'lucide-react';
 
 // Types
@@ -43,12 +57,101 @@ interface NursePost {
     share_count: number;
     is_liked_by_user: boolean;
 }
+
 interface LikeState {
     [postId: string]: {
         count: number;
         isLiked: boolean;
     };
 }
+
+// Prefilled prompt templates for Kenyan nurses
+const PROMPT_TEMPLATES = [
+    {
+        id: 'career',
+        title: 'Career Growth',
+        icon: TrendingUp,
+        prompts: [
+            'Today I learned a new skill in the ICU...',
+            'Just completed my critical care certification! 🎉',
+            'Applying for a leadership position taught me...',
+            'My 5-year career goal as a nurse is...',
+            'The best career advice I received was...'
+        ]
+    },
+    {
+        id: 'shift',
+        title: 'Shift Experience',
+        icon: Clock,
+        prompts: [
+            'Today\'s shift was challenging because...',
+            'A patient taught me that...',
+            'The most rewarding moment today was...',
+            'Handling an emergency taught me...',
+            'My night shift reflection: ...'
+        ]
+    },
+    {
+        id: 'feelings',
+        title: 'How I Feel',
+        icon: Smile,
+        prompts: [
+            'I feel proud when...',
+            'Burnout is real, today I coped by...',
+            'What keeps me going is...',
+            'I\'m grateful for...',
+            'A small win today: ...'
+        ]
+    },
+    {
+        id: 'encourage',
+        title: 'Encourage Others',
+        icon: HeartHandshake,
+        prompts: [
+            'To my fellow nurses: You are enough because...',
+            'Remember that...',
+            'A message to new nurses: ...',
+            'We rise by lifting others, today I...',
+            'To the nurse struggling today: ...'
+        ]
+    },
+    {
+        id: 'kenya',
+        title: '🇰🇪 Kenya Nursing',
+        icon: Users,
+        prompts: [
+            'As a Kenyan nurse, I face...',
+            'The nursing situation in my county...',
+            'A suggestion for KNUN: ...',
+            'Working in a Kenyan public hospital taught me...',
+            'Telemedicine in Kenya: My experience...'
+        ]
+    },
+    {
+        id: 'learning',
+        title: 'Clinical Learning',
+        icon: GraduationCap,
+        prompts: [
+            'Interesting case I handled today: ...',
+            'New protocol I learned about...',
+            'CPR save story: ...',
+            'Medication error prevention tip: ...',
+            'Infection control observation: ...'
+        ]
+    },
+    {
+        id: 'wellness',
+        title: 'Nurse Wellness',
+        icon: Coffee,
+        prompts: [
+            'Self-care tip for nurses: ...',
+            'How I maintain work-life balance...',
+            'Mental health check-in: ...',
+            'What I do after a tough shift...',
+            'Support system that helps me...'
+        ]
+    }
+];
 
 // Helper: Format relative time
 const getRelativeTime = (timestamp: string): string => {
@@ -141,19 +244,11 @@ const PostCard: React.FC<{
                                     {(() => {
                                         const p = post.author;
                                         if (!p) return 'Anonymous Nurse';
-
-                                        // 1. Try Full Name
                                         if (p.full_name && p.full_name !== 'null') return p.full_name;
-
-                                        // 2. Try First + Last Name
                                         if (p.first_name && p.first_name !== 'null') {
                                             return `${p.first_name} ${p.last_name !== 'null' ? p.last_name : ''}`.trim();
                                         }
-
-                                        // 3. Try Username
                                         if (p.username && p.username !== 'null') return p.username;
-
-                                        // 4. Default
                                         return 'Healthcare Professional';
                                     })()}
                                 </h3>
@@ -184,7 +279,6 @@ const PostCard: React.FC<{
 
                 {/* Action Buttons */}
                 <div className="flex items-center gap-2 md:gap-4 pt-2 border-t border-slate-100 dark:border-zinc-800">
-                    {/* Like Button */}
                     <button
                         onClick={() => onLike(post.id)}
                         className={`flex items-center gap-1 md:gap-1.5 px-1.5 md:px-2 py-1 rounded-lg transition-all duration-200 text-[10px] md:text-xs font-semibold ${currentLikeState.isLiked
@@ -196,7 +290,6 @@ const PostCard: React.FC<{
                         <span>{currentLikeState.count}</span>
                     </button>
 
-                    {/* Share Button */}
                     <div className="relative">
                         <button
                             onClick={() => onShare(post.id, post.content)}
@@ -213,7 +306,6 @@ const PostCard: React.FC<{
                         )}
                     </div>
 
-                    {/* Endorse Button - Only show for other nurses */}
                     {!isOwnPost && post.author && (
                         <button
                             onClick={() => onEndorse(post.author)}
@@ -229,13 +321,216 @@ const PostCard: React.FC<{
     );
 };
 
+// Enhanced Post Composer Modal Component
+const PostComposerModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    onSubmit: (content: string) => Promise<void>;
+    submitting: boolean;
+}> = ({ isOpen, onClose, onSubmit, submitting }) => {
+    const [content, setContent] = useState('');
+    const [showPreview, setShowPreview] = useState(false);
+    const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    // Auto-focus when modal opens
+    useEffect(() => {
+        if (isOpen && textareaRef.current) {
+            setTimeout(() => textareaRef.current?.focus(), 100);
+        }
+    }, [isOpen]);
+
+    const handleSubmit = async () => {
+        if (!content.trim()) return;
+        await onSubmit(content);
+        setContent('');
+        setShowPreview(false);
+        setSelectedCategory(null);
+        onClose();
+    };
+
+    const handlePromptClick = (prompt: string) => {
+        setContent(prev => {
+            const newContent = prev ? `${prev} ${prompt}` : prompt;
+            return newContent;
+        });
+        if (textareaRef.current) {
+            textareaRef.current.focus();
+        }
+    };
+
+    const handleClose = () => {
+        if (!onClose) return;
+        setContent('');
+        setShowPreview(false);
+        setSelectedCategory(null);
+        onClose();
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+            onClick={handleClose}
+        >
+            <motion.div
+                initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
+                onClick={(e) => e.stopPropagation()}
+            >
+                {/* Header */}
+                <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-zinc-800">
+                    <div className="flex items-center gap-2">
+                        <Sparkles className="w-5 h-5 text-indigo-500" />
+                        <h2 className="text-lg font-bold text-slate-900 dark:text-white">Share Your Thought</h2>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setShowPreview(!showPreview)}
+                            className={`p-2 rounded-lg transition ${showPreview
+                                ? 'bg-indigo-100 dark:bg-indigo-950/50 text-indigo-600'
+                                : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-800'
+                                }`}
+                        >
+                            <Eye className="w-4 h-4" />
+                        </button>
+                        <button
+                            onClick={handleClose}
+                            className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-800 transition"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Content Area */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                    {showPreview ? (
+                        <div className="space-y-2">
+                            <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">Preview</label>
+                            <div className="bg-slate-50 dark:bg-zinc-800 rounded-xl p-4 border border-slate-200 dark:border-zinc-700">
+                                <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
+                                    {content || 'Your post will appear here...'}
+                                </p>
+                            </div>
+                        </div>
+                    ) : (
+                        <>
+                            <textarea
+                                ref={textareaRef}
+                                value={content}
+                                onChange={(e) => setContent(e.target.value)}
+                                placeholder="What's on your mind today? Share your nursing journey, experiences, or encouragement for fellow nurses..."
+                                rows={6}
+                                className="w-full text-sm px-4 py-3 bg-slate-50 dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:bg-white dark:focus:bg-zinc-800 text-slate-800 dark:text-slate-200 transition resize-none"
+                            />
+
+                            {/* Character counter */}
+                            <div className="text-right text-xs text-slate-400">
+                                {content.length} characters
+                            </div>
+                        </>
+                    )}
+
+                    {/* Prompt Categories */}
+                    <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                            <Lightbulb className="w-4 h-4 text-amber-500" />
+                            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Get Inspired</span>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2">
+                            {PROMPT_TEMPLATES.map(cat => (
+                                <button
+                                    key={cat.id}
+                                    onClick={() => setSelectedCategory(selectedCategory === cat.id ? null : cat.id)}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition ${selectedCategory === cat.id
+                                        ? 'bg-indigo-100 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300'
+                                        : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-zinc-700'
+                                        }`}
+                                >
+                                    <cat.icon className="w-3.5 h-3.5" />
+                                    {cat.title}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Prompts for selected category */}
+                        <AnimatePresence mode="wait">
+                            {selectedCategory && (
+                                <motion.div
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: 'auto' }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    className="overflow-hidden"
+                                >
+                                    <div className="bg-slate-50 dark:bg-zinc-800/50 rounded-xl p-3 space-y-2">
+                                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                                            Click any prompt to add to your post:
+                                        </p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {PROMPT_TEMPLATES.find(c => c.id === selectedCategory)?.prompts.map((prompt, idx) => (
+                                                <button
+                                                    key={idx}
+                                                    onClick={() => handlePromptClick(prompt)}
+                                                    className="text-left px-3 py-1.5 bg-white dark:bg-zinc-800 rounded-lg text-xs text-slate-700 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 hover:text-indigo-600 dark:hover:text-indigo-400 transition border border-slate-200 dark:border-zinc-700"
+                                                >
+                                                    {prompt}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+                </div>
+
+                {/* Footer */}
+                <div className="flex items-center justify-end gap-3 p-4 border-t border-slate-200 dark:border-zinc-800">
+                    <button
+                        onClick={handleClose}
+                        className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg transition"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={handleSubmit}
+                        disabled={!content.trim() || submitting}
+                        className="flex items-center gap-2 px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {submitting ? (
+                            <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Posting...
+                            </>
+                        ) : (
+                            <>
+                                <Send className="w-4 h-4" />
+                                Share Post
+                            </>
+                        )}
+                    </button>
+                </div>
+            </motion.div>
+        </motion.div>
+    );
+};
+
 // Main Component
 export default function NurseFeed() {
     const [posts, setPosts] = useState<NursePost[]>([]);
     const [likeState, setLikeState] = useState<LikeState>({});
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
-    const [newPostContent, setNewPostContent] = useState('');
+    const [isComposerOpen, setIsComposerOpen] = useState(false);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     const [endorsementModal, setEndorsementModal] = useState<{
         isOpen: boolean;
@@ -266,7 +561,7 @@ export default function NurseFeed() {
           *,
           author:profiles (
             id,
-             full_name,
+            full_name,
             first_name,
             last_name,
             username,
@@ -355,11 +650,10 @@ export default function NurseFeed() {
     }, [currentUserId, fetchPosts]);
 
     // Handle creating a new post
-    // Inside handleCreatePost in NurseFeed.tsx
-    const handleCreatePost = async () => {
-        if (!currentUserId || !newPostContent.trim()) return;
+    const handleCreatePost = async (content: string) => {
+        if (!currentUserId || !content.trim()) return;
 
-        // First, fetch your own profile to get your name
+        // Fetch your own profile to get your name
         const { data: myProfile } = await supabase
             .from('profiles')
             .select('full_name, first_name, last_name, username, avatar_url')
@@ -370,11 +664,10 @@ export default function NurseFeed() {
         const tempPost: NursePost = {
             id: tempId,
             user_id: currentUserId,
-            content: newPostContent.trim(),
+            content: content.trim(),
             created_at: new Date().toISOString(),
             author: {
                 id: currentUserId,
-                // Use your actual name instead of just 'You'
                 first_name: myProfile?.first_name || myProfile?.full_name || 'You',
                 last_name: myProfile?.last_name || '',
                 username: myProfile?.username || '',
@@ -387,10 +680,7 @@ export default function NurseFeed() {
             is_liked_by_user: false
         };
 
-        // ... rest of your code
-
         setPosts(prev => [tempPost, ...prev]);
-        setNewPostContent('');
         setSubmitting(true);
 
         try {
@@ -398,7 +688,7 @@ export default function NurseFeed() {
                 .from('nurse_posts')
                 .insert({
                     user_id: currentUserId,
-                    content: newPostContent.trim()
+                    content: content.trim()
                 })
                 .select()
                 .single();
@@ -589,34 +879,15 @@ export default function NurseFeed() {
                     </p>
                 </div>
 
-                {/* Post Composer - full width on mobile */}
+                {/* Post Composer Button - Opens Modal */}
                 <div className="bg-white dark:bg-zinc-950 md:rounded-xl md:border md:border-slate-200/60 md:dark:border-zinc-800 p-3 md:p-4 mb-0 md:mb-6 md:shadow-sm border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-200/60">
-                    <textarea
-                        value={newPostContent}
-                        onChange={(e) => setNewPostContent(e.target.value)}
-                        placeholder="What did you learn today in the ward?"
-                        rows={2}
-                        className="w-full text-xs md:text-sm px-3 py-2 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200 transition resize-none"
-                    />
-                    <div className="flex justify-end mt-2 md:mt-3">
-                        <button
-                            onClick={handleCreatePost}
-                            disabled={!newPostContent.trim() || submitting}
-                            className="w-full md:w-auto flex items-center justify-center gap-1.5 md:gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs md:text-sm font-semibold transition md:shadow-md md:shadow-indigo-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {submitting ? (
-                                <>
-                                    <Loader2 className="w-3.5 h-3.5 md:w-4 md:h-4 animate-spin" />
-                                    Posting...
-                                </>
-                            ) : (
-                                <>
-                                    <Send className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                                    Post
-                                </>
-                            )}
-                        </button>
-                    </div>
+                    <button
+                        onClick={() => setIsComposerOpen(true)}
+                        className="w-full flex items-center gap-2 px-4 py-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 text-left text-slate-400 dark:text-slate-500 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                    >
+                        <Sparkles className="w-4 h-4" />
+                        <span>Share your nursing journey today...</span>
+                    </button>
                 </div>
 
                 {/* Feed List */}
@@ -662,15 +933,21 @@ export default function NurseFeed() {
                 )}
             </div>
 
+            {/* Post Composer Modal */}
+            <PostComposerModal
+                isOpen={isComposerOpen}
+                onClose={() => setIsComposerOpen(false)}
+                onSubmit={handleCreatePost}
+                submitting={submitting}
+            />
+
             {/* Endorsement Modal */}
-            {/* Endorsement Modal in NurseFeed.tsx */}
             <AnimatePresence>
                 {endorsementModal.isOpen && endorsementModal.profile && currentUserId && (
                     <EndorsementManager
                         isOpen={endorsementModal.isOpen}
                         onClose={() => setEndorsementModal({ isOpen: false, profile: null })}
                         profileId={endorsementModal.profile.id}
-                        // FIX: Use a proper name fallback logic here
                         profileName={
                             endorsementModal.profile.full_name &&
                                 endorsementModal.profile.full_name !== 'null'
@@ -682,7 +959,7 @@ export default function NurseFeed() {
                         }
                         currentUserId={currentUserId}
                         onEndorsementChange={() => {
-                            fetchPosts(); // Refresh counts on the feed when someone is endorsed
+                            fetchPosts();
                         }}
                     />
                 )}
