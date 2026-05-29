@@ -545,7 +545,7 @@ export default function EditProfile() {
                 type="text"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                placeholder="Boston, MA"
+                placeholder="Mombasa, Kenya"
                 className="w-full pl-3 md:pl-3.5 pr-3 md:pr-4 py-2 bg-slate-50/60 dark:bg-slate-800/60 rounded-lg md:rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs md:text-sm transition-all"
               />
             </div>
