@@ -31,6 +31,7 @@ interface NursePost {
     author?: {
         id: string;
         first_name: string;
+        full_name?: string;
         last_name: string;
         username: string;
         avatar_url: string | null;
@@ -558,6 +559,7 @@ export default function NurseFeed() {
         const profile: UserProfile = {
             id: author.id,
             first_name: author.first_name,
+            full_name: author.full_name,
             last_name: author.last_name,
             username: author.username,
             avatar_url: author.avatar_url,
@@ -670,9 +672,13 @@ export default function NurseFeed() {
                         profileId={endorsementModal.profile.id}
                         // FIX: Use a proper name fallback logic here
                         profileName={
-                            endorsementModal.profile.first_name && endorsementModal.profile.first_name !== 'null'
-                                ? `${endorsementModal.profile.first_name} ${endorsementModal.profile.last_name || ''}`.trim()
-                                : (endorsementModal.profile.username || 'Nurse')
+                            endorsementModal.profile.full_name &&
+                                endorsementModal.profile.full_name !== 'null'
+                                ? endorsementModal.profile.full_name
+                                : endorsementModal.profile.first_name &&
+                                    endorsementModal.profile.first_name !== 'null'
+                                    ? `${endorsementModal.profile.first_name} ${endorsementModal.profile.last_name || ''}`.trim()
+                                    : (endorsementModal.profile.username || 'Nurse')
                         }
                         currentUserId={currentUserId}
                         onEndorsementChange={() => {

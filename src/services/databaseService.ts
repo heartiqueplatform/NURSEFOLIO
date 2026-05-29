@@ -103,7 +103,7 @@ export const databaseService = {
       .eq('document_type', 'cv')
       .order('created_at', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle()
 
     if (error) {
       console.warn("No CV found in the vault for this user.");

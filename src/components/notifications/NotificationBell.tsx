@@ -32,7 +32,7 @@ export default function NotificationBell() {
     const overlayRef = useRef<HTMLDivElement>(null);
     const navigate = useNavigate();
     const unreadCount = notifications.filter(n => !n.is_read).length;
-
+    const channelRef = useRef<any>(null);
     // Detect dark/light mode
     useEffect(() => {
         const checkDarkMode = () => {
@@ -213,30 +213,27 @@ export default function NotificationBell() {
 
     // Fetch notifications and setup realtime subscription
     useEffect(() => {
-        let subscription: any;
-
         const initializeNotifications = async () => {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
             setUserId(user.id);
 
-            // Fetch initial notifications
-            const { data: initialData, error } = await supabase
+            const { data: initialData } = await supabase
                 .from('notifications')
                 .select('*')
                 .eq('user_id', user.id)
                 .order('created_at', { ascending: false })
                 .limit(50);
 
-            if (error) {
-                console.error('Error fetching notifications:', error);
-            } else if (initialData) {
-                setNotifications(initialData);
+            if (initialData) setNotifications(initialData);
+
+            // 🧠 IMPORTANT: remove old channel before creating new one
+            if (channelRef.current) {
+                supabase.removeChannel(channelRef.current);
             }
 
-            // Setup realtime subscription
-            subscription = supabase
+            const channel = supabase
                 .channel(`notifications-${user.id}`)
                 .on(
                     'postgres_changes',
@@ -249,21 +246,22 @@ export default function NotificationBell() {
                     async (payload) => {
                         const newNotification = payload.new as Notification;
 
-                        // Add to notifications list
                         setNotifications(prev => [newNotification, ...prev]);
-
-                        // Show toast for new notification
                         await showToast(newNotification);
                     }
-                )
-                .subscribe();
+                );
+
+            channel.subscribe();
+
+            channelRef.current = channel;
         };
 
         initializeNotifications();
 
         return () => {
-            if (subscription) {
-                supabase.removeChannel(subscription);
+            if (channelRef.current) {
+                supabase.removeChannel(channelRef.current);
+                channelRef.current = null;
             }
         };
     }, []);
@@ -364,7 +362,7 @@ export default function NotificationBell() {
                     onClick={() => setOpen(!open)}
                     className="relative bg-gradient-to-r from-teal-600 to-teal-500 hover:from-teal-500 hover:to-teal-400 text-white p-4 rounded-2xl shadow-xl flex items-center justify-center transition-all duration-200"
                 >
-                    <Bell size={24} className={unreadCount > 0 ? "animate-bounce" : ""} />
+                    <Bell size={18} className={unreadCount > 0 ? "animate-bounce" : ""} />
                     {unreadCount > 0 && (
                         <span className="absolute -top-1 -right-1 bg-red-500 text-[10px] font-bold h-5 w-5 flex items-center justify-center rounded-full border-2 border-white">
                             {unreadCount > 99 ? '99+' : unreadCount}

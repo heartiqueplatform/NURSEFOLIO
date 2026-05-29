@@ -137,8 +137,7 @@ export const EndorsementManager: React.FC<EndorsementManagerProps> = ({
                 .select('id')
                 .eq('profile_id', profileId)
                 .eq('endorser_id', currentUserId)
-                .single();
-
+                .maybeSingle();
             setHasEndorsedBefore(!!data);
         } catch (err) {
             setHasEndorsedBefore(false);
