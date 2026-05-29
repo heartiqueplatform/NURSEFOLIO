@@ -8,7 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { databaseService } from '../services/databaseService';
 import { VerificationBadge } from '../components/VerificationBadge';
 import { ShieldCheck, Check, Key, Bell, HelpCircle, Heart, Smartphone } from 'lucide-react';
-
+import { supabase } from '../lib/supabase';
 export default function SettingsPage() {
   const { user, refreshUser } = useAuth();
 
@@ -76,13 +76,35 @@ export default function SettingsPage() {
     }
   };
 
-  const handlePasswordSubmit = (e: React.FormEvent) => {
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (oldPassword && newPassword) {
-      setPassMsg('Security password updated successfully on servers.');
+
+    setPassMsg('');
+
+    try {
+      if (!newPassword.trim()) {
+        setPassMsg('Please enter a new password.');
+        return;
+      }
+
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) {
+        setPassMsg(error.message);
+        return;
+      }
+
+      setPassMsg('Password updated successfully.');
+
       setOldPassword('');
       setNewPassword('');
-      setTimeout(() => setPassMsg(''), 3000);
+
+      setTimeout(() => setPassMsg(''), 4000);
+
+    } catch (err: any) {
+      setPassMsg(err.message || 'Failed to update password.');
     }
   };
 
@@ -274,7 +296,7 @@ export default function SettingsPage() {
         <form onSubmit={handlePasswordSubmit} className="space-y-3 md:space-y-4 text-[11px] md:text-xs font-semibold text-slate-700 dark:text-slate-300 max-w-md">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
             <div>
-              <label className="block text-slate-500 dark:text-slate-400 mb-1 text-[10px] md:text-xs">Current Password</label>
+              <label className="block text-slate-500 dark:text-slate-400 mb-1 text-[10px] md:text-xs">New Password</label>
               <input
                 id="sec-old-pass"
                 type="password"
@@ -285,7 +307,7 @@ export default function SettingsPage() {
               />
             </div>
             <div>
-              <label className="block text-slate-500 dark:text-slate-400 mb-1 text-[10px] md:text-xs">Create New Password</label>
+              <label className="block text-slate-500 dark:text-slate-400 mb-1 text-[10px] md:text-xs">Confirm New Password</label>
               <input
                 id="sec-new-pass"
                 type="password"
