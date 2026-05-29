@@ -231,7 +231,7 @@ export default function SettingsPage() {
                   type="text"
                   value={licenseState}
                   onChange={(e) => setLicenseState(e.target.value)}
-                  placeholder="e.g. Massachusetts, USA"
+                  placeholder="e.g. Nyeri, Kenya"
                   className="w-full pl-2.5 md:pl-3 pr-3 md:pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-lg md:rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200 text-[11px] md:text-xs"
                 />
               </div>

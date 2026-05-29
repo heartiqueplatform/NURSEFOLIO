@@ -957,7 +957,7 @@ export default function ExploreNurses() {
                   <div className="grid grid-cols-2 gap-2 md:gap-3 text-xs border-y border-slate-100 dark:border-slate-800 py-2.5 md:py-3 mt-3 md:mt-4">
                     <div>
                       <span className="block text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider text-[8px] md:text-[9px] font-mono">Location</span>
-                      <span className="block text-slate-700 dark:text-slate-300 font-semibold mt-0.5 text-[10px] md:text-xs">{activePreview.location || 'USA'}</span>
+                      <span className="block text-slate-700 dark:text-slate-300 font-semibold mt-0.5 text-[10px] md:text-xs">{activePreview.location || 'location not specified'}</span>
                     </div>
                     <div>
                       <span className="block text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider text-[8px] md:text-[9px] font-mono">Role Grade</span>
