@@ -2,6 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
+import { uploadToCloudinary } from '../lib/cloudinary';
 import { supabase } from '../lib/supabase'
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
@@ -265,12 +266,24 @@ export default function EditProfile() {
 
       // Upload with progress simulation
       const publicUrl = await simulateProgress(type, () =>
-        databaseService.uploadImage(user.id, file, type)
+        uploadToCloudinary(file)
       );
 
-      if (type === 'avatar') setAvatarUrl(publicUrl);
-      if (type === 'cover') setCoverUrl(publicUrl);
+      if (type === 'avatar') {
+        setAvatarUrl(publicUrl);
 
+        await databaseService.updateProfile(user.id, {
+          avatar_url: publicUrl,
+        });
+      }
+
+      if (type === 'cover') {
+        setCoverUrl(publicUrl);
+
+        await databaseService.updateProfile(user.id, {
+          cover_url: publicUrl,
+        });
+      }
       // Show success popup with cute messages
       setShowSuccessPopup((prev) => ({ ...prev, [type]: true }));
 

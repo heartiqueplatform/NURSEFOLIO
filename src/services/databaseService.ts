@@ -92,12 +92,13 @@ export const databaseService = {
     }
   },
 
-  async getPublicCV(userId: string): Promise<string | null> {
+  // FIND THIS AROUND LINE 98 AND REPLACE IT:
+  async getPublicCV(userId: string): Promise<{ file_url: string; is_locked: boolean } | null> {
     if (!isSupabaseConfigured) return null;
 
     const { data, error } = await supabase!
       .from('uploaded_documents')
-      .select('file_url')
+      .select('file_url, is_locked') // <--- Added is_locked here!
       .eq('user_id', userId)
       .eq('document_type', 'cv')
       .order('created_at', { ascending: false })
@@ -108,7 +109,22 @@ export const databaseService = {
       console.warn("No CV found in the vault for this user.");
       return null;
     }
-    return data?.file_url || null;
+
+    // Now returning the whole object instead of just the string
+    return data ? { file_url: data.file_url, is_locked: data.is_locked } : null;
+  },
+  // Add this to your databaseService object
+  async toggleCvLock(userId: string, newLockStatus: boolean) {
+    if (!isSupabaseConfigured) return;
+
+    const { error } = await supabase!
+      .from('uploaded_documents')
+      .update({ is_locked: newLockStatus })
+      .eq('user_id', userId)
+      .eq('document_type', 'cv');
+
+    if (error) throw error;
+    return true;
   },
 
   // NEW METHODS FOR AVATAR AND COVER IMAGES
@@ -362,8 +378,8 @@ export const databaseService = {
         submitted_at: row.created_at || new Date().toISOString(),
         review_notes: row.admin_note || '',
         license_number: '',
-        license_type: 'State License',
-        state_country: 'USA',
+        license_type: 'NCK License',
+        state_country: 'Kenya',
         nurse_name: profile?.full_name || 'Healthcare Associate',
         nurse_email: profile?.email || ''
       };
@@ -402,8 +418,8 @@ export const databaseService = {
       submitted_at: data.created_at || new Date().toISOString(),
       review_notes: data.admin_note || '',
       license_number: '',
-      license_type: 'State License',
-      state_country: 'USA'
+      license_type: 'NCK License',
+      state_country: 'Kenya'
     };
   },
   // Add to databaseService.ts
@@ -513,8 +529,8 @@ export const databaseService = {
       submitted_at: data.created_at || new Date().toISOString(),
       review_notes: data.admin_note || '',
       license_number: '',
-      license_type: 'State License',
-      state_country: 'USA'
+      license_type: 'NCK License',
+      state_country: 'Kenya'
     };
   }
 };

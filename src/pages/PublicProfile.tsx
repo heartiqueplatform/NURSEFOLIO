@@ -10,7 +10,7 @@ import { UserProfile, Experience, Education, Certification, ResearchProject } fr
 import { THEME_MAPS, ThemeStyles } from '../utils/themeMap';
 import { VerificationBadge } from '../components/VerificationBadge';
 import {
-  Briefcase, GraduationCap, Award, BookOpen, MapPin,
+  Briefcase, GraduationCap, Award, BookOpen, MapPin, Lock as LockIcon,
   Calendar, Building, Download, Link2, Check, ExternalLink, HelpCircle,
   ArrowLeft
 } from 'lucide-react';
@@ -22,7 +22,8 @@ import PageLoader from '../components/PageLoader';
 export default function PublicProfile() {
   const { username } = useParams<{ username: string }>();
   const { themeMode } = useThemeMode();
-  const { user } = useAuth();
+  const auth = useAuth();
+  const user = auth ? auth.user : null;
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [educations, setEducations] = useState<Education[]>([]);
@@ -32,7 +33,10 @@ export default function PublicProfile() {
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [downloading, setDownloading] = useState(false);
-
+  // Put this near line 38 with the other [state, setState] lines
+  const [isCvLocked, setIsCvLocked] = useState(true);
+  // Find your state area and add this:
+  const [isPermanentlyLocked, setIsPermanentlyLocked] = useState(true);
   useEffect(() => {
     const fetchFullProfile = async () => {
       if (!username) return;
@@ -41,10 +45,17 @@ export default function PublicProfile() {
         const p = await databaseService.getProfileByUsername(username);
         if (p) {
           setProfile(p);
-          // Look in the document table for the CV link
-          const latestCv = await databaseService.getPublicCV(p.id);
-          setCvUrl(latestCv);
-          // Load corresponding credentials
+
+          // 1. Get the CV Data from the database
+          const cvData = await databaseService.getPublicCV(p.id);
+
+          if (cvData) {
+            // If cvData is an object { file_url, is_locked }
+            setCvUrl(cvData.file_url);
+            setIsPermanentlyLocked(cvData.is_locked); // This comes from your new SQL column!
+          }
+
+          // Load everything else
           const [exp, edu, cert, res] = await Promise.all([
             databaseService.getExperiences(p.id),
             databaseService.getEducations(p.id),
@@ -52,17 +63,14 @@ export default function PublicProfile() {
             databaseService.getResearchProjects(p.id),
           ]);
 
-          // Prevent self-profile views
-          // Prevent self views + duplicate session views
+          // View tracking logic
           const viewKey = `viewed_profile_${p.id}`;
-
           const alreadyViewed = sessionStorage.getItem(viewKey);
-
           if (user?.id !== p.id && !alreadyViewed) {
             databaseService.recordProfileView(p.id);
-
             sessionStorage.setItem(viewKey, 'true');
           }
+
           setExperiences(exp);
           setEducations(edu);
           setCertifications(cert);
@@ -84,6 +92,13 @@ export default function PublicProfile() {
   };
 
   const handleDownloadCv = async () => {
+    // 1. If it's locked, unlock it and stop there
+    if (isCvLocked) {
+      setIsCvLocked(false);
+      return;
+    }
+
+    // 2. If we reach here, it's unlocked! Now we do the download
     if (!cvUrl || !profile) {
       alert("This professional has not uploaded a CV to their vault yet.");
       return;
@@ -92,7 +107,6 @@ export default function PublicProfile() {
     setDownloading(true);
     try {
       await databaseService.recordCvDownload(profile.id, cvUrl);
-
       const link = document.createElement('a');
       link.href = cvUrl;
       link.download = `${profile.first_name || 'profile'}_Resume.pdf`;
@@ -105,7 +119,6 @@ export default function PublicProfile() {
       setDownloading(false);
     }
   };
-
   if (loading) {
     return <PageLoader />;
   }
@@ -249,7 +262,7 @@ export default function PublicProfile() {
                   <span className="text-gray-300 dark:text-zinc-600">•</span>
                   <div className="flex items-center gap-1 text-gray-600 dark:text-zinc-400">
                     <MapPin className="w-3.5 h-3.5 md:w-4 md:h-4 opacity-70" />
-                    <span>{profile.location || 'USA'}</span>
+                    <span>{profile.location || 'Location not specified'}</span>
                   </div>
                   <span className="text-gray-300 dark:text-zinc-600">•</span>
                   <span className="text-gray-600 dark:text-zinc-400">{profile.years_experience || 0} Years Exp</span>
@@ -257,25 +270,90 @@ export default function PublicProfile() {
               </div>
 
               {/* Action Buttons - full width on mobile */}
-              <div className="flex items-center gap-2 md:gap-3 w-full md:w-auto">
-                <button
-                  id="pub-btn-download"
-                  onClick={handleDownloadCv}
-                  disabled={downloading}
-                  className="flex-1 md:flex-none inline-flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 md:py-2.5 rounded-lg md:rounded-xl text-xs font-bold transition whitespace-nowrap active:scale-[97%] cursor-pointer bg-indigo-600 hover:bg-indigo-700 text-white"
-                >
-                  <Download className={`w-3.5 h-3.5 md:w-4 md:h-4 ${downloading ? 'animate-bounce' : ''}`} />
-                  <span>{downloading ? 'Generating...' : 'Download Resume'}</span>
-                </button>
+              {/* Action Buttons Container */}
+              <div className="flex flex-col gap-4 w-full md:w-auto">
 
-                <button
-                  id="pub-btn-share"
-                  onClick={handleCopyLink}
-                  className="p-2 md:p-2.5 rounded-lg md:rounded-xl bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-700 dark:text-zinc-300 transition cursor-pointer"
-                  title="Copy share link to clipboard"
-                >
-                  {copied ? <Check className="w-4 h-4 md:w-4.5 md:h-4.5 text-emerald-600 dark:text-emerald-400" /> : <Link2 className="w-4 h-4 md:w-4.5 md:h-4.5" />}
-                </button>
+                {/* OWNER'S PRIVACY MANAGEMENT BOX */}
+                {user?.id === profile.id && (
+                  <div className="w-full bg-slate-50 dark:bg-zinc-900/80 border border-slate-200 dark:border-zinc-800 rounded-2xl p-4 mb-2">
+                    <div className="flex items-start gap-3">
+                      <div className={`p-2 rounded-lg ${isPermanentlyLocked ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                        {isPermanentlyLocked ? <LockIcon className="w-5 h-5" /> : <ExternalLink className="w-5 h-5" />}
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-sm font-bold text-gray-900 dark:text-white">
+                          Resume Visibility: {isPermanentlyLocked ? 'Private Vault' : 'Publicly Visible'}
+                        </h4>
+                        <p className="text-[11px] text-gray-500 dark:text-zinc-400 mt-1 leading-relaxed">
+                          {isPermanentlyLocked
+                            ? "Your CV is currently HIDDEN. Recruiters and hospitals cannot see or download your professional resume until you enable public access."
+                            : "Your CV is currently PUBLIC. Anyone with this link can unlock and download your resume for hiring purposes."}
+                        </p>
+
+                        <button
+                          onClick={async () => {
+                            try {
+                              const newStatus = !isPermanentlyLocked;
+                              await databaseService.toggleCvLock(profile.id, newStatus);
+                              setIsPermanentlyLocked(newStatus);
+                            } catch (err) {
+                              console.error("Failed to toggle lock", err);
+                            }
+                          }}
+                          className={`mt-3 w-full py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2
+              ${isPermanentlyLocked
+                              ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20'
+                              : 'bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 dark:bg-red-950/30 dark:border-red-900'
+                            }`}
+                        >
+                          {isPermanentlyLocked ? (
+                            <><Check className="w-4 h-4" /> Make Resume Public</>
+                          ) : (
+                            <><LockIcon className="w-4 h-4" /> Revoke Public Access</>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* VISITOR INTERACTION BUTTONS */}
+                <div className="flex items-center gap-2 md:gap-3 w-full">
+                  {/* Download Logic */}
+                  {isPermanentlyLocked ? (
+                    <div className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-gray-100 dark:bg-zinc-800 text-gray-400 border border-dashed border-gray-300 dark:border-zinc-700 cursor-not-allowed">
+                      <LockIcon className="w-3.5 h-3.5" />
+                      <span>Resume Locked by Owner</span>
+                    </div>
+                  ) : (
+                    <button
+                      id="pub-btn-download"
+                      onClick={handleDownloadCv}
+                      disabled={downloading}
+                      className={`flex-1 md:flex-none inline-flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 md:py-2.5 rounded-lg md:rounded-xl text-xs font-bold transition active:scale-[97%] cursor-pointer
+          ${isCvLocked
+                          ? 'bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
+                          : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                        }`}
+                    >
+                      {isCvLocked ? (
+                        <><HelpCircle className="w-3.5 h-3.5 animate-pulse" /> Unlock to Download</>
+                      ) : (
+                        <><Download className={`w-3.5 h-3.5 ${downloading ? 'animate-bounce' : ''}`} /> {downloading ? 'Downloading...' : 'Save Resume'}</>
+                      )}
+                    </button>
+                  )}
+
+                  {/* Share Button */}
+                  <button
+                    id="pub-btn-share"
+                    onClick={handleCopyLink}
+                    className="p-2.5 md:p-3 rounded-xl bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-700 dark:text-zinc-300 transition cursor-pointer"
+                    title="Copy Profile Link"
+                  >
+                    {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Link2 className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -286,9 +364,28 @@ export default function PublicProfile() {
                 <p className="text-xs md:text-sm leading-relaxed text-gray-600 dark:text-zinc-400 whitespace-pre-line">
                   {profile.bio}
                 </p>
-              </div>
-            )}
 
+              </div>
+
+            )}
+            {/* Contact Section */}
+            <div className="mt-4 md:mt-6 pt-4 md:pt-6 border-t border-gray-100 dark:border-zinc-800">
+              <h5 className="text-[10px] md:text-xs uppercase font-bold tracking-wider mb-2 text-gray-500 dark:text-zinc-500">Contact Professional</h5>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 p-3 rounded-xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800">
+                  <p className="text-[10px] text-gray-500 dark:text-zinc-500 mb-1">Direct Email</p>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                    {profile.email || 'Email not provided'}
+                  </p>
+                </div>
+                <a
+                  href={`mailto:${profile.email}`}
+                  className="p-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition"
+                >
+                  <ExternalLink className="w-5 h-5" />
+                </a>
+              </div>
+            </div>
             {/* Specialties & Skills - single column on mobile */}
             <div className="mt-4 md:mt-6 pt-4 md:pt-6 border-t border-gray-100 dark:border-zinc-800 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               <div>

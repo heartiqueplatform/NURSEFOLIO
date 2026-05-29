@@ -69,17 +69,7 @@ export default function LandingPage() {
     <div className="bg-white dark:bg-zinc-950 mt-16 overflow-hidden">
 
       {/* Theme Toggle Button - Fixed Position */}
-      <button
-        onClick={toggleThemeMode}
-        className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-50 p-2.5 md:p-3 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-lg hover:shadow-xl transition-all cursor-pointer"
-        title={themeMode === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-      >
-        {themeMode === 'dark' ? (
-          <Sun className="w-4 h-4 md:w-5 md:h-5" />
-        ) : (
-          <Moon className="w-4 h-4 md:w-5 md:h-5" />
-        )}
-      </button>
+
 
       {/* Hero Section */}
       <div className="relative pt-6 md:pt-10 pb-16 md:pb-24 lg:pt-16 lg:pb-32 dark:bg-zinc-950">

@@ -223,8 +223,7 @@ export default function UploadCVPage() {
               <div className="flex gap-1.5 md:gap-2 flex-shrink-0 ml-2">
                 <a
                   href={doc.file_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
+
                   className="flex items-center gap-1 md:gap-1.5 px-3 md:px-4 py-1.5 md:py-2 bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-400 rounded-lg md:rounded-xl font-bold hover:bg-teal-100 dark:hover:bg-teal-900/50 transition text-[10px] md:text-xs"
                 >
                   <ExternalLink className="w-3.5 h-3.5 md:w-4 md:h-4" />
