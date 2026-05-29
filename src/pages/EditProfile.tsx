@@ -265,9 +265,11 @@ export default function EditProfile() {
       setUploadProgress((prev) => ({ ...prev, [type]: 0 }));
 
       // Upload with progress simulation
-      const publicUrl = await simulateProgress(type, () =>
+      const uploadResult = await simulateProgress(type, () =>
         uploadToCloudinary(file)
       );
+
+      const publicUrl = uploadResult.url;
 
       if (type === 'avatar') {
         setAvatarUrl(publicUrl);
