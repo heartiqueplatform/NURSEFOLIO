@@ -39,7 +39,10 @@ export function sanitizeProfileInput(updates: Partial<UserProfile>): any {
   if (updates.qualification !== undefined) dbUpdates.qualification = updates.qualification || '';
   if (updates.nursing_level !== undefined) dbUpdates.nursing_level = updates.nursing_level || '';
   if (updates.location !== undefined) dbUpdates.location = updates.location || '';
-  if (updates.years_of_experience !== undefined) dbUpdates.years_experience = Math.max(0, Number(updates.years_of_experience) || 0);
+  if ((updates as any).years_experience !== undefined) {
+    dbUpdates.years_experience =
+      Math.max(0, Number((updates as any).years_experience) || 0);
+  }
   if (updates.availability_status !== undefined) dbUpdates.availability_status = updates.availability_status || 'available';
   if (updates.profile_theme !== undefined) dbUpdates.theme = updates.profile_theme || 'modern';
   if (updates.verification_status !== undefined) dbUpdates.verified = updates.verification_status === 'verified';

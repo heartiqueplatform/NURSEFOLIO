@@ -265,7 +265,7 @@ export default function PublicProfile() {
                     <span>{profile.location || 'Location not specified'}</span>
                   </div>
                   <span className="text-gray-300 dark:text-zinc-600">•</span>
-                  <span className="text-gray-600 dark:text-zinc-400">{profile.years_experience || 0} Years Exp</span>
+                  <span className="text-gray-600 dark:text-zinc-400">{profile.years_of_experience || 0} Years Exp</span>
                 </div>
               </div>
 

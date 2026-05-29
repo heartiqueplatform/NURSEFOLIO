@@ -588,7 +588,7 @@ export default function DashboardHome() {
 
           <Link
             id="shortcut-endorsements"
-            to="/dashboard/endorsements"
+            to="/explore"
             className="bg-white dark:bg-zinc-950 md:border md:border-slate-200/60 md:dark:border-zinc-800 md:rounded-xl p-3 md:p-5 hover:border-amber-300 dark:hover:border-amber-700 md:hover:shadow-md transition-all flex items-start gap-3 md:gap-4 border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-200/60"
           >
             <div className="p-2 md:p-3 bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 rounded-lg md:rounded-xl border border-amber-100/40 dark:border-amber-800">
