@@ -53,6 +53,12 @@ export const DashboardLayout: React.FC<{ children?: React.ReactNode }> = ({ chil
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-1 leading-relaxed">
               We'll miss you around here. 💙
             </p>
+            {/* ADD THIS NEW PART BELOW */}
+            <div className="mt-2 mb-4 p-2 bg-orange-50 dark:bg-orange-950/30 rounded-xl border border-orange-100 dark:border-orange-900/50">
+              <p className="text-[11px] text-orange-700 dark:text-orange-400 font-medium flex items-center justify-center gap-1">
+                🕯️ Keep your flame alive! Come back within 3 days to maintain your streak.
+              </p>
+            </div>
             <p className="text-xs text-slate-400 dark:text-slate-500 mb-6 leading-relaxed italic">
               "Every nurse you meet carries a little piece of their patients with them. Thank you for the care you give every day."
             </p>

@@ -45,6 +45,7 @@ import AnalyticsPage from './pages/AnalyticsPage';
 import AdminDashboard from './pages/AdminDashboard';
 import SkillsPage from './pages/SkillsPage';
 import NurseFeed from './pages/NurseFeed';
+import StreakCandle from './components/StreakCandle';
 
 export default function App() {
   return (
@@ -98,6 +99,7 @@ export default function App() {
 
             </Routes>
             <NotificationBell />
+            <StreakCandle />
           </BrowserRouter>
         </AuthProvider>
       </ThemeProvider>

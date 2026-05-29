@@ -355,7 +355,7 @@ export default function NotificationBell() {
             </AnimatePresence>
 
             {/* Notification Bell Button */}
-            <div className="fixed bottom-16 right-6 z-50">
+            <div className="fixed bottom-16 right-10 z-50">
                 <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
