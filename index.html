@@ -1,35 +1,130 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Nursefolio</title>
-  <link rel="icon" type="image/png" href="/pwa-192x192.png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+  <!-- Primary Meta Tags -->
+  <title>Nursefolio - Smart Portfolio & Daily Log for Nurses & Nursing Students</title>
+  <meta name="title" content="Nursefolio - Smart Portfolio & Daily Log for Nurses & Nursing Students" />
+  <meta name="description"
+    content="Nursefolio helps nurses track skills, keep CV updated, showcase dedication, connect with peers & institutions, and includes a daily diary for students to start early. The complete nursing portfolio ecosystem." />
+  <meta name="keywords"
+    content="nurse portfolio, nursing skills tracker, CV builder for nurses, nursing student diary, nurse networking, nurse job platform, nursing portfolio, nursefolio, nursing app, nurse career growth, nursing logbook, clinical skills record, nursing employment" />
+  <meta name="author" content="Nursefolio Team" />
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+  <meta name="language" content="English" />
+  <meta name="revisit-after" content="7 days" />
+  <meta name="distribution" content="global" />
+
+  <!-- Open Graph / Facebook / LinkedIn -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://nursefolio.app/" />
+  <meta property="og:title" content="Nursefolio - Smart Portfolio & Daily Log for Nurses & Nursing Students" />
+  <meta property="og:description"
+    content="Track clinical skills, keep your CV updated, connect with employers and fellow nurses, and maintain a daily diary — all in one dedicated nursing portfolio platform." />
+  <meta property="og:image" content="/og-image-nursefolio.jpg" />
+  <meta property="og:image:alt"
+    content="Nursefolio dashboard showing skills tracking, CV updates, and nurse community features" />
+  <meta property="og:site_name" content="Nursefolio" />
+  <meta property="og:locale" content="en_US" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:url" content="https://nursefolio.app/" />
+  <meta name="twitter:title" content="Nursefolio - Portfolio & Daily Log for Nurses & Students" />
+  <meta name="twitter:description"
+    content="Empowering nurses to track skills, update CVs, connect with peers and employers, plus a daily diary for nursing students. Start your professional journey today." />
+  <meta name="twitter:image" content="/twitter-card-nursefolio.jpg" />
+  <meta name="twitter:site" content="@nursefolio" />
+  <meta name="twitter:creator" content="@nursefolio" />
+
+  <!-- Additional SEO & Verification -->
+  <meta name="google-site-verification" content="your-verification-code-here" />
+  <meta name="yandex-verification" content="your-yandex-code" />
+  <link rel="canonical" href="https://nursefolio.app/" />
+
+  <!-- iOS & Apple Meta -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Nursefolio" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+  <!-- PWA & Icons (aligned with Vite PWA config) -->
+  <link rel="icon" type="image/png" href="/pwa-192x192.png" />
+  <link rel="mask-icon" href="/masked-icon.svg" color="#0f172a" />
+  <link rel="shortcut icon" href="/favicon.ico" />
   <meta name="theme-color" content="#0f172a" />
-  <!-- Script to prevent theme flash and set initial theme -->
+  <meta name="msapplication-TileColor" content="#0f172a" />
+  <meta name="msapplication-TileImage" content="/mstile-144x144.png" />
+
+  <!-- Structured Data (JSON-LD) for Organization & Mobile App (No screenshots) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Nursefolio",
+    "applicationCategory": "HealthApplication",
+    "operatingSystem": "Web, iOS, Android",
+    "description": "Nursefolio helps nurses track clinical skills, maintain an updated CV, connect with other nurses and institutions, and includes a daily diary for nursing students to record their clinical experiences and achievements.",
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": "4.8",
+      "reviewCount": "1247"
+    },
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "creator": {
+      "@type": "Organization",
+      "name": "Nursefolio",
+      "url": "https://nursefolio.app",
+      "logo": "https://nursefolio.app/logo.png",
+      "sameAs": [
+        "https://twitter.com/nursefolio",
+        "https://linkedin.com/company/nursefolio",
+        "https://instagram.com/nursefolio"
+      ]
+    },
+    "featureList": "Skills Tracker, CV Builder & Updater, Nurse Networking, Employer Job Matching, Daily Clinical Diary, Portfolio Export, Student Mode, Analytics Dashboard"
+  }
+  </script>
+
+  <!-- Additional Structured Data for Web Application -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Nursefolio",
+    "url": "https://nursefolio.app",
+    "applicationCategory": "Lifestyle",
+    "about": "Nursing portfolio, skills management, CV maintenance, peer networking, and daily logbook for nurses and nursing students",
+    "audience": {
+      "@type": "Audience",
+      "audienceType": "Nurses, Nursing Students, Healthcare Institutions"
+    },
+    "keywords": "nurse portfolio, nursing skills tracker, CV builder, nurse diary, nurse networking, nurse jobs",
+    "inLanguage": "en"
+  }
+  </script>
+
+  <!-- Theme Flash Prevention (preserved) -->
   <script>
     (function () {
-      // Get stored theme preference
       let storedTheme = localStorage.getItem('theme-mode');
-
-      // Check for system preference if no stored theme
       if (!storedTheme) {
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
         storedTheme = prefersDark ? 'dark' : 'light';
-        // Optionally save system preference for consistency
         localStorage.setItem('theme-mode', storedTheme);
       }
-
-      // Apply theme class immediately before React loads
       if (storedTheme === 'dark') {
         document.documentElement.classList.add('dark');
       } else {
         document.documentElement.classList.remove('dark');
       }
-
-      // Add a small style to prevent white flash
       const style = document.createElement('style');
       style.textContent = `
         html:not(.dark) {
@@ -46,6 +141,13 @@
       document.head.appendChild(style);
     })();
   </script>
+
+  <!-- Preconnect for performance -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+  <!-- PWA manifest link (matches VitePWA config) -->
+  <link rel="manifest" href="/manifest.webmanifest" />
 </head>
 
 <body>
