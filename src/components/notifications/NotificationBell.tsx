@@ -33,6 +33,7 @@ export default function NotificationBell() {
     const navigate = useNavigate();
     const unreadCount = notifications.filter(n => !n.is_read).length;
     const channelRef = useRef<any>(null);
+
     // Detect dark/light mode
     useEffect(() => {
         const checkDarkMode = () => {
@@ -354,17 +355,20 @@ export default function NotificationBell() {
                 )}
             </AnimatePresence>
 
-            {/* Notification Bell Button */}
-            <div className="fixed bottom-16 right-9 z-50">
+            {/* Notification Bell Button - Clean top right design */}
+            <div className="fixed top-12 right-4 z-50">
                 <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setOpen(!open)}
-                    className="relative bg-gradient-to-r from-teal-600 to-teal-500 hover:from-teal-500 hover:to-teal-400 text-white p-4 rounded-2xl shadow-xl flex items-center justify-center transition-all duration-200"
+                    className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200"
                 >
-                    <Bell size={18} className={unreadCount > 0 ? "animate-bounce" : ""} />
+                    <Bell
+                        size={20}
+                        className={`${isDarkMode ? 'text-gray-300' : 'text-gray-700'} ${unreadCount > 0 ? "animate-bounce" : ""}`}
+                    />
                     {unreadCount > 0 && (
-                        <span className="absolute -top-1 -right-1 bg-red-500 text-[10px] font-bold h-5 w-5 flex items-center justify-center rounded-full border-2 border-white">
+                        <span className="absolute -top-1 -right-1 bg-red-500 text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full ring-2 ring-white dark:ring-gray-900">
                             {unreadCount > 99 ? '99+' : unreadCount}
                         </span>
                     )}
@@ -386,11 +390,11 @@ export default function NotificationBell() {
                             {/* Panel Content */}
                             <motion.div
                                 ref={overlayRef}
-                                initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                                initial={{ opacity: 0, y: -20, scale: 0.95 }}
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: 20, scale: 0.95 }}
+                                exit={{ opacity: 0, y: -20, scale: 0.95 }}
                                 className={`
-                                    absolute bottom-20 right-0 w-80 md:w-96 max-h-[500px]
+                                    absolute top-12 right-0 w-80 md:w-96 max-h-[500px]
                                     rounded-3xl flex flex-col overflow-hidden z-50 shadow-2xl
                                     ${isDarkMode
                                         ? 'bg-gray-900 border border-gray-800'

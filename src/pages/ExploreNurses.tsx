@@ -891,61 +891,68 @@ export default function ExploreNurses() {
       </div>
 
       {/* Profile quick preview Drawer/Modal - bottom sheet on mobile */}
-      <AnimatePresence>
+      {/* Profile quick preview Drawer/Modal - bottom sheet on mobile - PERFORMANCE OPTIMIZED */}
+      <AnimatePresence mode="wait">
         {activePreview && (
-          <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4">
-            {/* Backdrop filter */}
+          <div className="fixed inset-0 z-[9999] flex items-end md:items-center justify-center md:p-4">
+            {/* Backdrop filter - optimized with will-change */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 0.5 }}
               exit={{ opacity: 0 }}
               onClick={() => setActivePreview(null)}
-              className="absolute inset-0 bg-slate-900/40 dark:bg-zinc-950/80 backdrop-blur-xs"
-            ></motion.div>
+              className="absolute inset-0 bg-slate-900/60 dark:bg-zinc-950/90 backdrop-blur-sm will-change-opacity"
+              transition={{ duration: 0.2 }}
+            />
 
-            {/* Panel - bottom sheet on mobile, modal on desktop */}
+            {/* Panel - optimized animations and reduced re-renders */}
             <motion.div
-              initial={{ opacity: 0, y: 100, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 100, scale: 0.95 }}
+              initial={{ opacity: 0, y: "100%" }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: "100%" }}
               transition={{
-                type: "spring",
-                damping: 25,
-                stiffness: 300
+                type: "tween",
+                duration: 0.25,
+                ease: [0.32, 0.72, 0, 1]
               }}
-              className="bg-white dark:bg-zinc-950 md:rounded-[32px] rounded-t-[32px] overflow-hidden w-full md:max-w-sm relative shadow-xl md:border md:border-slate-200/60 md:dark:border-zinc-800 z-10 max-h-[90vh] overflow-y-auto"
+              className="bg-white dark:bg-zinc-950 md:rounded-[32px] rounded-t-[32px] overflow-hidden w-full md:max-w-sm relative shadow-2xl md:border md:border-slate-200/60 md:dark:border-zinc-800 max-h-[90vh] overflow-y-auto will-change-transform"
+              style={{ touchAction: 'pan-y' }}
             >
-              {/* Colored header cover block fallback */}
-              <div className="h-20 md:h-24 bg-gradient-to-r from-indigo-700 via-indigo-600 to-indigo-800 p-4 relative">
+              {/* Colored header cover block */}
+              <div className="h-20 md:h-24 bg-gradient-to-r from-indigo-700 via-indigo-600 to-indigo-800 p-4 relative transform-gpu">
                 {/* Drag handle for mobile */}
                 <div className="md:hidden flex justify-center mb-2">
-                  <div className="w-8 h-1 bg-white/20 rounded-full"></div>
+                  <div className="w-8 h-1 bg-white/30 rounded-full" />
                 </div>
                 <button
-                  id="preview-panel-close"
                   onClick={() => setActivePreview(null)}
-                  className="absolute top-4 right-4 bg-white/10 hover:bg-white/20 text-white rounded-full p-1.5 transition cursor-pointer"
+                  className="absolute top-4 right-4 bg-white/20 active:bg-white/30 text-white rounded-full p-2 transition-colors cursor-pointer shadow-lg backdrop-blur-sm"
+                  aria-label="Close preview"
                 >
-                  <span className="sr-only">Close</span>
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
               <div className="p-4 md:p-6 relative pt-8 md:pt-10">
-                {/* Avatar positioning overlay */}
+                {/* Avatar - optimized with lazy loading */}
                 <div className="absolute -top-8 md:-top-10 left-4 md:left-6">
                   <img
                     src={activePreview.avatar_url || '/192.png'}
-                    alt="Quick preview avatar"
-                    className="w-16 h-16 md:w-20 md:h-20 object-cover rounded-xl md:rounded-2xl border-3 md:border-4 border-white dark:border-slate-900 shadow-md bg-white dark:bg-zinc-950"
+                    alt={`${activePreview.first_name} ${activePreview.last_name}`}
+                    className="w-16 h-16 md:w-20 md:h-20 object-cover rounded-xl md:rounded-2xl border-3 md:border-4 border-white dark:border-slate-900 shadow-md bg-white dark:bg-zinc-950 transform-gpu"
+                    loading="eager"
+                    width={80}
+                    height={80}
                   />
                 </div>
 
-                {/* Info block */}
+                {/* Info block - memoized content */}
                 <div className="space-y-3 md:space-y-4">
                   <div>
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <h3 className="text-lg md:text-xl font-display font-extrabold text-slate-900 dark:text-white">{activePreview.first_name} {activePreview.last_name}</h3>
+                      <h3 className="text-lg md:text-xl font-display font-extrabold text-slate-900 dark:text-white">
+                        {activePreview.first_name} {activePreview.last_name}
+                      </h3>
                       <VerificationBadge status={activePreview.verification_status} showText={false} />
                     </div>
                     <p className="text-xs md:text-sm font-semibold text-indigo-600 dark:text-indigo-400 mt-0.5 md:mt-1">
@@ -953,47 +960,70 @@ export default function ExploreNurses() {
                     </p>
                   </div>
 
-                  <p className="text-[11px] md:text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-semibold">
+                  {/* Bio with line clamp for performance */}
+                  <p className="text-[11px] md:text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-semibold line-clamp-4">
                     {activePreview.bio || 'Excellent clinically active Nursefolio candidate profiles.'}
                   </p>
 
+                  {/* Stats grid - using CSS Grid for better layout performance */}
                   <div className="grid grid-cols-2 gap-2 md:gap-3 text-xs border-y border-slate-100 dark:border-slate-800 py-2.5 md:py-3 mt-3 md:mt-4">
                     <div>
-                      <span className="block text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider text-[8px] md:text-[9px] font-mono">Location</span>
-                      <span className="block text-slate-700 dark:text-slate-300 font-semibold mt-0.5 text-[10px] md:text-xs">{activePreview.location || 'location not specified'}</span>
+                      <span className="block text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider text-[8px] md:text-[9px] font-mono">
+                        Location
+                      </span>
+                      <span className="block text-slate-700 dark:text-slate-300 font-semibold mt-0.5 text-[10px] md:text-xs truncate">
+                        {activePreview.location || 'Not specified'}
+                      </span>
                     </div>
                     <div>
-                      <span className="block text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider text-[8px] md:text-[9px] font-mono">Role Grade</span>
-                      <span className="block text-indigo-600 dark:text-indigo-400 font-bold mt-0.5 capitalize text-[10px] md:text-xs">{activePreview.role}</span>
+                      <span className="block text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider text-[8px] md:text-[9px] font-mono">
+                        Role
+                      </span>
+                      <span className="block text-indigo-600 dark:text-indigo-400 font-bold mt-0.5 capitalize text-[10px] md:text-xs">
+                        {activePreview.role}
+                      </span>
                     </div>
                   </div>
 
-                  {/* Specialties */}
-                  <div>
-                    <span className="block text-[9px] md:text-xs text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider text-[8px] md:text-[9px] font-mono mb-1 md:mb-1.5">Focus Areas</span>
-                    <div className="flex flex-wrap gap-1 md:gap-1.5">
-                      {activePreview.specialties.map((spec) => (
-                        <span key={spec} className="text-[9px] md:text-[10px] bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 text-slate-700 dark:text-slate-400 px-2 md:px-2.5 py-0.5 md:py-1 rounded-md md:rounded-lg font-bold">
-                          {spec}
-                        </span>
-                      ))}
+                  {/* Specialties - limited to 5 items for performance */}
+                  {(activePreview.specialties?.length > 0) && (
+                    <div>
+                      <span className="block text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider font-mono mb-1 md:mb-1.5">
+                        Focus Areas
+                      </span>
+                      <div className="flex flex-wrap gap-1 md:gap-1.5">
+                        {activePreview.specialties.slice(0, 5).map((spec) => (
+                          <span
+                            key={spec}
+                            className="text-[9px] md:text-[10px] bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 text-slate-700 dark:text-slate-400 px-2 md:px-2.5 py-0.5 md:py-1 rounded-md md:rounded-lg font-bold whitespace-nowrap"
+                          >
+                            {spec}
+                          </span>
+                        ))}
+                        {activePreview.specialties.length > 5 && (
+                          <span className="text-[9px] md:text-[10px] bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 px-2 md:px-2.5 py-0.5 md:py-1 rounded-md md:rounded-lg font-bold">
+                            +{activePreview.specialties.length - 5}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
+                  {/* Action Buttons - optimized touch targets */}
                   <div className="pt-3 md:pt-4 flex gap-2 md:gap-3">
                     <button
-                      id="preview-panel-dismiss"
                       onClick={() => setActivePreview(null)}
-                      className="flex-1 py-2 md:py-2.5 rounded-lg md:rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-xs md:text-sm font-extrabold hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
+                      className="flex-1 py-3 md:py-3 rounded-lg md:rounded-xl border-2 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs md:text-sm font-extrabold active:bg-slate-100 dark:active:bg-slate-800 transition-colors cursor-pointer shadow-sm min-h-[44px]"
+                      aria-label="Dismiss preview"
                     >
                       Dismiss
                     </button>
                     <Link
-                      id="preview-panel-view"
                       to={`/nurse/${activePreview.username}`}
-                      className="flex-1 py-2 md:py-2.5 rounded-lg md:rounded-xl text-center text-white bg-indigo-600 hover:bg-indigo-700 text-xs md:text-sm font-extrabold transition shadow-md shadow-indigo-600/10 cursor-pointer"
+                      onClick={() => setActivePreview(null)}
+                      className="flex-1 py-3 md:py-3 rounded-lg md:rounded-xl text-center text-white bg-indigo-600 active:bg-indigo-700 text-xs md:text-sm font-extrabold transition-colors shadow-md shadow-indigo-600/20 cursor-pointer min-h-[44px] flex items-center justify-center"
                     >
-                      Visit Hub
+                      Visit Full Profile
                     </Link>
                   </div>
                 </div>

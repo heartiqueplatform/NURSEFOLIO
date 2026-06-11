@@ -82,11 +82,11 @@ export default function StreakCandle() {
                 )}
             </AnimatePresence>
 
-            {/* CANDLE UI */}
+            {/* CANDLE UI - SMALLER SIZE */}
             <div className="fixed bottom-32 right-6 z-[100] flex flex-col items-center group">
                 <svg
-                    width="48"
-                    height="90"
+                    width="32"
+                    height="60"
                     viewBox="0 0 48 90"
                     xmlns="http://www.w3.org/2000/svg"
                     style={{ overflow: 'visible' }}
@@ -224,10 +224,11 @@ export default function StreakCandle() {
                     )}
                 </svg>
 
-                <div className="mt-1 bg-black/60 text-[10px] text-white px-2 py-0.5 rounded-full backdrop-blur-md">
+                {/* Smaller streak text */}
+                <div className="mt-1 bg-black/60 text-[10px] text-white px-1.5 py-0.5 rounded-full backdrop-blur-md whitespace-nowrap">
                     {streakData.active
-                        ? `🔥 Streak: ${streakData.count} day${streakData.count === 1 ? '' : 's'}`
-                        : 'Expired'}
+                        ? `Streak: ${streakData.count} day${streakData.count === 1 ? '' : 's'}`
+                        : 'Streak: Expired'}
                 </div>
             </div>
         </>
