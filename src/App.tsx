@@ -46,6 +46,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import SkillsPage from './pages/SkillsPage';
 import NurseFeed from './pages/NurseFeed';
 import StreakCandle from './components/StreakCandle';
+import VerifyProcedure from './pages/VerifyProcedure';
 
 export default function App() {
   return (
@@ -58,7 +59,6 @@ export default function App() {
               {/* Public Pages grouped under DefaultLayout (includes Header/Navbar & Footer) */}
               <Route element={<DefaultLayout />}>
                 <Route path="/" element={<LandingPage />} />
-
                 <Route path="/verification-info" element={<VerificationInfo />} />
                 <Route path="/pricing" element={<Pricing />} />
                 <Route path="/about" element={<About />} />
@@ -74,6 +74,9 @@ export default function App() {
               <Route path="/register" element={<Register />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
 
+              {/* PUBLIC VERIFICATION PAGE - NO AUTH REQUIRED */}
+              <Route path="/verify/:procedureId" element={<VerifyProcedure />} />
+
               {/* Core Dashboard Layout guardian protected routes */}
               <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
                 <Route path="/dashboard" element={<DashboardHome />} />
@@ -88,8 +91,9 @@ export default function App() {
                 <Route path="/dashboard/settings" element={<SettingsPage />} />
                 <Route path="/dashboard/analytics" element={<AnalyticsPage />} />
                 <Route path="/explore" element={<ExploreNurses />} />
-
                 <Route path="/feed" element={<NurseFeed />} />
+                {/* PUBLIC VERIFICATION PAGE - NO AUTH REQUIRED */}
+                <Route path="/verify/:procedureId" element={<VerifyProcedure />} />
                 {/* Admin administration dashboard */}
                 <Route path="/admin" element={<AdminDashboard />} />
               </Route>

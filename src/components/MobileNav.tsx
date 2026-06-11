@@ -348,7 +348,7 @@ export const MobileNav: React.FC = () => {
               </NavLink>
               <NavLink to="/dashboard/skills" onClick={() => setOpenMenu(false)}
                 className={({ isActive }) => `flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-medium transition-all ${isActive ? 'bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400' : 'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
-                <Award className="w-4 h-4 flex-shrink-0" />Skills
+                <Award className="w-4 h-4 flex-shrink-0" />SkillS/Logbook
               </NavLink>
 
               <NavLink to="/dashboard/education" onClick={() => setOpenMenu(false)}

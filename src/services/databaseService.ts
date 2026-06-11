@@ -47,19 +47,167 @@ export const databaseService = {
       return [];
     }
   },
+  // REPLACE your getProfileByUsername method in databaseService.ts with this:
+
   async getProfileByUsername(username: string): Promise<UserProfile | null> {
     if (!isSupabaseConfigured) {
       console.warn('Supabase not configured. Please supply VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY variables.');
       return null;
     }
-    return profilesService.getProfileByUsername(username);
-  },
 
+    // Query only the columns that ACTUALLY exist in your profiles table
+    const { data, error } = await supabase!
+      .from('profiles')
+      .select(`
+      id,
+      username,
+      email,
+      first_name,
+      last_name,
+      role,
+      avatar_url,
+      cover_url,
+      bio,
+      qualification,
+      nursing_level,
+      specialty,
+      location,
+      years_experience,
+      availability_status,
+      verification_status,
+      profile_theme,
+      created_at,
+      views_count,
+      downloads_count,
+      search_appearances,
+      onboarding_completed,
+      health_insurance_type,
+      insurance_number,
+      vaccinations,
+      last_vaccination_date,
+      nursing_council_id,
+      license_expiry_date,
+      emergency_contact_name,
+      emergency_contact_phone,
+      blood_type,
+      languages_spoken,
+      available_for_relocation,
+      preferred_shift,
+      certifications,
+      theme,
+      verified,
+      updated_at,
+      username_updated_at
+    `)
+      .eq('username', username)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error fetching profile by username:', error);
+      return null;
+    }
+
+    if (!data) {
+      console.warn('No profile found for username:', username);
+      return null;
+    }
+
+    // Map the response to match UserProfile type
+    return {
+      id: data.id,
+      username: data.username,
+      email: data.email || '',
+      first_name: data.first_name || '',
+      last_name: data.last_name || '',
+      role: data.role || 'nurse',
+      avatar_url: data.avatar_url || '',
+      cover_url: data.cover_url || '',
+      bio: data.bio,
+      qualification: data.qualification,
+      nursing_level: data.nursing_level,
+      specialties: data.specialty ? [data.specialty] : [], // Convert single specialty to array for compatibility
+      skills: [], // No skills column in your table
+      location: data.location,
+      years_of_experience: data.years_experience,
+      availability_status: data.availability_status || 'available',
+      verification_status: data.verification_status || 'unverified',
+      profile_theme: data.profile_theme || 'modern',
+      cv_url: null, // CVs are in uploaded_documents table, not profiles
+      created_at: data.created_at,
+      views_count: data.views_count || 0,
+      downloads_count: data.downloads_count || 0,
+      search_appearances: data.search_appearances || 0,
+      onboarding_completed: data.onboarding_completed,
+      // New fields from your table:
+      health_insurance_type: data.health_insurance_type,
+      insurance_number: data.insurance_number,
+      vaccinations: data.vaccinations,
+      last_vaccination_date: data.last_vaccination_date,
+      nursing_council_id: data.nursing_council_id,
+      license_expiry_date: data.license_expiry_date,
+      emergency_contact_name: data.emergency_contact_name,
+      emergency_contact_phone: data.emergency_contact_phone,
+      blood_type: data.blood_type,
+      languages_spoken: data.languages_spoken,
+      available_for_relocation: data.available_for_relocation,
+      preferred_shift: data.preferred_shift,
+      certifications: data.certifications,
+      // Additional fields for compatibility:
+      years_experience: data.years_experience,
+      specialty: data.specialty,
+      theme: data.theme,
+      verified: data.verified,
+      updated_at: data.updated_at,
+      username_updated_at: data.username_updated_at
+    };
+  },
   async updateProfile(id: string, updates: Partial<UserProfile>): Promise<UserProfile> {
     if (!isSupabaseConfigured) {
       throw new Error('Supabase is not configured. Setup environment keys to use live updates.');
     }
-    return profilesService.updateProfile(id, updates);
+
+    // Direct update to Supabase instead of going through profilesService
+    const { data, error } = await supabase!
+      .from('profiles')
+      .update({
+        username: updates.username,
+        first_name: updates.first_name,
+        last_name: updates.last_name,
+        email: updates.email,
+        qualification: updates.qualification,
+        nursing_level: updates.nursing_level,
+        bio: updates.bio,
+        location: updates.location,
+        years_experience: updates.years_experience,
+        specialty: updates.specialty,
+        avatar_url: updates.avatar_url,
+        cover_url: updates.cover_url,
+        health_insurance_type: updates.health_insurance_type,
+        insurance_number: updates.insurance_number,
+        vaccinations: updates.vaccinations,
+        last_vaccination_date: updates.last_vaccination_date,
+        nursing_council_id: updates.nursing_council_id,
+        license_expiry_date: updates.license_expiry_date,
+        emergency_contact_name: updates.emergency_contact_name,
+        emergency_contact_phone: updates.emergency_contact_phone,
+        blood_type: updates.blood_type,
+        languages_spoken: updates.languages_spoken,
+        available_for_relocation: updates.available_for_relocation,
+        preferred_shift: updates.preferred_shift,
+        certifications: updates.certifications,
+        updated_at: new Date().toISOString(),
+        username_updated_at: updates.username_updated_at
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating profile:', error);
+      throw error;
+    }
+
+    return data as UserProfile;
   },
 
   async recordProfileView(profileId: string): Promise<void> {

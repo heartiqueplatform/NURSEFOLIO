@@ -11,6 +11,7 @@ export default defineConfig(() => {
       tailwindcss(),
 
       VitePWA({
+        // This ensures the SW is updated as soon as a new one is found
         registerType: 'autoUpdate',
 
         includeAssets: [
@@ -29,7 +30,6 @@ export default defineConfig(() => {
           orientation: 'portrait',
           scope: '/',
           start_url: '/',
-
           icons: [
             {
               src: '/pwa-192x192.png',
@@ -51,7 +51,14 @@ export default defineConfig(() => {
         },
 
         workbox: {
-          globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+          // 1. Removes old, unused cache files from previous versions immediately
+          cleanupOutdatedCaches: true,
+          // 2. Forces the new service worker to activate immediately
+          skipWaiting: true,
+          // 3. Allows the new service worker to take control of the page without a manual reload
+          clientsClaim: true,
+
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,json,woff2}'],
 
           runtimeCaching: [
             {
@@ -68,7 +75,6 @@ export default defineConfig(() => {
                 },
               },
             },
-
             {
               urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
               handler: 'CacheFirst',
@@ -99,11 +105,7 @@ export default defineConfig(() => {
     },
 
     server: {
-      // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modify—file watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
-
-      // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
     },
   };

@@ -12,7 +12,7 @@ import {
   Palette, FileText, Settings, BarChart3,
   Home, UserPlus, LogOut, ArrowLeft, ShieldCheck,
   ChevronLeft, ChevronRight, Compass, Sun, Moon,
-  Heart
+  Heart, FileSignature
 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
@@ -47,7 +47,20 @@ export const Sidebar: React.FC = () => {
     await logout();
     navigate('/');
   };
+  // In your sidebar, navigate to fetch first pending first
+  const goToPendingVerifications = async () => {
+    const { data } = await supabase
+      .from('clinical_procedures')
+      .select('id')
+      .eq('verification_status', 'pending')
+      .limit(1);
 
+    if (data && data.length > 0) {
+      navigate(`/verify/${data[0].id}`);
+    } else {
+      navigate('/dashboard');
+    }
+  };
   // ── NEW: open the overlay instead of signing out immediately ──
   const handleExitClick = () => {
     setShowGoodbyeModal(true);
@@ -63,8 +76,15 @@ export const Sidebar: React.FC = () => {
     { id: 'overview', name: 'Overview', path: '/dashboard', icon: Home },
     { id: 'explore', name: 'Explore Registry', path: '/explore', icon: Compass },
     { id: 'edit-profile', name: 'Edit Profile', path: '/dashboard/edit-profile', icon: UserPlus },
+    { id: 'skills', name: 'Skills/Logbook', path: '/dashboard/skills', icon: Award },
+    {
+      id: 'pending-verifications',
+      name: 'Verify Procedures',
+      path: '/verify/pending',
+      icon: FileSignature
+    },
     { id: 'work-experience', name: 'Work Experience', path: '/dashboard/experiences', icon: Briefcase },
-    { id: 'skills', name: 'Clinical Specialties', path: '/dashboard/skills', icon: Award },
+
     { id: 'education', name: 'Education & Degrees', path: '/dashboard/education', icon: GraduationCap },
     { id: 'certifications', name: 'Certifications', path: '/dashboard/certifications', icon: Award },
     { id: 'research', name: 'Clinical Research', path: '/dashboard/publications', icon: BookOpen },
