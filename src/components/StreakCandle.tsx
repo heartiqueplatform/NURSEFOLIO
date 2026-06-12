@@ -357,7 +357,7 @@ export default function StreakCandle() {
                 </svg>
 
                 {/* Streak text with icon */}
-                <div className={`mt-1 ${streakBg} ${streakText} text-[8px] px-1.5 py-0.5 rounded-full backdrop-blur-md whitespace-nowrap flex items-center gap-1`}>
+                <div className={`-mt-2 ${streakBg} ${streakText} text-[8px] px-1.5 py-0.5 rounded-full backdrop-blur-md whitespace-nowrap flex items-center gap-1`}>
                     {streakData.active ? (
                         <>
                             <Flame className="w-2.5 h-2.5" />
