@@ -235,12 +235,12 @@ export default function StreakCandle() {
 
             {/* CANDLE UI - TAPPABLE */}
             <div
-                className="fixed bottom-32 right-6 z-[100] flex flex-col items-center group cursor-pointer"
+                className="fixed bottom-16 right-3 z-[40] flex flex-col items-center group cursor-pointer"
                 onClick={handleCandleTap}
             >
                 <svg
                     className="candle-svg"
-                    width="32"
+                    width="28"
                     height="60"
                     viewBox="0 0 48 90"
                     xmlns="http://www.w3.org/2000/svg"
@@ -357,7 +357,7 @@ export default function StreakCandle() {
                 </svg>
 
                 {/* Streak text with icon */}
-                <div className={`mt-1 ${streakBg} ${streakText} text-[10px] px-1.5 py-0.5 rounded-full backdrop-blur-md whitespace-nowrap flex items-center gap-1`}>
+                <div className={`mt-1 ${streakBg} ${streakText} text-[8px] px-1.5 py-0.5 rounded-full backdrop-blur-md whitespace-nowrap flex items-center gap-1`}>
                     {streakData.active ? (
                         <>
                             <Flame className="w-2.5 h-2.5" />
