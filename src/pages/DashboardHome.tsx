@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { databaseService } from '../services/databaseService';
+import { supabase } from '../lib/supabase'; // <--- We need this to talk to the database directly
 import { StatsCard } from '../components/StatsCard';
 import {
   BarChart3, Eye, Download, Search, ArrowRight,
@@ -41,7 +42,8 @@ export default function DashboardHome() {
   const [profileData, setProfileData] = useState<any>(null);
   const [endorsements, setEndorsements] = useState<Endorsement[]>([]);
   const [endorsementsLoading, setEndorsementsLoading] = useState(true);
-
+  const [realViewsCount, setRealViewsCount] = useState(0);
+  const [realDownloadsCount, setRealDownloadsCount] = useState(0);
   useEffect(() => {
     async function fetchDashboardData() {
       if (!user?.id) return;
@@ -55,15 +57,23 @@ export default function DashboardHome() {
           certs,
           profileDetails,
           nurseSkills,
-          endorsementsData
+          endorsementsData,
+          viewsRes,      // Added this
+          downloadsRes   // Added this
         ] = await Promise.all([
           databaseService.getExperiences(user.id),
           databaseService.getEducations(user.id),
           databaseService.getCertifications(user.id),
           databaseService.getProfileByUsername(user.username || ''),
           databaseService.getNurseSkills ? databaseService.getNurseSkills(user.id) : Promise.resolve([]),
-          databaseService.getProfileEndorsements ? databaseService.getProfileEndorsements(user.id) : Promise.resolve([])
+          databaseService.getProfileEndorsements ? databaseService.getProfileEndorsements(user.id) : Promise.resolve([]),
+          supabase.from('profile_views').select('*', { count: 'exact', head: true }).eq('profile_id', user.id), // Fetch real views
+          supabase.from('cv_downloads').select('*', { count: 'exact', head: true }).eq('profile_id', user.id)   // Fetch real downloads
         ]);
+
+        // Put the real numbers into your state
+        setRealViewsCount(viewsRes.count || 0);
+        setRealDownloadsCount(downloadsRes.count || 0);
 
         // Set profile data for bio, specialties, etc.
         setProfileData(profileDetails);
@@ -182,10 +192,10 @@ export default function DashboardHome() {
   if (!user) return null;
 
   // Calculate views from profile data or user object
-  const viewsCount = profileData?.views_count || user?.views_count || 0;
-  const downloadsCount = profileData?.downloads_count || user?.downloads_count || 0;
+  // Use the real-time counts we just fetched from the database
+  const viewsCount = realViewsCount;
+  const downloadsCount = realDownloadsCount;
   const endorsementsCount = endorsements.length;
-
   return (
     <div className="space-y-0 md:space-y-2 font-sans">
 
