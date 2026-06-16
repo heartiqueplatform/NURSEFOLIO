@@ -9,7 +9,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Activity, Search, ShieldCheck, FileText,
   Palette, Smartphone, ArrowRight, HeartHandshake,
-  Sun, Moon, MapPin, Briefcase, ChevronRight
+  Sun, Moon, MapPin, Briefcase, ChevronRight,
+  Sparkles, LogIn, LayoutDashboard // ← ADD THESE
 } from 'lucide-react';
 
 // --- IMPORTS FOR REAL DATA ---
@@ -134,12 +135,49 @@ export default function LandingPage() {
                   <button
                     id="hero-submit-btn"
                     type="submit"
-                    className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 md:px-5 py-2 md:py-2.5 rounded-lg md:rounded-xl transition duration-200 shadow-sm whitespace-nowrap active:scale-[97%] cursor-pointer"
+                    className="group relative w-full sm:w-auto inline-flex items-center justify-center gap-2 overflow-hidden bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-700 hover:via-indigo-600 hover:to-purple-700 text-white text-sm font-semibold px-4 md:px-5 py-2 md:py-2.5 rounded-lg md:rounded-xl shadow-lg shadow-indigo-500/25 hover:shadow-xl hover:shadow-indigo-500/40 transition-all duration-300 active:scale-[97%] cursor-pointer whitespace-nowrap"
                   >
-                    Find Nurses
-                  </button>
-                </form>
+                    {/* Animated shimmer effect */}
+                    <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></span>
 
+                    {/* Search icon with animation */}
+                    <Search className="w-4 h-4 md:w-5 md:h-5 group-hover:scale-110 transition-transform duration-300" />
+
+                    <span>Find Nurses</span>
+
+                    {/* ArrowRight icon with animation */}
+                    <ArrowRight className="w-4 h-4 md:w-5 md:h-5 group-hover:translate-x-1 transition-transform duration-300" />
+
+                    {/* Pulse ring */}
+                    <span className="absolute inset-0 rounded-lg md:rounded-xl ring-2 ring-indigo-400/50 group-hover:ring-indigo-300/70 ring-offset-2 ring-offset-transparent transition-all duration-300"></span>
+                  </button>
+                  {/* FANCY GO TO PORTAL BUTTON - UPDATED WITH LUCIDE ICONS */}
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.5, delay: 0.4 }}
+                    className="w-full sm:w-auto"
+                  >
+                    <button
+                      onClick={() => navigate('/dashboard')}
+                      className="group relative w-full sm:w-auto inline-flex items-center justify-center gap-1.5 md:gap-2 overflow-hidden bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-600 hover:via-teal-600 hover:to-cyan-600 text-white text-sm font-semibold px-4 md:px-5 py-2 md:py-2.5 rounded-lg md:rounded-xl shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/40 transition-all duration-300 active:scale-[97%] cursor-pointer whitespace-nowrap"
+                    >
+                      {/* Animated shimmer effect */}
+                      <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></span>
+
+                      {/* Sparkles icon from Lucide */}
+                      <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-yellow-300 group-hover:rotate-12 transition-transform duration-300" />
+
+                      <span>Go to Portal</span>
+
+                      {/* ArrowRight icon with animation */}
+                      <ArrowRight className="w-4 h-4 md:w-5 md:h-5 group-hover:translate-x-1 transition-transform duration-300" />
+
+                      {/* Pulse ring */}
+                      <span className="absolute inset-0 rounded-lg md:rounded-xl ring-2 ring-emerald-400/50 group-hover:ring-emerald-300/70 ring-offset-2 ring-offset-transparent transition-all duration-300"></span>
+                    </button>
+                  </motion.div>
+                </form>
                 <div className="mt-3 md:mt-4 flex flex-wrap items-center gap-2 md:gap-4 text-[10px] md:text-xs text-slate-400 dark:text-slate-500 pl-1 md:pl-2">
                   <span className="font-semibold">Popular Specialties:</span>
                   <Link to="/explore?specialty=Intensive%20Care" className="hover:text-indigo-600 dark:hover:text-indigo-400 underline">Critical Care</Link>
