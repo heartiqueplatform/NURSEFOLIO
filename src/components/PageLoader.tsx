@@ -17,9 +17,12 @@ export default function PageLoader({
             {/* Gooey Loader Container */}
             <div className="relative flex items-center justify-center">
                 <div className="goo-container relative w-40 h-40">
+                    {/* Dot 1: Indigo */}
                     <div className="dot dot-1 bg-indigo-600 dark:bg-indigo-500"></div>
-                    <div className="dot dot-2 bg-indigo-600 dark:bg-indigo-500"></div>
-                    <div className="dot dot-3 bg-indigo-600 dark:bg-indigo-500"></div>
+                    {/* Dot 2: Rose/Pink */}
+                    <div className="dot dot-2 bg-rose-500 dark:bg-rose-400"></div>
+                    {/* Dot 3: Emerald/Green */}
+                    <div className="dot dot-3 bg-emerald-500 dark:bg-emerald-400"></div>
                 </div>
 
                 {/* The SVG Filter - This creates the "melting" effect */}
