@@ -3,6 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// This key is used to save the completion status in the browser's local storage
+export const ONBOARDING_STORAGE_KEY = 'nursefolio_tour_completed';
+
 export interface OnboardingStep {
   title: string;
   description: string;
