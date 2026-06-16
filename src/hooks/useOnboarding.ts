@@ -1,3 +1,8 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { databaseService } from '../services/databaseService';
@@ -10,41 +15,44 @@ export function useOnboarding() {
   const [isActive, setIsActive] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Guard to prevent the tour from re-triggering immediately after closing
   const hasDismissed = useRef(false);
 
   useEffect(() => {
-    // 1. Check if they finished in this browser session
+    // 1. Check local storage backup
     const backupCompleted = localStorage.getItem(LOCAL_STORAGE_KEY) === 'true';
 
     // 2. Check if user profile data says they are finished
-    // Note: We check specifically for false, so null/undefined (loading) doesn't trigger it
     if (user && user.onboarding_completed === false && !backupCompleted && !hasDismissed.current) {
       const timer = setTimeout(() => {
-        setIsActive(true);
+        // Re-verify guard inside timeout
+        if (!hasDismissed.current) {
+          setIsActive(true);
+        }
       }, 1000);
       return () => clearTimeout(timer);
     }
   }, [user]);
 
   const completeOnboarding = async () => {
+    // Immediate UI feedback
     setIsActive(false);
     hasDismissed.current = true;
 
-    // Safety Net: Save to browser immediately
+    // Safety Net: Save to browser storage
     localStorage.setItem(LOCAL_STORAGE_KEY, 'true');
 
     if (!user?.id) return;
 
     setIsLoading(true);
     try {
-      // API Call to Supabase
-      const { error } = await databaseService.updateProfile(user.id, {
+      // Persist to Supabase
+      await databaseService.updateProfile(user.id, {
         onboarding_completed: true
       });
 
-      if (error) throw error;
-
-      // Update the AuthContext so the rest of the app knows
+      // Update the Auth context
       await refreshUser();
     } catch (err) {
       console.error("Database sync failed, but local backup saved:", err);
@@ -61,7 +69,20 @@ export function useOnboarding() {
     }
   };
 
-  // ... handlePrev and other functions stay the same
+  // THIS WAS MISSING AND CAUSED YOUR ERROR:
+  const handlePrev = () => {
+    if (currentStep > 0) {
+      setCurrentStep(prev => prev - 1);
+    }
+  };
+
+  const restartOnboarding = () => {
+    localStorage.removeItem(LOCAL_STORAGE_KEY);
+    hasDismissed.current = false;
+    setCurrentStep(0);
+    setIsActive(true);
+  };
+
   return {
     isActive,
     currentStep,
@@ -69,13 +90,9 @@ export function useOnboarding() {
     activeStepData: onboardingSteps[currentStep],
     isLoading,
     handleNext,
-    handlePrev,
+    handlePrev, // This will now work!
     skipOnboarding: completeOnboarding,
-    restartOnboarding: () => {
-      localStorage.removeItem(LOCAL_STORAGE_KEY);
-      hasDismissed.current = false;
-      setCurrentStep(0);
-      setIsActive(true);
-    }
+    restartOnboarding,
+    setCurrentStep
   };
 }
