@@ -195,6 +195,7 @@ export const databaseService = {
         available_for_relocation: updates.available_for_relocation,
         preferred_shift: updates.preferred_shift,
         certifications: updates.certifications,
+        onboarding_completed: updates.onboarding_completed,
         updated_at: new Date().toISOString(),
         username_updated_at: updates.username_updated_at
       })
