@@ -86,6 +86,10 @@ export const Sidebar: React.FC = () => {
     },
     { id: 'work-experience', name: 'Work Experience', path: '/dashboard/experiences', icon: Briefcase },
 
+    // CV Generator — flagship feature. Placed near profile-building tools
+    // because it consumes the data those pages populate.
+    { id: 'cv-generator', name: 'My CV', path: '/cv', icon: FileText },
+
     { id: 'education', name: 'Education & Degrees', path: '/dashboard/education', icon: GraduationCap },
     { id: 'certifications', name: 'Certifications', path: '/dashboard/certifications', icon: Award },
     { id: 'research', name: 'Clinical Research', path: '/dashboard/publications', icon: BookOpen },

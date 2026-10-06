@@ -1,0 +1,278 @@
+/**
+ * cvPrint.css
+ *
+ * Print-only styles for the CV. Also styles the on-screen fallback, which
+ * uses the same class names so the layout is visually identical.
+ *
+ * The A4 page rules (`@page`) are the whole reason this file exists:
+ * without them, browsers print to US Letter by default on Windows/Linux,
+ * which is a subtle but real failure — a 2-page CV becomes 2.2 pages.
+ *
+ * Units: mm for the page and margins, pt for text. Same as the PDF template.
+ * This is the only stylesheet in the codebase that thinks in print units —
+ * it's a deliberate exception to the "pixels everywhere" rule.
+ */
+
+/* Screen styles for the fallback view (not print) */
+.cv-print {
+    background: #ffffff;
+    color: #18181b;
+    width: 210mm;
+    min-height: 297mm;
+    padding: 14mm;
+    margin: 0 auto;
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 9.5pt;
+    line-height: 1.35;
+    box-sizing: border-box;
+}
+
+.cv-print__header {
+    display: flex;
+    align-items: center;
+    gap: 8mm;
+    padding-bottom: 6mm;
+    border-bottom: 0.3mm solid #d4d4d8;
+    margin-bottom: 6mm;
+}
+
+.cv-print__photo {
+    width: 26mm;
+    height: 26mm;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: #f4f4f5;
+}
+
+.cv-print__identity {
+    min-width: 0;
+    flex: 1;
+}
+
+.cv-print__name {
+    font-size: 16pt;
+    font-weight: 700;
+    letter-spacing: -0.2pt;
+    line-height: 1.15;
+    margin: 0;
+}
+
+.cv-print__title {
+    font-size: 10.5pt;
+    color: #3f3f46;
+    margin: 1mm 0 0;
+}
+
+.cv-print__meta {
+    font-size: 9pt;
+    color: #71717a;
+    margin: 0.5mm 0 0;
+}
+
+.cv-print__body {
+    display: flex;
+    gap: 6mm;
+}
+
+.cv-print__col--left {
+    width: 55mm;
+    flex-shrink: 0;
+}
+
+.cv-print__col--right {
+    flex: 1;
+    min-width: 0;
+}
+
+.cv-print__section {
+    margin-bottom: 4mm;
+    break-inside: avoid;
+    /* never split a section across pages */
+    page-break-inside: avoid;
+}
+
+.cv-print__heading {
+    font-size: 9pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6pt;
+    color: #3f3f46;
+    border-bottom: 0.3mm solid #e4e4e7;
+    padding-bottom: 1mm;
+    margin: 0 0 2mm;
+}
+
+.cv-print__section p {
+    margin: 0 0 1mm;
+}
+
+.cv-print__section ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.cv-print__section li {
+    padding-left: 4mm;
+    position: relative;
+    margin-bottom: 0.5mm;
+}
+
+.cv-print__section li::before {
+    content: "•";
+    position: absolute;
+    left: 0;
+    color: #a1a1aa;
+}
+
+.cv-print__entry {
+    margin-bottom: 3mm;
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
+.cv-print__entry-header {
+    font-weight: 700;
+    color: #18181b;
+    margin: 0 !important;
+}
+
+.cv-print__entry-dates {
+    font-size: 8.5pt;
+    color: #71717a;
+    margin: 0.5mm 0 0 !important;
+}
+
+.cv-print__quote {
+    font-style: italic;
+    color: #3f3f46;
+    margin: 0 !important;
+}
+
+.cv-print__license {
+    margin-top: 6mm;
+    padding-top: 3mm;
+    border-top: 0.3mm solid #e4e4e7;
+    font-size: 8pt;
+    color: #a1a1aa;
+    text-align: center;
+}
+
+/* ---------------------------------------------------------------------------
+ * PRINT
+ * ---------------------------------------------------------------------------
+ * The whole point: when the user hits Cmd+P / Share > Print, the CV prints
+ * on A4 with 14mm margins, and everything else on the page (nav, buttons,
+ * preview chrome) is hidden.
+ */
+
+@page {
+    size: A4;
+    margin: 0;
+    /* we handle margins inside the article, not the page box */
+}
+
+@media print {
+
+    /* Hide everything by default */
+    body * {
+        visibility: hidden;
+    }
+
+    /* Show only the CV article and its descendants */
+    .cv-print,
+    .cv-print * {
+        visibility: visible;
+    }
+
+    /* Reposition the article to the top-left of the page */
+    .cv-print {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 210mm;
+        min-height: 297mm;
+        padding: 14mm;
+        box-shadow: none;
+        margin: 0;
+    }
+
+    /* Remove any background tint from the app shell */
+    html,
+    body {
+        background: #ffffff !important;
+    }
+
+    /* Prevent an extra blank page from a trailing min-height */
+    .cv-print__col {
+        break-inside: auto;
+    }
+
+    /* Force page size for browsers that ignore @page (older Safari) */
+    @page {
+        size: A4;
+        margin: 0;
+    }
+}
+
+/* v2: inline bulleted lists (strengths, interests, languages).
+   WHY a separate class: turning eight items into eight rows would push
+   the CV past 2 pages. Inline keeps them on 1–2 lines. */
+.cv-print__inline-list {
+    margin: 0 !important;
+}
+
+/* Referee block — compact three-line entries.
+   WHY tighter than a normal entry: referees carry no narrative, only
+   contact info. Same vertical rhythm as an Experience entry would waste
+   column inches without adding value. */
+.cv-print__referee {
+    margin-bottom: 2.5mm;
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
+.cv-print__referee-name {
+    font-weight: 700;
+    color: #18181b;
+    margin: 0 !important;
+}
+
+.cv-print__referee-line,
+.cv-print__referee-contact {
+    font-size: 8.5pt;
+    color: #71717a;
+    margin: 0.5mm 0 0 !important;
+}
+
+/* Header contact line — phone and WhatsApp. Bolder than the meta line so
+   it reads as actionable (call me) rather than reference (where I am). */
+.cv-print__contact {
+    font-size: 9pt;
+    font-weight: 500;
+    color: #3f3f46;
+    margin: 1mm 0 0;
+}
+
+/* Work Preferences — a compact label/value list. Definition-list semantics
+   keep the label column aligned so "Shift", "Location", "Locum" form a
+   clean vertical rhythm. */
+.cv-print__prefs {
+    margin: 0;
+    display: grid;
+    grid-template-columns: 16mm 1fr;
+    column-gap: 2mm;
+    row-gap: 1mm;
+}
+
+.cv-print__prefs dt {
+    font-size: 8.5pt;
+    color: #71717a;
+}
+
+.cv-print__prefs dd {
+    margin: 0;
+    font-size: 9pt;
+    color: #27272a;
+}

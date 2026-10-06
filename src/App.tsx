@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ToastProvider } from './contexts/ToastContext';
@@ -49,6 +49,14 @@ import StreakCandle from './components/StreakCandle';
 import VerifyProcedure from './pages/VerifyProcedure';
 import LocumPage from './pages/LocumPage';
 import PostLocumRequest from './pages/PostLocumRequest';
+import LocumApplicants from './pages/LocumApplicants';
+import CVEditor from './pages/CVEditor';
+
+// CV Generator — lazy-loaded.
+// WHY: @react-pdf/renderer adds ~200KB. Users who never open their CV
+// should not download it. The Suspense fallback is a zinc-colored blank
+// screen for ~200ms, which reads as a normal transition, not a stall.
+const CVGenerator = lazy(() => import('./pages/CVGenerator'));
 
 export default function App() {
   return (
@@ -96,12 +104,24 @@ export default function App() {
                 <Route path="/feed" element={<NurseFeed />} />
                 <Route path="/locum" element={<LocumPage />} />
                 <Route path="/locum/new" element={<PostLocumRequest />} />
+                <Route path="/locum/:requestId/applicants" element={<LocumApplicants />} />
                 {/* PUBLIC VERIFICATION PAGE - NO AUTH REQUIRED */}
                 <Route path="/verify/:procedureId" element={<VerifyProcedure />} />
                 {/* Admin administration dashboard */}
                 <Route path="/admin" element={<AdminDashboard />} />
-              </Route>
 
+                {/* CV Generator — flagship feature. Lazy-loaded so the PDF
+                    renderer only ships when the user actually opens the CV. */}
+                <Route
+                  path="/cv"
+                  element={
+                    <Suspense fallback={<div className="min-h-screen bg-zinc-50 dark:bg-zinc-950" />}>
+                      <CVGenerator />
+                    </Suspense>
+                  }
+                />
+              </Route>
+              <Route path="/cv/edit" element={<CVEditor />} />
               {/* 404 Guard fallback */}
               <Route path="*" element={<NotFound />} />
 
