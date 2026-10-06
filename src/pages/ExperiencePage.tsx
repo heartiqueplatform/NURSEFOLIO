@@ -3,25 +3,140 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { experienceService } from '../services/experienceService';
 import { Experience } from '../types';
-import { Briefcase, Calendar, Trash2, Plus, X, Check, Building, Pencil } from 'lucide-react';
+import {
+  Briefcase, Calendar, Trash2, Plus, X, Check, Building, Pencil, Loader2
+} from 'lucide-react';
 import { ConfirmModal } from '../components/ConfirmModal';
 
+// ==========================================================
+// SHARED CLASSES
+// ==========================================================
+const inputClass =
+  'w-full text-sm px-4 py-3 bg-slate-100 dark:bg-zinc-900 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500/40 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition disabled:opacity-50';
+
+const labelClass =
+  'block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1.5';
+
+// ==========================================================
+// HELPERS
+// ==========================================================
+function formatMonth(ym: string | null | undefined): string {
+  if (!ym) return '';
+  const [year, month] = ym.split('-');
+  if (!year || !month) return ym;
+  const d = new Date(Number(year), Number(month) - 1, 1);
+  return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+}
+
+// ==========================================================
+// EXPERIENCE CARD
+// ==========================================================
+const ExperienceCard = React.memo<{
+  exp: Experience;
+  onEdit: (exp: Experience) => void;
+  onDelete: (id: string) => void;
+}>(({ exp, onEdit, onDelete }) => {
+  const startLabel = useMemo(() => formatMonth(exp.start_date), [exp.start_date]);
+  const endLabel = useMemo(() => {
+    if (exp.current) return 'Present';
+    return formatMonth(exp.end_date) || '—';
+  }, [exp.current, exp.end_date]);
+
+  return (
+    <article className="bg-white dark:bg-zinc-950 p-4 border-b border-slate-100 dark:border-zinc-900">
+      <div className="flex items-start gap-3">
+        <div className="w-11 h-11 rounded-2xl bg-amber-50 dark:bg-amber-950/40 flex items-center justify-center flex-shrink-0">
+          <Briefcase className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-bold text-slate-900 dark:text-white text-base leading-tight">
+            {exp.title}
+          </h3>
+          <p className="text-sm font-semibold text-teal-600 dark:text-teal-400 mt-0.5 flex items-center gap-1.5">
+            <Building className="w-3.5 h-3.5 flex-shrink-0" />
+            <span className="truncate">
+              {exp.facility}
+              {exp.department ? ` · ${exp.department}` : ''}
+            </span>
+          </p>
+          {exp.location && (
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+              {exp.location}
+            </p>
+          )}
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 flex items-center gap-1">
+            <Calendar className="w-3 h-3 flex-shrink-0" />
+            {startLabel} — {endLabel}
+            {exp.current && (
+              <span className="ml-1 inline-flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded-full font-bold text-[10px]">
+                Current
+              </span>
+            )}
+          </p>
+        </div>
+      </div>
+
+      {exp.description && (
+        <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed mt-3 line-clamp-3">
+          {exp.description}
+        </p>
+      )}
+
+      <div className="flex items-center gap-2 mt-3.5">
+        <button
+          onClick={() => onEdit(exp)}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-zinc-900 active:bg-slate-200 dark:active:bg-zinc-800 transition"
+        >
+          <Pencil className="w-3.5 h-3.5" />
+          Edit
+        </button>
+        <button
+          onClick={() => onDelete(exp.id)}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 active:bg-rose-100 dark:active:bg-rose-950/50 transition ml-auto"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+          Remove
+        </button>
+      </div>
+    </article>
+  );
+});
+ExperienceCard.displayName = 'ExperienceCard';
+
+// ==========================================================
+// SKELETON
+// ==========================================================
+const ExperienceSkeleton = React.memo(() => (
+  <div className="bg-white dark:bg-zinc-950 p-4 border-b border-slate-100 dark:border-zinc-900 animate-pulse">
+    <div className="flex items-start gap-3">
+      <div className="w-11 h-11 rounded-2xl bg-slate-200 dark:bg-zinc-800 flex-shrink-0" />
+      <div className="flex-1 space-y-2">
+        <div className="h-4 bg-slate-200 dark:bg-zinc-800 rounded w-2/3" />
+        <div className="h-3 bg-slate-200 dark:bg-zinc-800 rounded w-1/2" />
+        <div className="h-3 bg-slate-200 dark:bg-zinc-800 rounded w-1/3" />
+      </div>
+    </div>
+  </div>
+));
+ExperienceSkeleton.displayName = 'ExperienceSkeleton';
+
+// ==========================================================
+// MAIN
+// ==========================================================
 export default function ExperiencePage() {
   const { user } = useAuth();
 
-  // --- State for our data ---
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  // --- Form State (Used for both Adding AND Editing) ---
+  // Form
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-
   const [title, setTitle] = useState('');
   const [facility, setFacility] = useState('');
   const [department, setDepartment] = useState('');
@@ -32,28 +147,56 @@ export default function ExperiencePage() {
   const [description, setDescription] = useState('');
 
   const [saving, setSaving] = useState(false);
-  const [savedMsg, setSavedMsg] = useState('');
+  const [msg, setMsg] = useState('');
+  const [error, setError] = useState('');
 
-  // --- Functions to talk to the Database ---
-  const fetchItems = async () => {
-    if (!user) return;
+  // ----------------------------------------------------------
+  // Load
+  // ----------------------------------------------------------
+  const fetchItems = useCallback(async () => {
+    if (!user?.id) return;
     try {
       setLoading(true);
       const data = await experienceService.getExperiences(user.id);
       setExperiences(data);
     } catch (err) {
-      console.error("Couldn't get the list:", err);
+      console.error('Failed to load experience:', err);
+      setError('Could not load your experience.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id]);
 
   useEffect(() => {
     fetchItems();
-  }, [user]);
+  }, [fetchItems]);
 
-  // When we want to edit, we fill the form with the card's old info
-  const handleEditClick = (exp: Experience) => {
+  // ----------------------------------------------------------
+  // Form
+  // ----------------------------------------------------------
+  const resetForm = useCallback(() => {
+    setEditingId(null);
+    setTitle('');
+    setFacility('');
+    setDepartment('');
+    setLocation('');
+    setStartDate('');
+    setEndDate('');
+    setCurrent(false);
+    setDescription('');
+    setError('');
+  }, []);
+
+  const toggleForm = useCallback(() => {
+    if (showForm) {
+      resetForm();
+      setShowForm(false);
+    } else {
+      setShowForm(true);
+    }
+  }, [showForm, resetForm]);
+
+  const handleEditClick = useCallback((exp: Experience) => {
     setEditingId(exp.id);
     setTitle(exp.title);
     setFacility(exp.facility);
@@ -64,275 +207,351 @@ export default function ExperiencePage() {
     setCurrent(exp.current);
     setDescription(exp.description);
     setShowForm(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  }, []);
 
-  const resetForm = () => {
-    setEditingId(null);
-    setTitle('');
-    setFacility('');
-    setDepartment('');
-    setLocation('');
-    setStartDate('');
-    setEndDate('');
-    setCurrent(false);
-    setDescription('');
-    setShowForm(false);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+    setError('');
+
+    if (!title.trim() || !facility.trim() || !startDate) {
+      setError('Please fill in all required fields.');
+      return;
+    }
+    if (!current && !endDate) {
+      setError('Please provide an end date, or mark as current.');
+      return;
+    }
+    if (!current && endDate && startDate && endDate < startDate) {
+      setError('End date cannot be before start date.');
+      return;
+    }
+
     setSaving(true);
     try {
       await experienceService.saveExperience({
         id: editingId || undefined,
         profile_id: user.id,
-        title,
-        facility,
-        department,
-        location,
+        title: title.trim(),
+        facility: facility.trim(),
+        department: department.trim(),
+        location: location.trim(),
         start_date: startDate,
         end_date: current ? undefined : endDate,
         current,
-        description
+        description: description.trim(),
       });
 
-      setSavedMsg(editingId ? 'Experience updated!' : 'Experience position appended!');
+      setMsg(editingId ? 'Experience updated' : 'Experience added');
       resetForm();
-      setTimeout(() => setSavedMsg(''), 3000);
+      setShowForm(false);
+      setTimeout(() => setMsg(''), 3000);
       await fetchItems();
     } catch (err) {
-      console.error("The save failed:", err);
+      console.error('Save failed:', err);
+      setError('Could not save. Please try again.');
     } finally {
       setSaving(false);
     }
-  };
+  }, [user, editingId, title, facility, department, location, startDate, endDate, current, description, resetForm, fetchItems]);
 
-  const handleDeleteConfirm = async () => {
+  const handleDeleteRequest = useCallback((id: string) => setDeleteId(id), []);
+  const handleCancelDelete = useCallback(() => setDeleteId(null), []);
+
+  const handleDeleteConfirm = useCallback(async () => {
     if (!deleteId) return;
     try {
       await experienceService.deleteExperience(deleteId);
-      setSavedMsg('Experience card trashed!');
-      setTimeout(() => setSavedMsg(''), 3000);
+      setMsg('Experience removed');
+      setTimeout(() => setMsg(''), 3000);
       await fetchItems();
     } catch (err) {
-      console.error(err);
+      console.error('Delete failed:', err);
+      setError('Could not remove. Please try again.');
     } finally {
       setDeleteId(null);
     }
-  };
+  }, [deleteId, fetchItems]);
+
+  // ----------------------------------------------------------
+  // Derived
+  // ----------------------------------------------------------
+  const canSubmit = useMemo(() => {
+    if (!title.trim() || !facility.trim() || !startDate) return false;
+    if (!current && !endDate) return false;
+    if (!current && endDate && startDate && endDate < startDate) return false;
+    return true;
+  }, [title, facility, startDate, endDate, current]);
+
+  const todayMonth = new Date().toISOString().slice(0, 7);
+  const endDateMin = startDate || undefined;
 
   if (!user) return null;
 
+  // ----------------------------------------------------------
+  // Render
+  // ----------------------------------------------------------
   return (
-    <div className="space-y-0 md:space-y-6 font-sans -mx-3 md:mx-0">
+    <div className="w-full min-h-screen bg-slate-50 dark:bg-zinc-950">
+      <div className="max-w-2xl mx-auto md:px-6 md:py-8 pb-24">
 
-      {/* Header Row - full width on mobile */}
-      <div className="bg-white dark:bg-zinc-950 md:rounded-2xl md:border md:border-slate-100 md:dark:border-slate-800 p-4 md:p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 md:gap-4 md:shadow-sm border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-100">
-        <div>
-          <h2 className="text-lg md:text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">Work Experience Records</h2>
-          <p className="text-[10px] md:text-xs text-slate-500 dark:text-slate-400 mt-0.5 md:mt-1">
-            Build up a timeline of hospital services, critical care placements, or rotations.
-          </p>
+        {/* ============================================
+            HEADER
+            ============================================ */}
+        <div className="px-4 md:px-0 pt-4 md:pt-0 pb-4 md:pb-6 flex items-start gap-3">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg md:text-2xl font-display font-extrabold tracking-tight text-slate-900 dark:text-white">
+              Work experience
+            </h1>
+            <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+              Hospitals, wards, and clinical rotations
+            </p>
+          </div>
+          <button
+            onClick={toggleForm}
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-full text-xs font-bold transition min-h-[40px] ${showForm
+              ? 'bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-slate-300 active:bg-slate-200 dark:active:bg-zinc-800'
+              : 'bg-teal-600 active:bg-teal-700 text-white'
+              }`}
+          >
+            {showForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+            <span>{showForm ? 'Cancel' : 'Add'}</span>
+          </button>
         </div>
 
-        <button
-          onClick={() => {
-            if (showForm) resetForm();
-            else setShowForm(true);
-          }}
-          className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2 md:py-2.5 rounded-lg md:rounded-xl text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 transition active:scale-95 cursor-pointer md:shadow-sm"
-        >
-          {showForm ? <X className="w-3.5 h-3.5 md:w-4 md:h-4" /> : <Plus className="w-3.5 h-3.5 md:w-4 md:h-4" />}
-          <span>{showForm ? 'Cancel' : 'Add Position'}</span>
-        </button>
-      </div>
+        {/* ============================================
+            MESSAGES
+            ============================================ */}
+        {msg && (
+          <div className="mx-4 md:mx-0 mb-4 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 px-4 py-3 rounded-2xl text-sm font-semibold flex items-center gap-2 animate-in fade-in duration-150">
+            <Check className="w-4 h-4 flex-shrink-0" />
+            <span>{msg}</span>
+          </div>
+        )}
 
-      {savedMsg && (
-        <div className="mx-3 md:mx-0 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 p-2.5 md:p-3.5 rounded-lg md:rounded-xl text-[10px] md:text-xs font-semibold flex items-center gap-1.5 md:gap-2">
-          <Check className="w-3.5 h-3.5 md:w-4 md:h-4" />
-          <span>{savedMsg}</span>
-        </div>
-      )}
+        {error && !showForm && (
+          <div className="mx-4 md:mx-0 mb-4 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 px-4 py-3 rounded-2xl text-sm font-semibold">
+            {error}
+          </div>
+        )}
 
-      {/* Experience Form Section - full width on mobile */}
-      {showForm && (
-        <div className="mx-3 md:mx-0 bg-white dark:bg-zinc-950 md:rounded-2xl md:border-2 md:border-teal-100 md:dark:border-teal-800 p-4 md:p-6 md:shadow-sm border-b-2 border-teal-100 dark:border-teal-800 md:border-b-2">
-          <h3 className="font-bold text-slate-800 dark:text-slate-200 text-xs md:text-sm mb-3 md:mb-4">
-            {editingId ? 'Update Position Details' : 'Post New Position Profile'}
-          </h3>
-          <form onSubmit={handleSubmit} className="space-y-3 md:space-y-4 text-[11px] md:text-xs text-slate-700 dark:text-slate-300 font-medium">
+        {/* ============================================
+            FORM
+            ============================================ */}
+        {showForm && (
+          <section className="mx-4 md:mx-0 mb-6 bg-white dark:bg-zinc-950 md:rounded-2xl p-4 md:p-5 animate-in fade-in duration-200">
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white mb-4">
+              {editingId ? 'Edit position' : 'Add position'}
+            </h2>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
+            {error && (
+              <div className="mb-4 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 px-3.5 py-2.5 rounded-2xl text-xs font-semibold">
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-slate-500 dark:text-slate-400 mb-1 text-[10px] md:text-xs">Clinical Title</label>
+                <label htmlFor="exp-title" className={labelClass}>
+                  Job title <span className="text-rose-500">*</span>
+                </label>
                 <input
-                  required
+                  id="exp-title"
                   type="text"
+                  required
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="e.g. Critical Care Nurse"
-                  className="w-full pl-3 pr-3 md:pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-lg md:rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs"
+                  className={inputClass}
                 />
               </div>
 
               <div>
-                <label className="block text-slate-500 dark:text-slate-400 mb-1 text-[10px] md:text-xs">Hospital / Medical Facility</label>
+                <label htmlFor="exp-facility" className={labelClass}>
+                  Facility <span className="text-rose-500">*</span>
+                </label>
                 <input
-                  required
+                  id="exp-facility"
                   type="text"
+                  required
                   value={facility}
                   onChange={(e) => setFacility(e.target.value)}
                   placeholder="e.g. Kenyatta National Hospital"
-                  className="w-full pl-3 pr-3 md:pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-lg md:rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
-              <div>
-                <label className="block text-slate-500 dark:text-slate-400 mb-1 text-[10px] md:text-xs">Department (Optional)</label>
-                <input
-                  type="text"
-                  value={department}
-                  onChange={(e) => setDepartment(e.target.value)}
-                  placeholder="e.g. ICU"
-                  className="w-full pl-3 pr-3 md:pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-lg md:rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs"
+                  autoComplete="organization"
+                  className={inputClass}
                 />
               </div>
 
-              <div>
-                <label className="block text-slate-500 dark:text-slate-400 mb-1 text-[10px] md:text-xs">Facility Location</label>
-                <input
-                  type="text"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  placeholder="e.g. Nairobi"
-                  className="w-full pl-3 pr-3 md:pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-lg md:rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 items-end">
-              <div>
-                <label className="block text-slate-500 dark:text-slate-400 mb-1 text-[10px] md:text-xs">Start Month/Year</label>
-                <input
-                  required
-                  type="month"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full pl-3 pr-3 md:pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-lg md:rounded-xl border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-500 dark:text-slate-400 mb-1 text-[10px] md:text-xs">End Month/Year</label>
-                <input
-                  type="month"
-                  disabled={current}
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full pl-3 pr-3 md:pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-lg md:rounded-xl border border-slate-200 dark:border-slate-700 disabled:opacity-30 text-slate-800 dark:text-slate-200 text-xs"
-                />
-              </div>
-
-              <div className="pb-1.5 md:pb-2">
-                <label className="inline-flex items-center gap-1.5 md:gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={current}
-                    onChange={(e) => setCurrent(e.target.checked)}
-                    className="w-3.5 h-3.5 md:w-4 md:h-4 text-teal-600 rounded dark:bg-slate-800"
-                  />
-                  <span className="text-[10px] md:text-xs font-semibold text-slate-700 dark:text-slate-300">I work here currently</span>
-                </label>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-slate-500 dark:text-slate-400 mb-1 text-[10px] md:text-xs">Description</label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Describe your role..."
-                rows={3}
-                className="w-full pl-3 pr-3 md:pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-lg md:rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs"
-              ></textarea>
-            </div>
-
-            <button
-              type="submit"
-              disabled={saving}
-              className="w-full py-2.5 md:py-3 text-[11px] md:text-xs bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg md:rounded-xl transition disabled:opacity-50"
-            >
-              {saving ? 'Saving...' : editingId ? 'Update Position' : 'Add Position'}
-            </button>
-          </form>
-        </div>
-      )}
-
-      {/* List Section - feed style on mobile */}
-      {loading ? (
-        <div className="py-16 md:py-20 text-center">
-          <div className="w-6 h-6 md:w-8 md:h-8 border-3 md:border-4 border-teal-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-        </div>
-      ) : experiences.length === 0 ? (
-        <div className="mx-3 md:mx-0 bg-white dark:bg-zinc-950 md:rounded-2xl md:border md:border-slate-100 md:dark:border-slate-800 p-8 md:p-12 text-center md:shadow-sm">
-          <Briefcase className="w-8 h-8 md:w-10 md:h-10 text-slate-300 dark:text-slate-600 mx-auto mb-3 md:mb-4" />
-          <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm md:text-base">No experiences listed</h4>
-          <p className="text-[10px] md:text-xs text-slate-500 dark:text-slate-400 mt-0.5 md:mt-1">Tell us where you've worked!</p>
-        </div>
-      ) : (
-        <div className="space-y-0 md:space-y-4">
-          {experiences.map((exp) => (
-            <div key={exp.id} className="bg-white dark:bg-zinc-950 md:border md:border-slate-100 md:dark:border-slate-800 p-4 md:p-5 md:rounded-2xl md:shadow-sm flex items-start justify-between gap-3 md:gap-4 group border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-100">
-              <div className="space-y-1.5 md:space-y-2 min-w-0 flex-1">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <h4 className="font-extrabold text-slate-900 dark:text-white text-sm md:text-base leading-tight">{exp.title}</h4>
-                  <div className="flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs text-teal-600 dark:text-teal-400 font-bold mt-0.5 md:mt-1">
-                    <Building className="w-3.5 h-3.5 md:w-4 md:h-4 flex-shrink-0" />
-                    <span className="truncate">{exp.facility} {exp.department ? `(${exp.department})` : ''}</span>
-                  </div>
+                  <label htmlFor="exp-dept" className={labelClass}>
+                    Department <span className="text-slate-400 dark:text-slate-500 font-normal">(optional)</span>
+                  </label>
+                  <input
+                    id="exp-dept"
+                    type="text"
+                    value={department}
+                    onChange={(e) => setDepartment(e.target.value)}
+                    placeholder="e.g. ICU"
+                    className={inputClass}
+                  />
                 </div>
-
-                <div className="flex items-center gap-1.5 md:gap-2 text-[10px] md:text-xs text-slate-500 dark:text-slate-400">
-                  <Calendar className="w-3.5 h-3.5 md:w-4 md:h-4 flex-shrink-0" />
-                  <span>{exp.start_date} &mdash; {exp.current ? 'Present' : exp.end_date}</span>
+                <div>
+                  <label htmlFor="exp-loc" className={labelClass}>
+                    Location <span className="text-slate-400 dark:text-slate-500 font-normal">(optional)</span>
+                  </label>
+                  <input
+                    id="exp-loc"
+                    type="text"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    placeholder="e.g. Nairobi"
+                    autoComplete="address-level2"
+                    className={inputClass}
+                  />
                 </div>
-
-                {exp.description && (
-                  <p className="text-[11px] md:text-xs text-slate-600 dark:text-slate-400 leading-relaxed max-w-2xl">{exp.description}</p>
-                )}
               </div>
 
-              <div className="flex gap-1 md:gap-2 flex-shrink-0">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="exp-start" className={labelClass}>
+                    Start <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    id="exp-start"
+                    type="month"
+                    required
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    max={todayMonth}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="exp-end" className={labelClass}>
+                    End {!current && <span className="text-rose-500">*</span>}
+                  </label>
+                  <input
+                    id="exp-end"
+                    type="month"
+                    disabled={current}
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    min={endDateMin}
+                    max={todayMonth}
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+
+              <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={current}
+                  onChange={(e) => setCurrent(e.target.checked)}
+                  className="w-4 h-4 rounded text-teal-600 focus:ring-teal-500 dark:bg-zinc-800"
+                />
+                <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                  I currently work here
+                </span>
+              </label>
+
+              <div>
+                <label htmlFor="exp-desc" className={labelClass}>
+                  Description <span className="text-slate-400 dark:text-slate-500 font-normal">(optional)</span>
+                </label>
+                <textarea
+                  id="exp-desc"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="What did you do in this role?"
+                  rows={3}
+                  className={`${inputClass} resize-none`}
+                />
+              </div>
+
+              <div className="pt-2 flex gap-3">
                 <button
-                  onClick={() => handleEditClick(exp)}
-                  className="text-slate-400 dark:text-slate-500 hover:text-teal-600 dark:hover:text-teal-400 p-1.5 md:p-2 rounded-lg hover:bg-teal-50 dark:hover:bg-teal-950/50 transition"
-                  title="Edit"
+                  type="button"
+                  onClick={() => { resetForm(); setShowForm(false); }}
+                  disabled={saving}
+                  className="flex-1 py-3 rounded-2xl bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-slate-300 text-sm font-bold active:opacity-70 transition disabled:opacity-50 min-h-[44px]"
                 >
-                  <Pencil className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                  Cancel
                 </button>
                 <button
-                  onClick={() => setDeleteId(exp.id)}
-                  className="text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 p-1.5 md:p-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/50 transition"
-                  title="Delete"
+                  type="submit"
+                  disabled={!canSubmit || saving}
+                  className="flex-[2] py-3 rounded-2xl bg-teal-600 active:bg-teal-700 text-white text-sm font-bold transition disabled:opacity-50 flex items-center justify-center gap-2 min-h-[44px]"
                 >
-                  <Trash2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                  {saving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Saving
+                    </>
+                  ) : editingId ? (
+                    'Update'
+                  ) : (
+                    'Publish'
+                  )}
                 </button>
               </div>
+            </form>
+          </section>
+        )}
+
+        {/* ============================================
+            LIST
+            ============================================ */}
+        {loading ? (
+          <div>
+            {[1, 2, 3].map(i => <ExperienceSkeleton key={i} />)}
+          </div>
+        ) : experiences.length === 0 ? (
+          <div className="text-center py-16 px-6">
+            <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-zinc-900 flex items-center justify-center mx-auto mb-4">
+              <Briefcase className="w-7 h-7 text-slate-400 dark:text-slate-500" />
             </div>
-          ))}
-        </div>
-      )}
+            <h3 className="font-bold text-slate-800 dark:text-slate-200 text-base">
+              No work experience yet
+            </h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1.5 max-w-xs mx-auto leading-relaxed">
+              Add the hospitals and wards you've worked in to build your clinical timeline.
+            </p>
+            <button
+              onClick={() => setShowForm(true)}
+              className="mt-5 inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-teal-600 active:bg-teal-700 text-white text-sm font-bold transition"
+            >
+              <Plus className="w-4 h-4" />
+              Add your first position
+            </button>
+          </div>
+        ) : (
+          <div>
+            {experiences.map(exp => (
+              <ExperienceCard
+                key={exp.id}
+                exp={exp}
+                onEdit={handleEditClick}
+                onDelete={handleDeleteRequest}
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
+      {/* ============================================
+          DELETE CONFIRM
+          ============================================ */}
       <ConfirmModal
         isOpen={!!deleteId}
-        title="Remove Position"
-        message="Are you sure? This cannot be undone."
+        title="Remove work experience?"
+        message="This will permanently remove this position from your profile. This cannot be undone."
         onConfirm={handleDeleteConfirm}
-        onCancel={() => setDeleteId(null)}
+        onCancel={handleCancelDelete}
       />
     </div>
   );

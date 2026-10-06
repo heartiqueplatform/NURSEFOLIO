@@ -18,7 +18,7 @@ export const OnboardingTour: React.FC = () => {
     skipOnboarding,
   } = useOnboarding();
 
-  if (!isActive) return null;
+  if (!isActive || !activeStepData) return null;
 
   return (
     <CoachMark

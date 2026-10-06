@@ -3,11 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { ChevronRight, ChevronLeft, X, Sparkles } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { ChevronRight, ChevronLeft, X, Sparkles, Loader2 } from 'lucide-react';
 import { OnboardingStep } from './OnboardingSteps';
 
+// ==========================================================
+// TYPES
+// ==========================================================
 interface CoachMarkProps {
   step: OnboardingStep;
   currentStepIndex: number;
@@ -17,6 +19,21 @@ interface CoachMarkProps {
   onSkip: () => void;
 }
 
+interface Coords {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+}
+
+const CARD_WIDTH = 340;
+const CARD_MIN_HEIGHT = 220;
+const EDGE_PADDING = 12;
+const CUTOUT_PADDING = 8;
+
+// ==========================================================
+// MAIN
+// ==========================================================
 export const CoachMark: React.FC<CoachMarkProps> = ({
   step,
   currentStepIndex,
@@ -26,124 +43,239 @@ export const CoachMark: React.FC<CoachMarkProps> = ({
   onSkip,
 }) => {
   const { targetSelector, title, description, placement, badgeText } = step;
-  const [coords, setCoords] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
 
+  const [coords, setCoords] = useState<Coords | null>(null);
+  const [viewport, setViewport] = useState({
+    width: typeof window !== 'undefined' ? window.innerWidth : 0,
+    height: typeof window !== 'undefined' ? window.innerHeight : 0,
+  });
+
+  // ----------------------------------------------------------
+  // Viewport tracking
+  // ----------------------------------------------------------
   useEffect(() => {
-    if (!targetSelector) {
+    const onResize = () => {
+      setViewport({ width: window.innerWidth, height: window.innerHeight });
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const isMobile = viewport.width < 640;
+
+  // ----------------------------------------------------------
+  // Target element coordinates
+  // ----------------------------------------------------------
+  useEffect(() => {
+    if (!targetSelector || isMobile) {
       setCoords(null);
       return;
     }
 
-    const updateCoords = () => {
+    let rafId: number | null = null;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const update = () => {
       const el = document.querySelector(targetSelector);
-      if (el) {
-        const rect = el.getBoundingClientRect();
-        const padding = 8;
-
-        const top = Math.max(0, rect.top - padding);
-        const left = Math.max(0, rect.left - padding);
-
-        setCoords({
-          top,
-          left,
-          width: rect.width + padding * 2,
-          height: rect.height + padding * 2,
-        });
-      } else {
+      if (!el) {
         setCoords(null);
+        return;
       }
+      const rect = el.getBoundingClientRect();
+      setCoords({
+        top: Math.max(0, rect.top - CUTOUT_PADDING),
+        left: Math.max(0, rect.left - CUTOUT_PADDING),
+        width: rect.width + CUTOUT_PADDING * 2,
+        height: rect.height + CUTOUT_PADDING * 2,
+      });
     };
 
-    updateCoords();
+    // Throttle scroll/resize updates to next animation frame
+    const schedule = () => {
+      if (rafId !== null) return;
+      rafId = window.requestAnimationFrame(() => {
+        rafId = null;
+        update();
+      });
+    };
 
-    window.addEventListener('resize', updateCoords);
-    window.addEventListener('scroll', updateCoords, true);
+    update();
 
-    const timer = setTimeout(updateCoords, 300);
+    window.addEventListener('scroll', schedule, true);
+    window.addEventListener('resize', schedule);
+
+    // Some elements (avatars, images) render after a delay. Re-check once.
+    timeoutId = setTimeout(update, 350);
 
     return () => {
-      window.removeEventListener('resize', updateCoords);
-      window.removeEventListener('scroll', updateCoords, true);
-      clearTimeout(timer);
+      window.removeEventListener('scroll', schedule, true);
+      window.removeEventListener('resize', schedule);
+      if (rafId !== null) window.cancelAnimationFrame(rafId);
+      if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [targetSelector, currentStepIndex]);
+  }, [targetSelector, currentStepIndex, isMobile]);
 
-  // Position calculation for the dialog card
-  const getTooltipStyle = () => {
+  // ----------------------------------------------------------
+  // Escape key = skip
+  // ----------------------------------------------------------
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onSkip();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onSkip]);
+
+  // ----------------------------------------------------------
+  // Lock body scroll while tour is active
+  // ----------------------------------------------------------
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
+  // ----------------------------------------------------------
+  // Tooltip position
+  // ----------------------------------------------------------
+  const tooltipStyle = useMemo<React.CSSProperties>(() => {
+    // Mobile → bottom sheet
+    if (isMobile) {
+      return {
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        zIndex: 100000,
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+      };
+    }
+
+    // No target → centered
     if (!coords) {
       return {
+        position: 'fixed',
         top: '50%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
-        position: 'fixed' as const,
-        zIndex: 100,
-        width: 'calc(100% - 32px)',
-        maxWidth: '440px',
+        zIndex: 100000,
+        width: `min(${CARD_WIDTH}px, calc(100vw - ${EDGE_PADDING * 2}px))`,
       };
     }
 
-    const spaceBelow = window.innerHeight - (coords.top + coords.height);
+    const spaceBelow = viewport.height - (coords.top + coords.height);
     const spaceAbove = coords.top;
-    const spaceRight = window.innerWidth - (coords.left + coords.width);
+    const spaceRight = viewport.width - (coords.left + coords.width);
     const spaceLeft = coords.left;
+    const GAP = 16;
 
-    const cardWidth = 340;
+    // Try preferred placement first
+    const canFitRight = spaceRight > CARD_WIDTH + GAP + EDGE_PADDING;
+    const canFitLeft = spaceLeft > CARD_WIDTH + GAP + EDGE_PADDING;
+    const canFitBelow = spaceBelow > CARD_MIN_HEIGHT + GAP + EDGE_PADDING;
+    const canFitAbove = spaceAbove > CARD_MIN_HEIGHT + GAP + EDGE_PADDING;
 
-    let style: React.CSSProperties = {
-      position: 'fixed',
-      zIndex: 100,
-      width: `${cardWidth}px`,
-    };
+    let top = 0;
+    let left = 0;
+    let placed = false;
 
-    // Mobile screens override to always place modal as bottom sheet
-    if (window.innerWidth < 640) {
-      return {
-        bottom: '0',
-        left: '0',
-        right: '0',
-        position: 'fixed' as const,
-        zIndex: 100,
-        width: '100%',
-      };
+    // Preferred
+    if (placement === 'right' && canFitRight) {
+      left = coords.left + coords.width + GAP;
+      top = coords.top + coords.height / 2 - CARD_MIN_HEIGHT / 2;
+      placed = true;
+    } else if (placement === 'left' && canFitLeft) {
+      left = coords.left - CARD_WIDTH - GAP;
+      top = coords.top + coords.height / 2 - CARD_MIN_HEIGHT / 2;
+      placed = true;
+    } else if (placement === 'bottom' && canFitBelow) {
+      top = coords.top + coords.height + GAP;
+      left = coords.left + coords.width / 2 - CARD_WIDTH / 2;
+      placed = true;
+    } else if (placement === 'top' && canFitAbove) {
+      top = coords.top - CARD_MIN_HEIGHT - GAP;
+      left = coords.left + coords.width / 2 - CARD_WIDTH / 2;
+      placed = true;
     }
 
-    // Advanced placement lookup with collision defenses
-    if (placement === 'right' && spaceRight > cardWidth + 24) {
-      style.top = Math.min(window.innerHeight - 260, Math.max(16, coords.top + coords.height / 2 - 100));
-      style.left = coords.left + coords.width + 16;
-    } else if (placement === 'left' && spaceLeft > cardWidth + 24) {
-      style.top = Math.min(window.innerHeight - 260, Math.max(16, coords.top + coords.height / 2 - 100));
-      style.left = coords.left - cardWidth - 16;
-    } else if (placement === 'bottom' && spaceBelow > 260) {
-      style.top = coords.top + coords.height + 16;
-      style.left = Math.max(16, Math.min(window.innerWidth - cardWidth - 16, coords.left + coords.width / 2 - cardWidth / 2));
-    } else if (spaceAbove > 260) {
-      style.top = coords.top - 240;
-      style.left = Math.max(16, Math.min(window.innerWidth - cardWidth - 16, coords.left + coords.width / 2 - cardWidth / 2));
-    } else {
+    // Fallbacks in order of preference
+    if (!placed) {
+      if (canFitBelow) {
+        top = coords.top + coords.height + GAP;
+        left = coords.left + coords.width / 2 - CARD_WIDTH / 2;
+        placed = true;
+      } else if (canFitAbove) {
+        top = coords.top - CARD_MIN_HEIGHT - GAP;
+        left = coords.left + coords.width / 2 - CARD_WIDTH / 2;
+        placed = true;
+      }
+    }
+
+    // Absolute last resort → centered
+    if (!placed) {
       return {
+        position: 'fixed',
         top: '50%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
-        position: 'fixed' as const,
-        zIndex: 100,
-        width: 'calc(100% - 32px)',
-        maxWidth: '380px',
+        zIndex: 100000,
+        width: `min(${CARD_WIDTH}px, calc(100vw - ${EDGE_PADDING * 2}px))`,
       };
     }
 
-    return style;
-  };
+    // Clamp horizontal to viewport
+    left = Math.max(
+      EDGE_PADDING,
+      Math.min(viewport.width - CARD_WIDTH - EDGE_PADDING, left)
+    );
+    // Clamp vertical to viewport
+    top = Math.max(
+      EDGE_PADDING,
+      Math.min(viewport.height - CARD_MIN_HEIGHT - EDGE_PADDING, top)
+    );
 
-  const tooltipStyle = getTooltipStyle();
-  const isCentered = !coords || window.innerWidth < 640;
-  const isMobile = window.innerWidth < 640;
+    return {
+      position: 'fixed',
+      top: `${top}px`,
+      left: `${left}px`,
+      zIndex: 100000,
+      width: `${CARD_WIDTH}px`,
+    };
+  }, [coords, isMobile, placement, viewport.width, viewport.height]);
 
+  // ----------------------------------------------------------
+  // Progress
+  // ----------------------------------------------------------
+  const progressPct = useMemo(
+    () => ((currentStepIndex + 1) / totalSteps) * 100,
+    [currentStepIndex, totalSteps]
+  );
+
+  const isFirst = currentStepIndex === 0;
+  const isLast = currentStepIndex === totalSteps - 1;
+
+  const primaryLabel = isFirst ? 'Start tour' : isLast ? 'Get started' : 'Next';
+
+  // ----------------------------------------------------------
+  // Render
+  // ----------------------------------------------------------
   return (
-    <div className="fixed inset-0 z-[99999] overflow-hidden select-none">
+    <div
+      className="fixed inset-0 z-[99999] select-none"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Onboarding step ${currentStepIndex + 1} of ${totalSteps}`}
+    >
 
-      {/* SVG Absolute Overlay Mask */}
-      <svg className="absolute inset-0 w-full h-full pointer-events-none">
+      {/* ============================================
+          SPOTLIGHT OVERLAY
+          ============================================ */}
+      <svg
+        className="absolute inset-0 w-full h-full pointer-events-none"
+        aria-hidden="true"
+      >
         <defs>
           <mask id="coachmark-cutout-mask">
             <rect x="0" y="0" width="100%" height="100%" fill="white" />
@@ -153,14 +285,10 @@ export const CoachMark: React.FC<CoachMarkProps> = ({
                 y={coords.top}
                 width={coords.width}
                 height={coords.height}
-                rx={12}
-                ry={12}
+                rx={16}
+                ry={16}
                 fill="black"
               />
-            )}
-            {/* On mobile, no cutout - full overlay */}
-            {isMobile && (
-              <rect x="0" y="0" width="0" height="0" fill="black" />
             )}
           </mask>
         </defs>
@@ -170,13 +298,14 @@ export const CoachMark: React.FC<CoachMarkProps> = ({
           y="0"
           width="100%"
           height="100%"
-          fill="rgba(8, 12, 30, 0.78)"
+          fill="rgba(0, 0, 0, 0.7)"
           mask="url(#coachmark-cutout-mask)"
-          className="pointer-events-auto cursor-default"
+          className="pointer-events-auto"
+          onClick={onSkip}
         />
       </svg>
 
-      {/* Glow Highlight Ring Overlay - hidden on mobile */}
+      {/* Highlight ring on the target (desktop only) */}
       {coords && !isMobile && (
         <div
           style={{
@@ -186,118 +315,125 @@ export const CoachMark: React.FC<CoachMarkProps> = ({
             width: coords.width,
             height: coords.height,
             pointerEvents: 'none',
-            zIndex: 9999,
+            zIndex: 99999,
           }}
-          className="rounded-xl border-2 border-indigo-400 shadow-[0_0_20px_rgba(99,102,241,0.7)] animate-pulse transition-all duration-300"
+          className="rounded-2xl ring-2 ring-teal-500/60"
+          aria-hidden="true"
         />
       )}
 
-      {/* Interactive Tooltip Card Container */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={currentStepIndex}
-          style={tooltipStyle}
-          initial={isMobile ? { y: 100, opacity: 0 } : isCentered ? { scale: 0.92, opacity: 0 } : { y: 10, opacity: 0 }}
-          animate={isMobile ? { y: 0, opacity: 1 } : isCentered ? { scale: 1, opacity: 1 } : { y: 0, opacity: 1 }}
-          exit={isMobile ? { y: 100, opacity: 0 } : isCentered ? { scale: 0.92, opacity: 0 } : { y: -10, opacity: 0 }}
-          transition={{ duration: 0.25, ease: "easeOut" }}
-          className={`bg-white dark:bg-zinc-950 border border-slate-100 dark:border-slate-800 shadow-xl p-4 md:p-6 pointer-events-auto select-text flex flex-col gap-3 md:gap-4 ${isMobile
-            ? 'rounded-t-3xl rounded-b-none max-h-[60vh] overflow-y-auto'
-            : 'rounded-3xl'
-            }`}
-        >
-          {/* Drag handle for mobile bottom sheet */}
-          {isMobile && (
-            <div className="flex justify-center -mt-1 mb-1">
-              <div className="w-8 h-1 bg-slate-300 dark:bg-slate-600 rounded-full"></div>
-            </div>
-          )}
+      {/* ============================================
+          TOOLTIP CARD
+          ============================================ */}
+      <div
+        style={tooltipStyle}
+        className={`bg-white dark:bg-zinc-950 pointer-events-auto select-text flex flex-col animate-in ${isMobile
+          ? 'rounded-t-3xl slide-in-from-bottom duration-200 max-h-[70vh]'
+          : coords
+            ? 'rounded-3xl fade-in zoom-in-95 duration-150'
+            : 'rounded-3xl fade-in zoom-in-95 duration-150'
+          }`}
+      >
+        {/* Mobile drag handle */}
+        {isMobile && (
+          <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+            <div className="w-12 h-1.5 bg-slate-300 dark:bg-zinc-800 rounded-full" />
+          </div>
+        )}
 
-          {/* Header row with Optional Badge and Exit Control */}
-          <div className="flex items-center justify-between">
-            {badgeText && (
-              <span className="inline-flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-0.5 md:py-1 rounded-full text-[9px] md:text-[10px] font-bold tracking-wider uppercase bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 border border-indigo-100/20">
-                <Sparkles className="w-2.5 h-2.5 md:w-3 md:h-3 text-indigo-500 animate-spin" style={{ animationDuration: '4s' }} />
-                <span>{badgeText}</span>
+        <div className={`overflow-y-auto ${isMobile ? 'px-5 pt-3 pb-6' : 'p-5'}`}>
+
+          {/* ============================================
+              HEADER
+              ============================================ */}
+          <div className="flex items-start justify-between gap-3 mb-3">
+            {badgeText ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400">
+                <Sparkles className="w-3 h-3" />
+                {badgeText}
               </span>
+            ) : (
+              <span />
             )}
-
             <button
-              id="coachmark-btn-dismiss"
               onClick={onSkip}
-              className="p-1 md:p-1.5 rounded-lg md:rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
-              title="Skip Tour"
+              className="p-1.5 rounded-full text-slate-400 dark:text-slate-500 active:bg-slate-100 dark:active:bg-zinc-900 transition flex-shrink-0"
+              aria-label="Skip tour"
             >
-              <X className="w-3.5 h-3.5 md:w-4 md:h-4" />
+              <X className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Main content block */}
-          <div className="space-y-1.5 md:space-y-2">
-            <h3 className="font-display font-extrabold text-base md:text-lg text-slate-900 dark:text-white leading-tight tracking-tight">
+          {/* ============================================
+              CONTENT
+              ============================================ */}
+          <div className="mb-4">
+            <h3 className="font-display font-extrabold text-lg text-slate-900 dark:text-white leading-tight tracking-tight">
               {title}
             </h3>
-            <p className="text-[11px] md:text-xs lg:text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-normal">
+            <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed mt-2">
               {description}
             </p>
           </div>
 
-          {/* Steps Progress Line */}
-          <div className="w-full bg-slate-100 dark:bg-slate-800 h-1 md:h-1.5 rounded-full overflow-hidden mt-0 md:mt-1">
-            <div
-              className="bg-indigo-600 h-full rounded-full transition-all duration-300"
-              style={{ width: `${((currentStepIndex + 1) / totalSteps) * 100}%` }}
-            />
+          {/* ============================================
+              PROGRESS
+              ============================================ */}
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                Step {currentStepIndex + 1} of {totalSteps}
+              </span>
+              <span className="text-[10px] font-bold text-teal-600 dark:text-teal-400 tabular-nums">
+                {Math.round(progressPct)}%
+              </span>
+            </div>
+            <div className="h-1 bg-slate-100 dark:bg-zinc-900 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-teal-600 rounded-full transition-all duration-300"
+                style={{ width: `${progressPct}%` }}
+              />
+            </div>
           </div>
 
-          {/* Step counter */}
-          <div className="text-center text-[9px] md:text-[10px] text-slate-400 dark:text-slate-500 font-medium -mt-1">
-            Step {currentStepIndex + 1} of {totalSteps}
-          </div>
-
-          {/* Footer Controls */}
-          <div className="flex items-center justify-between pt-0 md:pt-1">
-
-            {/* Left Button group or skip */}
-            {currentStepIndex > 0 ? (
+          {/* ============================================
+              ACTIONS
+              ============================================ */}
+          <div className="flex items-center justify-between gap-2">
+            {!isFirst ? (
               <button
-                id="coachmark-btn-prev"
                 onClick={onPrev}
-                className="flex items-center gap-1 md:gap-1.5 px-3 md:px-4 py-2 font-bold text-[10px] md:text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg md:rounded-xl transition cursor-pointer border border-transparent"
+                className="inline-flex items-center gap-1 px-4 py-2.5 rounded-full bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-slate-300 text-xs font-bold active:opacity-70 transition min-h-[44px]"
               >
-                <ChevronLeft className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                <span>Back</span>
+                <ChevronLeft className="w-3.5 h-3.5" />
+                Back
               </button>
             ) : (
               <button
-                id="coachmark-btn-skip"
                 onClick={onSkip}
-                className="px-3 md:px-4 py-2 font-bold text-[10px] md:text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg md:rounded-xl transition cursor-pointer"
+                className="inline-flex items-center px-4 py-2.5 rounded-full text-slate-500 dark:text-slate-400 text-xs font-bold active:opacity-70 transition min-h-[44px]"
               >
-                Skip Tour
+                Skip
               </button>
             )}
 
-            {/* Right Button action: Next, Finish or Get Started */}
             <button
-              id="coachmark-btn-next"
               onClick={onNext}
-              className="flex items-center gap-1 md:gap-1.5 px-4 md:px-5 py-2 md:py-2.5 font-bold text-[10px] md:text-xs text-white bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] rounded-lg md:rounded-xl shadow-md shadow-indigo-600/10 hover:shadow-indigo-600/15 transition select-none cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-teal-600 active:bg-teal-700 text-white text-xs font-bold transition min-h-[44px]"
             >
-              <span>
-                {currentStepIndex === 0
-                  ? "Start Tour"
-                  : currentStepIndex === totalSteps - 1
-                    ? "Get Started"
-                    : "Next Step"}
-              </span>
-              <ChevronRight className="w-3.5 h-3.5 md:w-4 md:h-4" />
+              {primaryLabel}
+              <ChevronRight className="w-3.5 h-3.5" />
             </button>
-
           </div>
 
-        </motion.div>
-      </AnimatePresence>
+          {/* Keyboard hint (desktop only) */}
+          {!isMobile && (
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 text-center mt-4">
+              Press <kbd className="font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-zinc-900">Esc</kbd> to skip
+            </p>
+          )}
+        </div>
+      </div>
 
     </div>
   );

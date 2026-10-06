@@ -3,122 +3,99 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Activity, Menu, X, User, LogOut, CheckSquare, Sun, Moon, Heart, RefreshCw } from 'lucide-react';
+import {
+  Menu, X, User, CheckSquare, Sun, Moon, ShieldCheck
+} from 'lucide-react';
 import { useThemeMode } from '../contexts/ThemeContext';
 
+// ==========================================================
+// NAV LINKS
+// ==========================================================
+const NAV_LINKS = [
+  { name: 'Explore', path: '/explore' },
+  { name: 'Locum', path: '/locum' },
+  { name: 'Verification', path: '/verification-info' },
+  { name: 'Pricing', path: '/pricing' },
+  { name: 'About', path: '/about' },
+];
+
+// ==========================================================
+// MAIN
+// ==========================================================
 export const Navbar: React.FC = () => {
-  const { user, loading, logout } = useAuth();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [mobileOpen, setMobileOpen] = useState(false);
   const { themeMode, toggleThemeMode } = useThemeMode();
 
-  // Goodbye overlay state (still used by mobile menu "sign out" flow when needed)
-  const [showGoodbyeModal, setShowGoodbyeModal] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
-  const isActive = (path: string) => location.pathname === path;
-
-  const handleSignOut = async () => {
-    await logout();
-    navigate('/');
-  };
-
-  const handleRefresh = () => {
-    window.location.reload();
-  };
-
-  // Opens the goodbye overlay (kept for internal usage; not exposed in desktop nav)
-  const handleExitClick = () => {
+  // Close mobile menu on route change
+  useEffect(() => {
     setMobileOpen(false);
-    setShowGoodbyeModal(true);
-  };
+  }, [location.pathname]);
 
-  const navLinks = [
-    { name: 'Explore', path: '/explore' },
-    { name: 'Locum', path: '/locum' },
-    { name: 'Verification', path: '/verification-info' },
-    { name: 'Pricing', path: '/pricing' },
-    { name: 'About', path: '/about' },
-  ];
+  // Escape closes mobile menu
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMobileOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [mobileOpen]);
+
+  // Lock body scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileOpen) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => { document.body.style.overflow = prev; };
+    }
+  }, [mobileOpen]);
+
+  const isActive = useCallback(
+    (path: string) => location.pathname === path,
+    [location.pathname]
+  );
+
+  const toggleMobileOpen = useCallback(() => setMobileOpen(prev => !prev), []);
+  const closeMobile = useCallback(() => setMobileOpen(false), []);
 
   return (
     <>
-      {/* Goodbye Overlay Modal */}
-      {showGoodbyeModal && (
-        <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm"
-          onClick={() => setShowGoodbyeModal(false)}
-        >
-          <div
-            className="relative bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl p-8 mx-4 max-w-sm w-full text-center border border-slate-100 dark:border-slate-800 animate-goodbye-pop"
-            onClick={e => e.stopPropagation()}
-          >
-            {/* Animated heart */}
-            <div className="flex justify-center mb-4">
-              <div className="w-16 h-16 rounded-full bg-rose-50 dark:bg-rose-950/50 flex items-center justify-center animate-goodbye-pulse">
-                <Heart className="w-8 h-8 text-rose-500 fill-rose-400" />
-              </div>
-            </div>
-
-            <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-1">
-              Goodbye, {user?.first_name || 'Nurse'} 👋
-            </h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mb-1 leading-relaxed">
-              We'll miss you around here.
-            </p>
-            <p className="text-xs text-slate-400 dark:text-slate-500 mb-6 leading-relaxed italic">
-              "Every nurse you meet carries a little piece of their patients with them. Thank you for the care you give every day."
-            </p>
-
-            <div className="flex flex-col gap-2">
-              <button
-                onClick={handleSignOut}
-                className="w-full py-3 rounded-xl bg-rose-500 hover:bg-rose-600 text-white text-sm font-semibold transition-all shadow-md shadow-rose-200 dark:shadow-rose-950/40 active:scale-[98%]"
-              >
-                Yes, sign me out
-              </button>
-              <button
-                onClick={() => setShowGoodbyeModal(false)}
-                className="w-full py-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-sm font-semibold transition-all active:scale-[98%]"
-              >
-                Actually, I'll stay
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Navbar */}
-      <nav className="fixed top-0 left-0 right-0 w-full z-[60] bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md border-b border-slate-100/80 dark:border-slate-800/80">
+      {/* ============================================
+          NAVBAR
+          ============================================ */}
+      <nav className="fixed top-0 left-0 right-0 w-full z-[60] bg-white dark:bg-zinc-950 border-b border-slate-100 dark:border-zinc-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             {/* Logo */}
             <div className="flex items-center">
-              <Link id="nav-logo" to="/" className="flex items-center gap-2 group">
+              <Link to="/" className="flex items-center gap-2">
                 <img
                   src="/192.png"
-                  alt="Nursefolio Logo"
-                  className="w-9 h-9 rounded-xl object-cover group-hover:scale-105 transition-transform shadow-md shadow-indigo-600/10"
+                  alt="Nursefolio"
+                  className="w-9 h-9 rounded-xl object-cover"
                 />
                 <span className="font-display font-bold text-xl tracking-tight text-slate-900 dark:text-white">
-                  Nurse<span className="text-indigo-600">folio</span>
+                  Nurse<span className="text-teal-600 dark:text-teal-400">folio</span>
                 </span>
               </Link>
             </div>
 
-            {/* Desktop Links */}
+            {/* Desktop nav links */}
             <div className="hidden md:flex items-center gap-6">
-              {navLinks.map((link) => (
+              {NAV_LINKS.map(link => (
                 <Link
                   key={link.path}
-                  id={`nav-link-${link.path.replace('/', '')}`}
                   to={link.path}
-                  className={`text-sm font-medium transition-colors ${isActive(link.path)
-                    ? 'text-indigo-600 font-semibold'
-                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                  className={`text-sm transition-colors ${isActive(link.path)
+                    ? 'text-teal-600 dark:text-teal-400 font-bold'
+                    : 'text-slate-600 dark:text-slate-400 font-medium active:text-slate-900 dark:active:text-white'
                     }`}
                 >
                   {link.name}
@@ -126,194 +103,195 @@ export const Navbar: React.FC = () => {
               ))}
             </div>
 
-            {/* Auth Controls (Desktop) */}
-            <div className="hidden md:flex items-center gap-4 flex-shrink-0">
-
-              {/* Refresh Button */}
+            {/* Desktop auth controls */}
+            <div className="hidden md:flex items-center gap-3 flex-shrink-0">
+              {/* Theme toggle */}
               <button
-                id="nav-btn-refresh"
-                onClick={handleRefresh}
-                className="p-2 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all cursor-pointer group"
-                title="Refresh Application"
-              >
-                <RefreshCw className="w-5 h-5 group-active:rotate-180 transition-transform duration-500" />
-              </button>
-
-              {/* Theme Toggle Button */}
-              <button
-                id="nav-btn-theme"
                 onClick={toggleThemeMode}
-                className="p-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all cursor-pointer"
-                title={themeMode === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                className="p-2 rounded-full text-slate-500 dark:text-slate-400 active:bg-slate-100 dark:active:bg-zinc-900 transition-colors"
+                aria-label={themeMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
               >
                 {themeMode === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </button>
 
               {loading ? (
-                // Skeleton while auth resolves — prevents flash of "Sign In" for logged-in users
-                <div className="flex items-center gap-3">
-                  <div className="w-28 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
-                </div>
+                /* Skeleton while auth resolves */
+                <div className="w-32 h-10 rounded-full bg-slate-100 dark:bg-zinc-900 animate-pulse" />
               ) : user ? (
-                <div className="flex items-center gap-3">
+                <>
+                  {/* User pill */}
                   <Link
-                    id="nav-btn-dashboard"
                     to="/dashboard"
-                    className="flex items-center gap-3 pl-2 pr-4 py-1.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-500 hover:bg-white dark:hover:bg-slate-700 transition-all group shadow-sm active:scale-[98%]"
+                    className="flex items-center gap-2.5 pl-1 pr-4 py-1.5 rounded-full bg-slate-100 dark:bg-zinc-900 active:bg-slate-200 dark:active:bg-zinc-800 transition"
                   >
                     {user.avatar_url ? (
                       <img
                         src={user.avatar_url}
-                        alt="Me"
-                        className="w-8 h-8 rounded-lg object-cover ring-2 ring-white dark:ring-slate-800 shadow-sm"
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                        className="w-7 h-7 rounded-full object-cover bg-slate-200 dark:bg-zinc-800"
                       />
                     ) : (
-                      <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-[10px] text-white font-bold">
+                      <div className="w-7 h-7 rounded-full bg-teal-600 flex items-center justify-center text-[10px] text-white font-bold">
                         {user.first_name?.[0]}{user.last_name?.[0]}
                       </div>
                     )}
-
-                    <div className="flex flex-col text-left">
-                      <span className="text-xs font-extrabold text-slate-800 dark:text-white leading-none">
-                        Hi, {user.first_name || 'Nurse'}
+                    <div className="flex flex-col text-left leading-none">
+                      <span className="text-xs font-bold text-slate-800 dark:text-white">
+                        {user.first_name || 'Nurse'}
                       </span>
-                      <span className="text-[10px] font-bold text-indigo-500 mt-0.5 opacity-80">
+                      <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 mt-0.5">
                         @{user.username}
                       </span>
                     </div>
                   </Link>
+
+                  {/* Admin */}
                   {user.role === 'admin' && (
                     <Link
-                      id="nav-btn-admin"
                       to="/admin"
-                      className="inline-flex items-center gap-2 text-sm font-semibold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100/80 dark:hover:bg-rose-900/50 px-4 py-2 rounded-xl transition-all active:scale-[98%]"
+                      className="inline-flex items-center gap-1.5 text-sm font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 active:bg-rose-100 dark:active:bg-rose-950/60 px-3.5 py-2 rounded-full transition"
                     >
                       <CheckSquare className="w-4 h-4" />
-                      <span>Admin Panel</span>
+                      <span>Admin</span>
                     </Link>
                   )}
-                  {/*
-                    Sign Out button intentionally removed from the desktop nav.
-                    Users can sign out from Dashboard → Settings.
-                  */}
-                </div>
+                </>
               ) : (
-                <div className="flex items-center gap-3">
+                <>
                   <Link
-                    id="nav-btn-login"
                     to="/login"
-                    className="text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white px-3 py-2 transition"
+                    className="text-sm font-bold text-slate-600 dark:text-slate-300 active:text-slate-900 dark:active:text-white px-3 py-2 transition"
                   >
-                    Sign In
+                    Sign in
                   </Link>
                   <Link
-                    id="nav-btn-register"
                     to="/register"
-                    className="inline-flex items-center justify-center px-4 py-2 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 hover:shadow-md hover:shadow-indigo-600/10 transition-all select-none active:scale-[98%]"
+                    className="inline-flex items-center justify-center px-4 py-2 rounded-full text-sm font-bold text-white bg-teal-600 active:bg-teal-700 transition"
                   >
-                    Create Nursefolio
+                    Get started
                   </Link>
-                </div>
+                </>
               )}
             </div>
 
-            {/* Mobile Controls */}
-            <div className="flex md:hidden items-center gap-2">
+            {/* Mobile controls */}
+            <div className="flex md:hidden items-center gap-1">
               <button
-                id="mobile-btn-refresh"
-                onClick={handleRefresh}
-                className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-              >
-                <RefreshCw className="w-5 h-5 active:rotate-180 transition-transform duration-500" />
-              </button>
-              <button
-                id="mobile-btn-theme"
                 onClick={toggleThemeMode}
-                className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                title={themeMode === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                className="p-2 rounded-full text-slate-500 dark:text-slate-400 active:bg-slate-100 dark:active:bg-zinc-900 transition"
+                aria-label={themeMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
               >
                 {themeMode === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </button>
 
               <button
-                id="mobile-menu-btn"
-                onClick={() => setMobileOpen(!mobileOpen)}
-                className="p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                onClick={toggleMobileOpen}
+                className="p-2 rounded-full text-slate-500 dark:text-slate-400 active:bg-slate-100 dark:active:bg-zinc-900 transition"
+                aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
               >
-                {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
             </div>
           </div>
         </div>
 
-        {/* Mobile Menu Panel */}
+        {/* ============================================
+            MOBILE MENU
+            ============================================ */}
         {mobileOpen && (
-          <div className="md:hidden border-b border-slate-150/40 dark:border-slate-800/40 bg-white dark:bg-zinc-950 animate-in slide-in-from-top-4 duration-200">
-            <div className="px-2 pt-2 pb-4 space-y-1">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.path}
-                  id={`mobile-link-${link.path.replace('/', '')}`}
-                  to={link.path}
-                  onClick={() => setMobileOpen(false)}
-                  className={`block px-3 py-2.5 rounded-xl text-base font-semibold transition-all ${isActive(link.path)
-                    ? 'text-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/50'
-                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
-                    }`}
-                >
-                  {link.name}
-                </Link>
-              ))}
-              <div className="pt-4 border-t border-slate-100 dark:border-slate-800 px-3 flex flex-col gap-2">
+          <div className="md:hidden bg-white dark:bg-zinc-950 border-t border-slate-100 dark:border-zinc-900 animate-in slide-in-from-top-2 fade-in duration-150">
+            <div className="px-4 py-3 space-y-1">
+              {/* Nav links */}
+              {NAV_LINKS.map(link => {
+                const active = isActive(link.path);
+                return (
+                  <Link
+                    key={link.path}
+                    to={link.path}
+                    onClick={closeMobile}
+                    className={`block px-4 py-3 rounded-2xl text-sm transition-colors ${active
+                      ? 'bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400 font-bold'
+                      : 'text-slate-700 dark:text-slate-300 font-semibold active:bg-slate-100 dark:active:bg-zinc-900'
+                      }`}
+                  >
+                    {link.name}
+                  </Link>
+                );
+              })}
+
+              {/* Divider */}
+              <div className="pt-3 mt-3 border-t border-slate-100 dark:border-zinc-900 space-y-2">
                 {loading ? (
                   <>
-                    <div className="w-full h-11 rounded-xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
-                    <div className="w-full h-11 rounded-xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
+                    <div className="w-full h-11 rounded-2xl bg-slate-100 dark:bg-zinc-900 animate-pulse" />
+                    <div className="w-full h-11 rounded-2xl bg-slate-100 dark:bg-zinc-900 animate-pulse" />
                   </>
                 ) : user ? (
                   <>
+                    {/* User summary */}
                     <Link
-                      id="mobile-btn-dashboard"
                       to="/dashboard"
-                      onClick={() => setMobileOpen(false)}
-                      className="flex items-center justify-center gap-2 w-full py-2.5 text-center text-sm font-semibold text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 rounded-xl active:scale-[98%] transition-transform"
+                      onClick={closeMobile}
+                      className="flex items-center gap-3 px-3 py-3 rounded-2xl bg-slate-50 dark:bg-zinc-900 active:bg-slate-100 dark:active:bg-zinc-800 transition"
                     >
-                      <User className="w-4 h-4" />
-                      <span>Go to My Portal</span>
+                      {user.avatar_url ? (
+                        <img
+                          src={user.avatar_url}
+                          alt=""
+                          loading="lazy"
+                          decoding="async"
+                          className="w-10 h-10 rounded-full object-cover bg-slate-200 dark:bg-zinc-800 flex-shrink-0"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-teal-600 flex items-center justify-center text-xs text-white font-bold flex-shrink-0">
+                          {user.first_name?.[0]}{user.last_name?.[0]}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                            {user.first_name} {user.last_name}
+                          </p>
+                          {user.verification_status === 'verified' && (
+                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                          @{user.username}
+                        </p>
+                      </div>
+                      <User className="w-4 h-4 text-slate-400 dark:text-slate-500 flex-shrink-0" />
                     </Link>
+
+                    {/* Admin */}
                     {user.role === 'admin' && (
                       <Link
-                        id="mobile-btn-admin"
                         to="/admin"
-                        onClick={() => setMobileOpen(false)}
-                        className="flex items-center justify-center gap-2 w-full py-2.5 text-center text-sm font-semibold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/50 rounded-xl active:scale-[98%] transition-transform"
+                        onClick={closeMobile}
+                        className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 text-sm font-bold active:bg-rose-100 dark:active:bg-rose-950/60 transition"
                       >
                         <CheckSquare className="w-4 h-4" />
-                        <span>Admin Panel</span>
+                        Admin panel
                       </Link>
                     )}
-                    {/*
-                      Sign Out button intentionally removed from mobile menu.
-                      Users can sign out from Dashboard → Settings.
-                    */}
                   </>
                 ) : (
                   <>
                     <Link
-                      id="mobile-btn-login"
                       to="/login"
-                      onClick={() => setMobileOpen(false)}
-                      className="w-full py-2.5 text-center text-sm font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 rounded-xl active:scale-[98%] transition-transform"
+                      onClick={closeMobile}
+                      className="block w-full py-3 rounded-2xl text-center text-sm font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-zinc-900 active:opacity-70 transition"
                     >
-                      Sign In
+                      Sign in
                     </Link>
                     <Link
-                      id="mobile-btn-register"
                       to="/register"
-                      onClick={() => setMobileOpen(false)}
-                      className="w-full py-2.5 text-center text-sm font-semibold text-white bg-indigo-600 rounded-xl active:scale-[98%] transition-transform"
+                      onClick={closeMobile}
+                      className="block w-full py-3 rounded-2xl text-center text-sm font-bold text-white bg-teal-600 active:bg-teal-700 transition"
                     >
-                      Create Portfolio
+                      Get started
                     </Link>
                   </>
                 )}
@@ -322,25 +300,6 @@ export const Navbar: React.FC = () => {
           </div>
         )}
       </nav>
-
-      {/* Goodbye overlay animations */}
-      <style>{`
-        @keyframes goodbye-pop {
-          0%   { opacity: 0; transform: scale(0.88) translateY(12px); }
-          70%  { transform: scale(1.03) translateY(-2px); }
-          100% { opacity: 1; transform: scale(1) translateY(0); }
-        }
-        @keyframes goodbye-pulse {
-          0%, 100% { transform: scale(1); }
-          50%       { transform: scale(1.15); }
-        }
-        .animate-goodbye-pop {
-          animation: goodbye-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-        }
-        .animate-goodbye-pulse {
-          animation: goodbye-pulse 1.6s ease-in-out infinite;
-        }
-      `}</style>
     </>
   );
 };

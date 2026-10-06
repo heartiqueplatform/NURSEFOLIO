@@ -23,7 +23,6 @@ import About from './pages/About';
 import Contact from './pages/Contact';
 import LegalPages from './pages/LegalPages';
 import NotFound from './pages/NotFound';
-import NotificationBell from './components/notifications/NotificationBell';
 // Auth Pages
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -45,7 +44,7 @@ import AnalyticsPage from './pages/AnalyticsPage';
 import AdminDashboard from './pages/AdminDashboard';
 import SkillsPage from './pages/SkillsPage';
 import NurseFeed from './pages/NurseFeed';
-import StreakCandle from './components/StreakCandle';
+
 import VerifyProcedure from './pages/VerifyProcedure';
 import LocumPage from './pages/LocumPage';
 import PostLocumRequest from './pages/PostLocumRequest';
@@ -84,7 +83,14 @@ export default function App() {
               <Route path="/register" element={<Register />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
 
-              {/* PUBLIC VERIFICATION PAGE - NO AUTH REQUIRED */}
+              {/*
+                PUBLIC VERIFICATION PAGE — NO AUTH REQUIRED.
+                Handles BOTH:
+                  - /verify/:procedureId  (single procedure, opened from a link)
+                  - /verify/pending       (queue for the logged-in nurse)
+                Declared ONCE, outside ProtectedRoute, so students/external
+                supervisors can open verification links without an account.
+              */}
               <Route path="/verify/:procedureId" element={<VerifyProcedure />} />
 
               {/* Core Dashboard Layout guardian protected routes */}
@@ -105,8 +111,6 @@ export default function App() {
                 <Route path="/locum" element={<LocumPage />} />
                 <Route path="/locum/new" element={<PostLocumRequest />} />
                 <Route path="/locum/:requestId/applicants" element={<LocumApplicants />} />
-                {/* PUBLIC VERIFICATION PAGE - NO AUTH REQUIRED */}
-                <Route path="/verify/:procedureId" element={<VerifyProcedure />} />
                 {/* Admin administration dashboard */}
                 <Route path="/admin" element={<AdminDashboard />} />
 
@@ -121,13 +125,14 @@ export default function App() {
                   }
                 />
               </Route>
+
               <Route path="/cv/edit" element={<CVEditor />} />
+
               {/* 404 Guard fallback */}
               <Route path="*" element={<NotFound />} />
 
             </Routes>
-            <NotificationBell />
-            <StreakCandle />
+
           </BrowserRouter>
         </AuthProvider>
       </ThemeProvider>

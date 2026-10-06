@@ -3,84 +3,115 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { useThemeMode } from '../contexts/ThemeContext';
 import { UserRole } from '../types';
-import { Activity, Mail, User, ShieldCheck, ArrowRight, ClipboardCheck, Sun, Moon } from 'lucide-react';
+import {
+  Mail, User, ShieldCheck, ArrowRight, ClipboardCheck,
+  Loader2, AlertCircle, GraduationCap, Briefcase
+} from 'lucide-react';
 
+// ==========================================================
+// MAIN
+// ==========================================================
 export default function Register() {
   const { register, login, user, signInWithGoogle, updateProfile } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const queryRole = (searchParams.get('role') as UserRole) || 'nurse';
-  const { themeMode, toggleThemeMode } = useThemeMode();
+
   const [showRoleModal, setShowRoleModal] = useState(false);
-  const [googleUser, setGoogleUser] = useState<any>(null);
   const [role, setRole] = useState<UserRole>(queryRole);
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
-  // This watches if a user just logged in with Google but hasn't finished setup
+  // ----------------------------------------------------------
+  // Google sign-up completion flow
+  // ----------------------------------------------------------
   useEffect(() => {
-    const finishGoogleLogin = async () => {
-      if (user && user.onboarding_completed === false) {
-        setLoading(true);
+    if (!user) return;
 
-        const savedRole = localStorage.getItem('selected_role') as UserRole;
+    const finishGoogleSignup = async () => {
+      // Already onboarded → straight to dashboard
+      if (user.onboarding_completed === true) {
+        navigate('/dashboard', { replace: true });
+        return;
+      }
 
-        if (!savedRole) {
-          setLoading(false);
-          return;
-        }
+      // Onboarding incomplete: only proceed if the user picked a role
+      // (which we stash in localStorage before the OAuth redirect)
+      const savedRole = localStorage.getItem('selected_role') as UserRole | null;
+      if (!savedRole) return;
 
-        try {
-          await updateProfile(user.id, {
-            role: savedRole,
-            onboarding_completed: true,
-            username: user.username || `user_${Math.floor(Math.random() * 10000)}`
-          });
-
-          localStorage.removeItem('selected_role');
-          navigate('/dashboard');
-        } catch (err) {
-          console.error("Error saving role:", err);
-        } finally {
-          setLoading(false);
-        }
-      } else if (user && user.onboarding_completed === true) {
-        navigate('/dashboard');
+      setGoogleLoading(true);
+      try {
+        await updateProfile(user.id, {
+          role: savedRole,
+          onboarding_completed: true,
+          username: user.username || `user_${Math.floor(Math.random() * 100000)}`,
+        });
+        localStorage.removeItem('selected_role');
+        navigate('/dashboard', { replace: true });
+      } catch (err) {
+        console.error('Error finishing Google signup:', err);
+        setError('Could not finish account setup. Please try again.');
+      } finally {
+        setGoogleLoading(false);
       }
     };
 
-    finishGoogleLogin();
-  }, [user, navigate]);
+    finishGoogleSignup();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, user?.onboarding_completed]);
 
-  const handleGoogleClick = async () => {
-    try {
-      await signInWithGoogle();
-    } catch (err: any) {
-      setError('Google Login failed');
-    }
-  };
+  // ----------------------------------------------------------
+  // Validation
+  // ----------------------------------------------------------
+  const usernameValid = useMemo(
+    () => /^[a-zA-Z0-9_]{3,20}$/.test(username),
+    [username]
+  );
+  const passwordValid = useMemo(() => password.length >= 6, [password]);
+  const emailValid = useMemo(
+    () => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email),
+    [email]
+  );
+  const namesValid = useMemo(
+    () => firstName.trim().length >= 2 && lastName.trim().length >= 2,
+    [firstName, lastName]
+  );
 
-  const handleRegisterSubmit = async (e: React.FormEvent) => {
+  const canSubmit = usernameValid && passwordValid && emailValid && namesValid && !loading;
+
+  // ----------------------------------------------------------
+  // Handlers
+  // ----------------------------------------------------------
+  const handleRegisterSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
-      setError('Username must be 3-20 characters using only alphanumeric or underscores (no spaces).');
+    if (!namesValid) {
+      setError('Please enter your first and last name.');
       return;
     }
-
-    if (password.length < 6) {
+    if (!emailValid) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+    if (!usernameValid) {
+      setError('Username must be 3–20 characters using only letters, numbers, or underscores.');
+      return;
+    }
+    if (!passwordValid) {
       setError('Password must be at least 6 characters long.');
       return;
     }
@@ -90,284 +121,454 @@ export default function Register() {
       await register(email, password, username, firstName, lastName, role);
       try {
         await login(email, password);
-      } catch (loginErr: any) {
-        console.warn('Auto-login post-registration skipped:', loginErr);
+      } catch (loginErr) {
+        console.warn('Auto-login post-registration failed:', loginErr);
       }
-      navigate('/dashboard');
+      navigate('/dashboard', { replace: true });
     } catch (err: any) {
-      setError(err.message || 'Registration failed. Try separate details.');
+      const msg = err?.message || '';
+      if (msg.toLowerCase().includes('already')) {
+        setError('An account with this email or username already exists.');
+      } else {
+        setError(msg || 'Registration failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
-  };
+  }, [namesValid, emailValid, usernameValid, passwordValid, email, password, username, firstName, lastName, role, register, login, navigate]);
 
-  const handleGoogleSignIn = () => {
+  const handleGoogleSignIn = useCallback(() => {
     setError('');
     setShowRoleModal(true);
-  };
+  }, []);
 
-  const handleRoleSelection = async (selectedRole: UserRole) => {
+  const handleRoleSelection = useCallback(async (selectedRole: UserRole) => {
+    setError('');
+    setGoogleLoading(true);
     try {
       localStorage.setItem('selected_role', selectedRole);
       await signInWithGoogle();
+      // Note: the page will redirect to Google. When the user returns,
+      // the useEffect above completes the signup.
     } catch (err) {
-      setError('Something went wrong. Please try again.');
+      localStorage.removeItem('selected_role');
+      setError('Google sign-in could not start. Please try again.');
+      setGoogleLoading(false);
     }
-  };
+  }, [signInWithGoogle]);
 
+  const closeRoleModal = useCallback(() => {
+    if (googleLoading) return;
+    setShowRoleModal(false);
+  }, [googleLoading]);
+
+  // ==========================================================
+  // RENDER
+  // ==========================================================
   return (
-    <div className="bg-slate-50 dark:bg-zinc-950 min-h-screen flex items-center justify-center p-0 md:p-4 md:py-12 relative">
+    <div className="min-h-screen bg-white dark:bg-zinc-950 flex items-center justify-center px-4 py-8">
 
-      {/* Theme Toggle Button */}
-      <button
-        id="register-theme-btn"
-        onClick={toggleThemeMode}
-        className="fixed top-4 right-4 md:top-6 md:right-6 z-50 p-2.5 md:p-3 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-lg hover:shadow-xl transition-all cursor-pointer"
-        title={themeMode === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-      >
-        {themeMode === 'dark' ? (
-          <Sun className="w-4 h-4 md:w-5 md:h-5" />
-        ) : (
-          <Moon className="w-4 h-4 md:w-5 md:h-5" />
-        )}
-      </button>
+      <div className="w-full max-w-md">
 
-      <div className="bg-white dark:bg-zinc-950 md:rounded-3xl overflow-hidden md:shadow-xl w-full md:max-w-lg md:border md:border-slate-100 md:dark:border-slate-800 p-6 md:p-8 lg:p-10 space-y-4 md:space-y-6 min-h-screen md:min-h-0 flex flex-col justify-center">
-
-        {/* Title */}
-        <div className="text-center space-y-1.5 md:space-y-2">
-          <Link id="register-logo-link" to="/" className="inline-flex items-center gap-2">
-            <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-teal-600 flex items-center justify-center text-white font-bold">
-              <Activity className="w-4 h-4 md:w-5 md:h-5" />
-            </div>
+        {/* ============================================
+            LOGO + TITLE
+            ============================================ */}
+        <div className="text-center mb-8">
+          <Link to="/" className="inline-flex items-center gap-2 mb-5">
+            <img
+              src="/192.png"
+              alt="Nursefolio"
+              className="w-10 h-10 rounded-xl object-cover"
+            />
           </Link>
-          <h2 className="text-xl md:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight font-sans">
-            Register on Nursefolio
-          </h2>
-          <p className="text-[10px] md:text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
-            Build your credential badged web profile, generate downloadable resumes and share placements.
+          <h1 className="text-2xl font-display font-extrabold tracking-tight text-slate-900 dark:text-white">
+            Create your portfolio
+          </h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
+            Free forever. Takes about a minute.
           </p>
         </div>
 
-        {/* Error */}
+        {/* ============================================
+            ERROR
+            ============================================ */}
         {error && (
-          <div className="bg-rose-50 dark:bg-rose-950/50 border border-rose-100 dark:border-rose-800 text-rose-700 dark:text-rose-400 p-2.5 md:p-3.5 rounded-lg md:rounded-xl text-[10px] md:text-xs font-semibold">
-            {error}
+          <div className="mb-5 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 px-4 py-3 rounded-2xl text-sm font-semibold flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <span>{error}</span>
           </div>
         )}
 
-        {/* Google Button */}
+        {/* ============================================
+            GOOGLE
+            ============================================ */}
         <button
           type="button"
           onClick={handleGoogleSignIn}
-          className="w-full flex items-center justify-center gap-2 md:gap-3 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-zinc-800 py-2.5 md:py-3 rounded-lg md:rounded-xl transition-all font-bold text-slate-700 dark:text-slate-200 md:shadow-sm cursor-pointer text-xs md:text-sm"
+          disabled={googleLoading || loading}
+          className="w-full flex items-center justify-center gap-3 py-3.5 rounded-2xl bg-slate-100 dark:bg-zinc-900 active:bg-slate-200 dark:active:bg-zinc-800 transition disabled:opacity-50 min-h-[48px]"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" className="w-4 h-4 md:w-5 md:h-5 shrink-0">
-            <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
-            <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
-            <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
-            <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
-          </svg>
-          <span>Continue with Google</span>
+          {googleLoading ? (
+            <Loader2 className="w-5 h-5 animate-spin text-slate-600 dark:text-slate-400" />
+          ) : (
+            <>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" className="w-5 h-5 shrink-0">
+                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+              </svg>
+              <span className="text-sm font-bold text-slate-700 dark:text-slate-200">
+                Continue with Google
+              </span>
+            </>
+          )}
         </button>
 
-        <div className="relative flex items-center gap-3 md:gap-4 py-1 md:py-2">
-          <div className="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
-          <span className="text-[9px] md:text-[10px] text-slate-400 font-bold uppercase tracking-widest">OR</span>
-          <div className="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
+        {/* ============================================
+            DIVIDER
+            ============================================ */}
+        <div className="flex items-center gap-4 my-6">
+          <div className="flex-grow border-t border-slate-100 dark:border-zinc-900" />
+          <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+            or
+          </span>
+          <div className="flex-grow border-t border-slate-100 dark:border-zinc-900" />
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleRegisterSubmit} className="space-y-3 md:space-y-4 text-[11px] md:text-xs">
-          {/* Custom Role selection tabs */}
-          <div>
-            <span className="block text-[10px] md:text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 md:mb-2.5">What is your current career step?</span>
-            <div className="grid grid-cols-2 gap-2 md:gap-4">
-              <button
-                id="role-tab-nurse"
-                type="button"
-                onClick={() => setRole('nurse')}
-                className={`flex flex-col items-center justify-center p-3 md:p-4 border rounded-lg md:rounded-xl text-center select-none active:scale-98 transition cursor-pointer ${role === 'nurse'
-                  ? 'border-teal-500 bg-teal-50/20 dark:bg-teal-950/30 text-teal-800 dark:text-teal-300 font-bold ring-2 ring-teal-500/10'
-                  : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'
-                  }`}
-              >
-                <ShieldCheck className="w-4 h-4 md:w-5 md:h-5 mb-1.5 md:mb-2 text-teal-600 dark:text-teal-400" />
-                <span className="text-[10px] md:text-xs font-bold">Licensed Nurse</span>
-                <span className="text-[8px] md:text-[9px] text-slate-400 dark:text-slate-500 font-normal mt-0.5">LPN, RN, FNP-C, APRN</span>
-              </button>
+        {/* ============================================
+            FORM
+            ============================================ */}
+        <form onSubmit={handleRegisterSubmit} className="space-y-4">
 
-              <button
-                id="role-tab-student"
-                type="button"
+          {/* Role selector */}
+          <div>
+            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-2">
+              I am a…
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <RoleTab
+                active={role === 'nurse'}
+                onClick={() => setRole('nurse')}
+                icon={ShieldCheck}
+                label="Licensed nurse"
+                sub="RN · LPN · FNP"
+                tone="teal"
+              />
+              <RoleTab
+                active={role === 'student'}
                 onClick={() => setRole('student')}
-                className={`flex flex-col items-center justify-center p-3 md:p-4 border rounded-lg md:rounded-xl text-center select-none active:scale-98 transition cursor-pointer ${role === 'student'
-                  ? 'border-cyan-500 bg-cyan-50/20 dark:bg-cyan-950/30 text-cyan-800 dark:text-cyan-300 font-bold ring-2 ring-cyan-500/10'
-                  : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'
-                  }`}
-              >
-                <ClipboardCheck className="w-4 h-4 md:w-5 md:h-5 mb-1.5 md:mb-2 text-cyan-600 dark:text-cyan-400" />
-                <span className="text-[10px] md:text-xs font-bold">Nursing Student</span>
-                <span className="text-[8px] md:text-[9px] text-slate-400 dark:text-slate-500 font-normal mt-0.5">BSN/LPN School Years</span>
-              </button>
+                icon={GraduationCap}
+                label="Nursing student"
+                sub="BSN · Diploma"
+                tone="indigo"
+              />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 md:gap-4">
+          {/* Names */}
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[10px] md:text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">First Name</label>
+              <label htmlFor="reg-first" className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1.5">
+                First name
+              </label>
               <input
-                id="register-input-first"
-                required
+                id="reg-first"
                 type="text"
+                required
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                placeholder="e.g. Lucy"
-                className="w-full text-[11px] md:text-xs px-3 md:px-3.5 py-2 md:py-2.5 rounded-lg md:rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-teal-400 dark:focus:border-teal-500 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200 dark:bg-slate-800/50 transition"
+                placeholder="Jacqueline "
+                autoComplete="given-name"
+                className="w-full text-sm px-4 py-3 bg-slate-100 dark:bg-zinc-900 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500/40 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition"
               />
             </div>
             <div>
-              <label className="block text-[10px] md:text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Last Name</label>
+              <label htmlFor="reg-last" className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1.5">
+                Last name
+              </label>
               <input
-                id="register-input-last"
-                required
+                id="reg-last"
                 type="text"
+                required
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
-                placeholder="e.g. Munini"
-                className="w-full text-[11px] md:text-xs px-3 md:px-3.5 py-2 md:py-2.5 rounded-lg md:rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-teal-400 dark:focus:border-teal-500 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200 dark:bg-slate-800/50 transition"
+                placeholder="N"
+                autoComplete="family-name"
+                className="w-full text-sm px-4 py-3 bg-slate-100 dark:bg-zinc-900 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500/40 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
-            <div>
-              <label className="block text-[10px] md:text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Email Coordinator</label>
-              <input
-                id="register-input-email"
-                required
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="lucy@example.com"
-                className="w-full text-[11px] md:text-xs px-3 md:px-3.5 py-2 md:py-2.5 rounded-lg md:rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-teal-400 dark:focus:border-teal-500 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200 dark:bg-slate-800/50 transition"
-              />
-            </div>
-            <div>
-              <div className="flex justify-between items-center mb-1">
-                <label className="block text-[10px] md:text-xs font-bold text-slate-500 dark:text-slate-400">Pick Custom Username</label>
-                <span className="text-[8px] md:text-[9px] text-slate-400 dark:text-slate-500 font-medium">No spaces</span>
-              </div>
-              <div className="relative flex items-center">
-                <span className="absolute left-2.5 md:left-3 text-[9px] md:text-[10px] font-bold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded">
-                  @
-                </span>
-                <input
-                  id="register-input-username"
-                  required
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="lucymunini"
-                  className="w-full text-[11px] md:text-xs pl-8 md:pl-10 pr-3 md:pr-3.5 py-2 md:py-2.5 rounded-lg md:rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-teal-400 dark:focus:border-teal-500 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200 dark:bg-slate-800/50 transition"
-                />
-              </div>
-            </div>
-          </div>
-
+          {/* Email */}
           <div>
-            <label className="block text-[10px] md:text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Security Password</label>
+            <label htmlFor="reg-email" className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1.5">
+              Email
+            </label>
             <input
-              id="register-input-password"
+              id="reg-email"
+              type="email"
               required
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="•••••••• (at least 6 characters)"
-              className="w-full text-[11px] md:text-xs px-3 md:px-3.5 py-2 md:py-2.5 rounded-lg md:rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-teal-400 dark:focus:border-teal-500 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200 dark:bg-slate-800/50 transition"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              autoComplete="email"
+              inputMode="email"
+              className="w-full text-sm px-4 py-3 bg-slate-100 dark:bg-zinc-900 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500/40 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition"
             />
+            {email.length > 0 && !emailValid && (
+              <p className="text-xs text-rose-600 dark:text-rose-400 mt-1.5">
+                Enter a valid email address
+              </p>
+            )}
           </div>
 
-          <div className="pt-1 md:pt-2">
-            <button
-              id="register-submit-btn"
-              type="submit"
-              disabled={loading}
-              className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-2.5 md:py-3 rounded-lg md:rounded-xl transition md:shadow-sm active:scale-95 cursor-pointer flex items-center justify-center gap-1.5 md:gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-xs md:text-sm"
-            >
-              {loading ? (
-                <span className="w-4 h-4 md:w-5 md:h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-              ) : (
-                <>
-                  <span>Create Nursefolio Portfolio</span>
-                  <ArrowRight className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                </>
-              )}
-            </button>
+          {/* Username */}
+          <div>
+            <div className="flex items-baseline justify-between mb-1.5">
+              <label htmlFor="reg-username" className="block text-xs font-bold text-slate-600 dark:text-slate-400">
+                Username
+              </label>
+              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
+                This becomes your profile link
+              </span>
+            </div>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400 dark:text-slate-500 pointer-events-none">
+                @
+              </span>
+              <input
+                id="reg-username"
+                type="text"
+                required
+                value={username}
+                onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                placeholder="Jacqueline N"
+                autoComplete="username"
+                autoCapitalize="none"
+                className="w-full text-sm pl-9 pr-4 py-3 bg-slate-100 dark:bg-zinc-900 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500/40 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition font-mono"
+              />
+            </div>
+            {username.length > 0 && !usernameValid && (
+              <p className="text-xs text-rose-600 dark:text-rose-400 mt-1.5">
+                3–20 characters, letters, numbers, and underscores only
+              </p>
+            )}
+            {usernameValid && (
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1.5 font-mono truncate">
+                nursefolio.app/nurse/{username}
+              </p>
+            )}
           </div>
+
+          {/* Password */}
+          <div>
+            <label htmlFor="reg-password" className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1.5">
+              Password
+            </label>
+            <div className="relative">
+              <input
+                id="reg-password"
+                type={showPassword ? 'text' : 'password'}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="At least 6 characters"
+                autoComplete="new-password"
+                className="w-full text-sm pl-4 pr-16 py-3 bg-slate-100 dark:bg-zinc-900 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500/40 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(v => !v)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 text-xs font-bold text-slate-500 dark:text-slate-400 active:opacity-70 transition"
+                tabIndex={-1}
+              >
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
+            {password.length > 0 && !passwordValid && (
+              <p className="text-xs text-rose-600 dark:text-rose-400 mt-1.5">
+                Password must be at least 6 characters
+              </p>
+            )}
+          </div>
+
+          {/* Submit */}
+          <button
+            type="submit"
+            disabled={!canSubmit}
+            className="w-full py-3.5 rounded-2xl bg-teal-600 active:bg-teal-700 text-white text-sm font-bold transition disabled:opacity-50 flex items-center justify-center gap-2 min-h-[48px] mt-2"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Creating account
+              </>
+            ) : (
+              <>
+                Create my account
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+          </button>
+
+          <p className="text-xs text-slate-400 dark:text-slate-500 text-center leading-relaxed pt-1">
+            By continuing you agree to our{' '}
+            <Link to="/legal?tab=terms" className="text-teal-600 dark:text-teal-400 font-semibold">
+              Terms
+            </Link>{' '}
+            and{' '}
+            <Link to="/legal?tab=privacy" className="text-teal-600 dark:text-teal-400 font-semibold">
+              Privacy Policy
+            </Link>
+          </p>
         </form>
 
-        {/* Bottom checks */}
-        <div className="text-center pt-1 md:pt-2">
-          <p className="text-[10px] md:text-xs text-slate-400 dark:text-slate-400 font-medium font-sans">
-            Already verified?{' '}
-            <Link to="/login" className="text-teal-600 dark:text-teal-400 font-bold hover:underline">
-              Sign In
+        {/* ============================================
+            FOOTER
+            ============================================ */}
+        <div className="text-center mt-8">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Already have an account?{' '}
+            <Link to="/login" className="text-teal-600 dark:text-teal-400 font-bold active:opacity-70">
+              Sign in
             </Link>
           </p>
         </div>
-
       </div>
 
-      {/* Role Selection Modal - Bottom sheet on mobile */}
+      {/* ============================================
+          ROLE MODAL (for Google sign-up)
+          ============================================ */}
       {showRoleModal && (
-        <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center md:p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white dark:bg-zinc-950 w-full md:max-w-md rounded-t-3xl md:rounded-3xl p-5 md:p-8 shadow-2xl border border-teal-500/20 text-center space-y-4 md:space-y-6 max-h-[90vh] overflow-y-auto">
-
-            {/* Drag handle for mobile */}
-            <div className="md:hidden flex justify-center mb-1">
-              <div className="w-8 h-1 bg-slate-300 dark:bg-slate-600 rounded-full"></div>
+        <div
+          className="fixed inset-0 z-[100] flex items-end md:items-center justify-center md:p-4 bg-black/60"
+          onClick={closeRoleModal}
+        >
+          <div
+            className="bg-white dark:bg-zinc-950 w-full md:max-w-md rounded-t-3xl md:rounded-3xl p-6 md:p-8 animate-in slide-in-from-bottom duration-200"
+            style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Drag handle */}
+            <div className="md:hidden flex justify-center mb-5">
+              <div className="w-12 h-1.5 bg-slate-300 dark:bg-zinc-800 rounded-full" />
             </div>
 
-            <div className="w-16 h-16 md:w-20 md:h-20 bg-teal-100 dark:bg-teal-900/30 rounded-full flex items-center justify-center mx-auto">
-              <User className="w-8 h-8 md:w-10 md:h-10 text-teal-600" />
+            <div className="text-center mb-6">
+              <div className="w-14 h-14 rounded-full bg-teal-50 dark:bg-teal-950/40 flex items-center justify-center mx-auto mb-4">
+                <User className="w-6 h-6 text-teal-600 dark:text-teal-400" />
+              </div>
+              <h3 className="text-lg font-display font-bold text-slate-900 dark:text-white">
+                One last thing
+              </h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">
+                Tell us who you are so we can set up your portfolio
+              </p>
             </div>
 
-            <div>
-              <h3 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white">One last step!</h3>
-              <p className="text-slate-500 dark:text-slate-400 mt-1.5 md:mt-2 text-xs md:text-sm">To personalize your portfolio, tell us who you are:</p>
-            </div>
-
-            <div className="grid grid-cols-1 gap-3 md:gap-4">
-              <button
+            <div className="space-y-2.5">
+              <RoleChoiceButton
+                icon={ShieldCheck}
+                title="Licensed nurse"
+                subtitle="I have my NCK license"
+                tone="teal"
                 onClick={() => handleRoleSelection('nurse')}
-                className="group flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-xl md:rounded-2xl border-2 border-slate-100 dark:border-slate-800 hover:border-teal-500 dark:hover:border-teal-500 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 transition-all text-left cursor-pointer"
-              >
-                <div className="p-2 md:p-3 bg-slate-100 dark:bg-slate-800 group-hover:bg-teal-500 group-hover:text-white rounded-lg md:rounded-xl transition-colors">
-                  <ShieldCheck className="w-5 h-5 md:w-6 md:h-6" />
-                </div>
-                <div>
-                  <div className="font-bold text-slate-900 dark:text-white text-sm md:text-base">Registered Nurse</div>
-                  <div className="text-[10px] md:text-xs text-slate-500">I have my license</div>
-                </div>
-              </button>
-
-              <button
+                disabled={googleLoading}
+              />
+              <RoleChoiceButton
+                icon={GraduationCap}
+                title="Nursing student"
+                subtitle="I'm still in school"
+                tone="indigo"
                 onClick={() => handleRoleSelection('student')}
-                className="group flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-xl md:rounded-2xl border-2 border-slate-100 dark:border-slate-800 hover:border-cyan-500 dark:hover:border-cyan-500 hover:bg-cyan-50/50 dark:hover:bg-cyan-950/20 transition-all text-left cursor-pointer"
-              >
-                <div className="p-2 md:p-3 bg-slate-100 dark:bg-slate-800 group-hover:bg-cyan-500 group-hover:text-white rounded-lg md:rounded-xl transition-colors">
-                  <ClipboardCheck className="w-5 h-5 md:w-6 md:h-6" />
-                </div>
-                <div>
-                  <div className="font-bold text-slate-900 dark:text-white text-sm md:text-base">Student Nurse</div>
-                  <div className="text-[10px] md:text-xs text-slate-500">I am still in school</div>
-                </div>
-              </button>
+                disabled={googleLoading}
+              />
             </div>
+
+            {googleLoading && (
+              <div className="mt-4 flex items-center justify-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                Opening Google…
+              </div>
+            )}
           </div>
         </div>
       )}
+
     </div>
   );
 }
+
+// ==========================================================
+// SUBCOMPONENTS
+// ==========================================================
+const RoleTab = React.memo<{
+  active: boolean;
+  onClick: () => void;
+  icon: any;
+  label: string;
+  sub: string;
+  tone: 'teal' | 'indigo';
+}>(({ active, onClick, icon: Icon, label, sub, tone }) => {
+  const tones = {
+    teal: {
+      active: 'bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400',
+      iconActive: 'text-teal-600 dark:text-teal-400',
+    },
+    indigo: {
+      active: 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400',
+      iconActive: 'text-indigo-600 dark:text-indigo-400',
+    },
+  };
+  const t = tones[tone];
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`flex flex-col items-center justify-center gap-1.5 py-4 px-2 rounded-2xl transition-colors ${active
+        ? t.active
+        : 'bg-slate-100 dark:bg-zinc-900 text-slate-600 dark:text-slate-400 active:bg-slate-200 dark:active:bg-zinc-800'
+        }`}
+    >
+      <Icon className={`w-5 h-5 ${active ? t.iconActive : ''}`} />
+      <span className="text-xs font-bold text-center leading-tight">{label}</span>
+      <span className="text-[10px] font-medium opacity-70 text-center">{sub}</span>
+    </button>
+  );
+});
+RoleTab.displayName = 'RoleTab';
+
+const RoleChoiceButton = React.memo<{
+  icon: any;
+  title: string;
+  subtitle: string;
+  tone: 'teal' | 'indigo';
+  onClick: () => void;
+  disabled?: boolean;
+}>(({ icon: Icon, title, subtitle, tone, onClick, disabled }) => {
+  const tones = {
+    teal: 'bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400',
+    indigo: 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400',
+  };
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="w-full flex items-center gap-3 p-3.5 rounded-2xl bg-slate-100 dark:bg-zinc-900 active:bg-slate-200 dark:active:bg-zinc-800 transition disabled:opacity-50 text-left min-h-[64px]"
+    >
+      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 ${tones[tone]}`}>
+        <Icon className="w-5 h-5" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-bold text-slate-900 dark:text-white">{title}</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{subtitle}</p>
+      </div>
+      <ArrowRight className="w-4 h-4 text-slate-400 flex-shrink-0" />
+    </button>
+  );
+});
+RoleChoiceButton.displayName = 'RoleChoiceButton';

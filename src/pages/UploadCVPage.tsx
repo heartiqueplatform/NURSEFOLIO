@@ -3,251 +3,452 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { databaseService } from '../services/databaseService';
-import { Upload, FileText, Check, AlertCircle, Trash2, ExternalLink, RefreshCw } from 'lucide-react';
+import {
+  Upload, FileText, Check, AlertCircle, Trash2,
+  ExternalLink, Loader2, RefreshCw
+} from 'lucide-react';
 import { ConfirmModal } from '../components/ConfirmModal';
 
+// ==========================================================
+// TYPES
+// ==========================================================
+interface VaultDocument {
+  id: string;
+  file_url: string;
+  file_path?: string;      // preferred: exact storage path
+  name?: string;
+  size?: number;
+  created_at: string;
+}
+
+// ==========================================================
+// HELPERS
+// ==========================================================
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function formatSize(bytes?: number): string {
+  if (!bytes) return 'PDF';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+// Fallback for older records that don't have `file_path` stored
+function extractStoragePath(url: string): string | null {
+  try {
+    // Supabase public URL shape:
+    // .../storage/v1/object/public/{bucket}/{path}
+    const marker = '/object/public/';
+    const idx = url.indexOf(marker);
+    if (idx === -1) return null;
+    const rest = url.slice(idx + marker.length);
+    // rest = "{bucket}/{path...}"
+    const firstSlash = rest.indexOf('/');
+    if (firstSlash === -1) return null;
+    return rest.slice(firstSlash + 1);
+  } catch {
+    return null;
+  }
+}
+
+// ==========================================================
+// MAIN
+// ==========================================================
 export default function UploadCVPage() {
   const { user, refreshUser } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // --- DATA STATE ---
-  const [documents, setDocuments] = useState<any[]>([]);
+  // Data
+  const [documents, setDocuments] = useState<VaultDocument[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Upload
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
+
+  // Messages
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // Delete State
+  // Delete
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState<{ id: string, url: string } | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<VaultDocument | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
-  // --- FETCH THE LIST ---
-  const fetchDocs = async () => {
-    if (!user) return;
+  // ----------------------------------------------------------
+  // Fetch
+  // ----------------------------------------------------------
+  const fetchDocs = useCallback(async () => {
+    if (!user?.id) return;
     try {
       setLoading(true);
       const data = await databaseService.getUserDocuments(user.id);
-      setDocuments(data);
+      setDocuments(data || []);
     } catch (err) {
-      console.error(err);
+      console.error('Failed to load documents:', err);
+      setError('Could not load your vault. Please try again.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id]);
 
   useEffect(() => {
     fetchDocs();
-  }, [user]);
+  }, [fetchDocs]);
 
-  if (!user) return null;
+  // ----------------------------------------------------------
+  // Upload
+  // ----------------------------------------------------------
+  const processFile = useCallback(async (file: File) => {
+    if (!user?.id) return;
 
-  const handleDrag = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(e.type === 'dragenter' || e.type === 'dragover');
-  };
-
-  const processFile = async (file: File) => {
     if (file.type !== 'application/pdf') {
-      setError('Only PDF documents are allowed.');
+      setError('Only PDF files are accepted.');
       return;
     }
+    if (file.size > 10 * 1024 * 1024) {
+      setError('File is too large. Maximum size is 10 MB.');
+      return;
+    }
+
     setError('');
+    setSuccess('');
     setUploading(true);
     setProgress(0);
 
+    // Fake progress that eases toward 90%
     const interval = setInterval(() => {
-      setProgress((prev) => (prev >= 90 ? 90 : prev + 10));
-    }, 100);
+      setProgress(prev => (prev >= 90 ? 90 : prev + 8));
+    }, 120);
 
     try {
-      const cleanFileName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
-      const filePath = `${user.id}/${Date.now()}_${cleanFileName}`;
+      const cleanName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
+      const filePath = `${user.id}/${Date.now()}_${cleanName}`;
 
       const storageUrl = await databaseService.uploadFile('documents', filePath, file);
 
       clearInterval(interval);
       setProgress(100);
 
-      // Update the main profile CV link to the latest one
+      // Update the main profile CV link to the latest upload
       await databaseService.updateProfile(user.id, { cv_url: storageUrl });
-
       await refreshUser();
       await fetchDocs();
 
-      setSuccess(`"${file.name}" uploaded successfully!`);
+      setSuccess(`"${file.name}" uploaded successfully.`);
       setTimeout(() => setSuccess(''), 4000);
     } catch (err: any) {
-      setError(err.message || 'Upload failed.');
+      console.error('Upload failed:', err);
+      setError(err?.message || 'Upload failed. Please try again.');
     } finally {
+      clearInterval(interval);
       setUploading(false);
+      // Reset input so the same file can be re-picked
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
-  };
+  }, [user?.id, refreshUser, fetchDocs]);
 
-  const handleDeleteCv = (id: string, url: string) => {
-    setItemToDelete({ id, url });
+  const handleDrag = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(e.type === 'dragenter' || e.type === 'dragover');
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) processFile(file);
+  }, [processFile]);
+
+  // ----------------------------------------------------------
+  // Delete
+  // ----------------------------------------------------------
+  const handleDeleteRequest = useCallback((doc: VaultDocument) => {
+    setItemToDelete(doc);
     setShowConfirmDelete(true);
-  };
+  }, []);
 
-  const purseDeleteConfirm = async () => {
-    if (!itemToDelete) return;
+  const handleDeleteCancel = useCallback(() => {
+    if (deleting) return;
+    setShowConfirmDelete(false);
+    setItemToDelete(null);
+  }, [deleting]);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!itemToDelete || !user) return;
+    setDeleting(true);
+    setError('');
+
     try {
-      // 1. Find the path from the URL
-      const path = itemToDelete.url.split('/public/documents/')[1];
+      // Prefer stored path; fall back to parsing the URL
+      const storagePath = itemToDelete.file_path || extractStoragePath(itemToDelete.file_url);
 
-      // 2. Delete the actual file
-      await databaseService.deleteFile('documents', path);
+      if (!storagePath) {
+        throw new Error('Could not determine file location');
+      }
 
-      // 3. If this was the main CV, clear it from profile
-      if (user.cv_url === itemToDelete.url) {
+      await databaseService.deleteFile('documents', storagePath);
+
+      // Clear from profile if this was the active CV
+      if (user.cv_url === itemToDelete.file_url) {
         await databaseService.updateProfile(user.id, { cv_url: null });
       }
 
+      // Optimistic removal from list
+      setDocuments(prev => prev.filter(d => d.id !== itemToDelete.id));
+
       await refreshUser();
-      await fetchDocs();
       setSuccess('Document removed.');
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      setError('Delete failed.');
+      console.error('Delete failed:', err);
+      setError('Could not delete the document. Please try again.');
     } finally {
+      setDeleting(false);
       setShowConfirmDelete(false);
       setItemToDelete(null);
     }
-  };
+  }, [itemToDelete, user, refreshUser]);
 
+  if (!user) return null;
+
+  // ==========================================================
+  // RENDER
+  // ==========================================================
   return (
-    <div className="space-y-0 md:space-y-6 font-sans text-xs -mx-3 md:mx-0">
+    <div className="w-full min-h-screen bg-slate-50 dark:bg-zinc-950">
+      <div className="max-w-2xl mx-auto md:px-6 md:py-8 pb-24">
 
-      {/* Header - full width on mobile */}
-      <div className="bg-white dark:bg-zinc-950 md:rounded-2xl md:border md:border-slate-100 md:dark:border-slate-800 p-4 md:p-6 md:shadow-sm flex justify-between items-center border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-100">
-        <div>
-          <h2 className="text-lg md:text-xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-1.5 md:gap-2">
-            <FileText className="w-5 h-5 md:w-6 md:h-6 text-teal-600 dark:text-teal-400" />
-            Resume & CV Management
-          </h2>
-          <p className="text-[10px] md:text-xs text-slate-500 dark:text-slate-400 mt-0.5 md:mt-1">
-            Upload and manage your professional PDF documents.
-          </p>
-        </div>
-        <button onClick={fetchDocs} className="p-1.5 md:p-2 text-slate-400 dark:text-slate-500 hover:text-teal-600 dark:hover:text-teal-400 transition">
-          <RefreshCw className={`w-3.5 h-3.5 md:w-4 md:h-4 ${loading ? 'animate-spin' : ''}`} />
-        </button>
-      </div>
-
-      {success && (
-        <div className="mx-3 md:mx-0 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 p-2.5 md:p-4 rounded-lg md:rounded-xl font-semibold flex items-center gap-1.5 md:gap-2 text-[10px] md:text-xs">
-          <Check className="w-3.5 h-3.5 md:w-4 md:h-4" />
-          <span>{success}</span>
-        </div>
-      )}
-
-      {error && (
-        <div className="mx-3 md:mx-0 bg-rose-50 dark:bg-rose-950/50 border border-rose-100 dark:border-rose-800 text-rose-700 dark:text-rose-400 p-2.5 md:p-4 rounded-lg md:rounded-xl font-semibold flex items-center gap-1.5 md:gap-2 text-[10px] md:text-xs">
-          <AlertCircle className="w-3.5 h-3.5 md:w-4 md:h-4" />
-          <span>{error}</span>
-        </div>
-      )}
-
-      {/* UPLOAD ZONE - full width on mobile */}
-      <div
-        onDragOver={handleDrag}
-        onDragLeave={() => setDragActive(false)}
-        onDrop={(e) => { e.preventDefault(); setDragActive(false); e.dataTransfer.files[0] && processFile(e.dataTransfer.files[0]); }}
-        className={`mx-3 md:mx-0 border-2 border-dashed md:rounded-3xl rounded-2xl p-6 md:p-10 text-center transition-all ${dragActive
-          ? 'border-teal-500 bg-teal-50/20 dark:bg-teal-950/20'
-          : 'border-slate-200 dark:border-slate-700 bg-slate-50/30 dark:bg-slate-800/30'
-          }`}
-      >
-        <input ref={fileInputRef} type="file" accept=".pdf" className="hidden" onChange={(e) => e.target.files?.[0] && processFile(e.target.files[0])} />
-
-        {uploading ? (
-          <div className="space-y-3 md:space-y-4 max-w-xs mx-auto">
-            <div className="w-8 h-8 md:w-10 md:h-10 border-3 md:border-4 border-slate-200 dark:border-slate-700 border-t-teal-600 rounded-full animate-spin mx-auto"></div>
-            <p className="font-bold text-slate-600 dark:text-slate-400 text-xs md:text-sm">Uploading {progress}%...</p>
-            {/* Progress bar for mobile */}
-            <div className="w-full h-1.5 md:h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-teal-600 transition-all duration-300 rounded-full"
-                style={{ width: `${progress}%` }}
-              ></div>
-            </div>
+        {/* ============================================
+            HEADER
+            ============================================ */}
+        <div className="px-4 md:px-0 pt-4 md:pt-0 pb-4 md:pb-6 flex items-start gap-3">
+          <div className="w-11 h-11 rounded-2xl bg-teal-50 dark:bg-teal-950/40 flex items-center justify-center flex-shrink-0">
+            <FileText className="w-5 h-5 text-teal-600 dark:text-teal-400" />
           </div>
-        ) : (
-          <div className="space-y-1.5 md:space-y-2">
-            <Upload className="w-6 h-6 md:w-8 md:h-8 text-teal-600 dark:text-teal-400 mx-auto mb-1 md:mb-2" />
-            <p className="text-xs md:text-sm font-bold text-slate-800 dark:text-slate-200">
-              Drag & drop a new PDF or{' '}
-              <button onClick={() => fileInputRef.current?.click()} className="text-teal-600 dark:text-teal-400 underline cursor-pointer">
-                choose file
-              </button>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg md:text-2xl font-display font-extrabold tracking-tight text-slate-900 dark:text-white">
+              Upload CV
+            </h1>
+            <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+              Manage your PDF documents and resume vault
             </p>
-            <p className="text-[10px] md:text-xs text-slate-400 dark:text-slate-500">PDF files only</p>
+          </div>
+          <button
+            onClick={fetchDocs}
+            disabled={loading}
+            className="p-2 rounded-full text-slate-500 dark:text-slate-400 active:bg-slate-100 dark:active:bg-zinc-900 transition disabled:opacity-50 flex-shrink-0"
+            aria-label="Refresh documents"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+
+        {/* ============================================
+            MESSAGES
+            ============================================ */}
+        {success && (
+          <div className="mx-4 md:mx-0 mb-4 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 px-4 py-3 rounded-2xl text-sm font-semibold flex items-start gap-2 animate-in fade-in duration-150">
+            <Check className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <span>{success}</span>
           </div>
         )}
-      </div>
 
-      {/* THE LIST OF PAPERS - feed style on mobile */}
-      <div className="space-y-0 md:space-y-4">
-        <h3 className="font-bold text-slate-700 dark:text-slate-300 ml-1 px-3 md:px-0 text-xs md:text-sm pt-2 md:pt-0">
-          My Vault ({documents.length})
-        </h3>
-
-        {loading ? (
-          <p className="text-center py-8 md:py-10 text-slate-400 dark:text-slate-500 italic text-[11px] md:text-xs">
-            Loading your papers...
-          </p>
-        ) : documents.length === 0 ? (
-          <div className="mx-3 md:mx-0 bg-white dark:bg-zinc-950 md:border md:border-slate-100 md:dark:border-slate-800 p-8 md:p-10 md:rounded-2xl text-center text-slate-400 dark:text-slate-500 text-[11px] md:text-xs">
-            No documents yet.
+        {error && (
+          <div className="mx-4 md:mx-0 mb-4 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 px-4 py-3 rounded-2xl text-sm font-semibold flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <span>{error}</span>
           </div>
-        ) : (
-          documents.map((doc) => (
-            <div key={doc.id} className="bg-white dark:bg-zinc-950 md:border-2 md:border-teal-50 md:dark:border-teal-900/30 p-4 md:p-5 md:rounded-3xl md:shadow-sm flex items-center justify-between group border-b border-slate-100 dark:border-zinc-800 md:border-b-2 md:border-teal-50">
-              <div className="flex items-center gap-3 md:gap-4 min-w-0 flex-1">
-                <div className="w-10 h-10 md:w-12 md:h-12 bg-rose-50 dark:bg-rose-950/50 text-rose-500 dark:text-rose-400 rounded-xl md:rounded-2xl flex items-center justify-center border border-rose-100 dark:border-rose-800 flex-shrink-0">
-                  <FileText className="w-5 h-5 md:w-6 md:h-6" />
-                </div>
-                <div className="min-w-0">
-                  <h3 className="text-xs md:text-sm font-bold text-slate-900 dark:text-white truncate max-w-[120px] sm:max-w-[150px] md:max-w-xs">
-                    Document_{new Date(doc.created_at).toLocaleDateString()}
-                  </h3>
-                  <p className="text-[9px] md:text-[10px] text-slate-400 dark:text-slate-500">PDF Document • Ready for download</p>
+        )}
+
+        {/* ============================================
+            UPLOAD ZONE
+            ============================================ */}
+        <section className="mx-4 md:mx-0 mb-8">
+          <div
+            onDragOver={handleDrag}
+            onDragLeave={() => setDragActive(false)}
+            onDrop={handleDrop}
+            onClick={() => !uploading && fileInputRef.current?.click()}
+            className={`rounded-3xl p-8 md:p-10 text-center transition cursor-pointer ${dragActive
+              ? 'bg-teal-50 dark:bg-teal-950/30 ring-2 ring-teal-500/40'
+              : 'bg-slate-100 dark:bg-zinc-900 active:bg-slate-200 dark:active:bg-zinc-800'
+              } ${uploading ? 'cursor-default' : ''}`}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/pdf,.pdf"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) processFile(file);
+              }}
+            />
+
+            {uploading ? (
+              <div className="max-w-xs mx-auto">
+                <Loader2 className="w-8 h-8 mx-auto text-teal-600 dark:text-teal-400 animate-spin mb-4" />
+                <p className="text-sm font-bold text-slate-900 dark:text-white mb-3">
+                  Uploading {Math.round(progress)}%
+                </p>
+                <div className="h-1.5 bg-slate-200 dark:bg-zinc-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-teal-600 rounded-full transition-all duration-300"
+                    style={{ width: `${progress}%` }}
+                  />
                 </div>
               </div>
+            ) : (
+              <>
+                <div className="w-14 h-14 mx-auto rounded-full bg-white dark:bg-zinc-950 flex items-center justify-center mb-4">
+                  <Upload className="w-6 h-6 text-teal-600 dark:text-teal-400" />
+                </div>
+                <p className="text-sm font-bold text-slate-900 dark:text-white">
+                  Drop a PDF here, or tap to browse
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
+                  PDF only · Max 10 MB
+                </p>
+              </>
+            )}
+          </div>
+        </section>
 
-              <div className="flex gap-1.5 md:gap-2 flex-shrink-0 ml-2">
-                <a
-                  href={doc.file_url}
+        {/* ============================================
+            DOCUMENT LIST
+            ============================================ */}
+        <section className="mx-4 md:mx-0">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white">
+              My vault
+            </h2>
+            {documents.length > 0 && (
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                {documents.length} {documents.length === 1 ? 'file' : 'files'}
+              </span>
+            )}
+          </div>
 
-                  className="flex items-center gap-1 md:gap-1.5 px-3 md:px-4 py-1.5 md:py-2 bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-400 rounded-lg md:rounded-xl font-bold hover:bg-teal-100 dark:hover:bg-teal-900/50 transition text-[10px] md:text-xs"
-                >
-                  <ExternalLink className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                  <span className="hidden sm:inline">View</span>
-                </a>
-                <button
-                  onClick={() => handleDeleteCv(doc.id, doc.file_url)}
-                  className="p-1.5 md:p-2 text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg md:rounded-xl transition"
-                >
-                  <Trash2 className="w-4 h-4 md:w-5 md:h-5" />
-                </button>
-              </div>
+          {loading ? (
+            <div className="space-y-2">
+              {[1, 2].map(i => (
+                <div
+                  key={i}
+                  className="h-16 bg-slate-100 dark:bg-zinc-900 rounded-2xl animate-pulse"
+                />
+              ))}
             </div>
-          ))
-        )}
+          ) : documents.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 mx-auto rounded-full bg-slate-100 dark:bg-zinc-900 flex items-center justify-center mb-4">
+                <FileText className="w-7 h-7 text-slate-400 dark:text-slate-500" />
+              </div>
+              <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                No documents yet
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 max-w-xs mx-auto leading-relaxed">
+                Upload your CV or resume to share it on your public profile.
+              </p>
+            </div>
+          ) : (
+            <div>
+              {documents.map(doc => (
+                <DocumentRow
+                  key={doc.id}
+                  doc={doc}
+                  isActive={user.cv_url === doc.file_url}
+                  onDelete={handleDeleteRequest}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+
       </div>
 
+      {/* ============================================
+          DELETE CONFIRMATION
+          ============================================ */}
       <ConfirmModal
         isOpen={showConfirmDelete}
-        title="Remove Document"
-        message="Are you sure? This will delete this specific paper from your vault."
-        onConfirm={purseDeleteConfirm}
-        onCancel={() => setShowConfirmDelete(false)}
+        title="Remove document?"
+        message="This will permanently remove this file from your vault. This cannot be undone."
+        confirmText={deleting ? 'Removing' : 'Remove'}
+        loading={deleting}
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
       />
     </div>
   );
 }
+
+// ==========================================================
+// DOCUMENT ROW
+// ==========================================================
+const DocumentRow = React.memo<{
+  doc: VaultDocument;
+  isActive: boolean;
+  onDelete: (doc: VaultDocument) => void;
+}>(({ doc, isActive, onDelete }) => {
+  const displayName = doc.name || `CV_${formatDate(doc.created_at)}.pdf`;
+
+  return (
+    <article className="bg-white dark:bg-zinc-950 p-4 border-b border-slate-100 dark:border-zinc-900 first:border-t md:first:border-t-0">
+      <div className="flex items-center gap-3">
+        <div className="w-11 h-11 rounded-2xl bg-rose-50 dark:bg-rose-950/40 flex items-center justify-center flex-shrink-0">
+          <FileText className="w-5 h-5 text-rose-500 dark:text-rose-400" />
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate">
+              {displayName}
+            </h3>
+            {isActive && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400">
+                <Check className="w-3 h-3" />
+                Active CV
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            {formatSize(doc.size)} · Uploaded {formatDate(doc.created_at)}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 mt-3">
+        <a
+          href={doc.file_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 active:bg-teal-100 dark:active:bg-teal-950/60 transition"
+        >
+          <ExternalLink className="w-3.5 h-3.5" />
+          View
+        </a>
+        <button
+          onClick={() => onDelete(doc)}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 active:bg-rose-100 dark:active:bg-rose-950/50 transition ml-auto"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+          Remove
+        </button>
+      </div>
+    </article>
+  );
+});
+DocumentRow.displayName = 'DocumentRow';

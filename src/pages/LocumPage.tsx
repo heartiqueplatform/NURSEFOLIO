@@ -3,17 +3,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
-import { locumService, LocumRequest, LocumUrgency, LocumOffer } from '../services/locumService';
+import { locumService, LocumRequest, LocumUrgency } from '../services/locumService';
 import { VerificationBadge } from '../components/VerificationBadge';
 import {
     Search, MapPin, Calendar, Clock, RefreshCw, X, Send, Briefcase,
-    MessageSquare, Users, Plus, AlertCircle, Sparkles, CheckCircle2,
-    Phone, MessageCircle, ChevronRight, Inbox
+    MessageSquare, Users, Plus, Sparkles, ChevronRight, Inbox
 } from 'lucide-react';
-import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
 
 // ==========================================
 // CONSTANTS
@@ -21,17 +19,17 @@ import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/re
 const URGENCY_META: Record<LocumUrgency, { label: string; classes: string; dot: string }> = {
     urgent: {
         label: 'Urgent',
-        classes: 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-900',
+        classes: 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400',
         dot: 'bg-rose-500 animate-pulse'
     },
     soon: {
         label: 'Soon',
-        classes: 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-900',
+        classes: 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400',
         dot: 'bg-amber-500'
     },
     planned: {
         label: 'Planned',
-        classes: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900',
+        classes: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400',
         dot: 'bg-emerald-500'
     }
 };
@@ -62,239 +60,191 @@ const getRequesterName = (req: LocumRequest): string => {
     return 'A colleague';
 };
 
-const getApplicantName = (offer: LocumOffer): string => {
-    const a = offer.applicant;
-    if (!a) return 'A colleague';
-    if (a.full_name && a.full_name !== 'null') return a.full_name;
-    if (a.first_name && a.first_name !== 'null') {
-        return `${a.first_name} ${a.last_name || ''}`.trim();
-    }
-    if (a.username && a.username !== 'null') return a.username;
-    return 'A colleague';
-};
-
-// Normalize phone for WhatsApp (digits only, with country code assumption)
-const normalizeWhatsApp = (raw: string | null | undefined): string => {
-    if (!raw) return '';
-    const digits = raw.replace(/[^\d]/g, '');
-    // If starts with 0, prepend Kenya country code (254)
-    if (digits.startsWith('0')) return '254' + digits.slice(1);
-    return digits;
-};
-
 // ==========================================
-// SKELETON
+// SKELETON — flat, edge-to-edge
 // ==========================================
-const LocumCardSkeleton = () => (
-    <div className="bg-white dark:bg-zinc-950 md:rounded-2xl md:border md:border-slate-200/60 md:dark:border-zinc-800 md:shadow-sm overflow-hidden border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-200/60 animate-pulse">
-        <div className="p-4 md:p-5 space-y-3">
-            <div className="flex items-center gap-2">
-                <div className="h-6 w-20 bg-slate-200 dark:bg-zinc-800 rounded-full" />
-                <div className="h-5 w-16 bg-slate-200 dark:bg-zinc-800 rounded-full" />
-            </div>
-            <div className="h-5 bg-slate-200 dark:bg-zinc-800 rounded w-3/4" />
-            <div className="h-3 bg-slate-200 dark:bg-zinc-800 rounded w-1/2" />
-            <div className="h-14 bg-slate-100 dark:bg-zinc-900 rounded-xl" />
-            <div className="h-10 bg-slate-200 dark:bg-zinc-800 rounded-xl w-40" />
+const LocumCardSkeleton = React.memo(() => (
+    <div className="bg-white dark:bg-zinc-950 p-4 border-b border-slate-100 dark:border-zinc-900 animate-pulse space-y-3">
+        <div className="flex items-center gap-2">
+            <div className="h-6 w-20 bg-slate-200 dark:bg-zinc-800 rounded-full" />
+            <div className="h-5 w-16 bg-slate-200 dark:bg-zinc-800 rounded-full" />
         </div>
+        <div className="h-5 bg-slate-200 dark:bg-zinc-800 rounded w-3/4" />
+        <div className="h-3 bg-slate-200 dark:bg-zinc-800 rounded w-1/2" />
+        <div className="h-14 bg-slate-100 dark:bg-zinc-900 rounded-2xl" />
+        <div className="h-10 bg-slate-200 dark:bg-zinc-800 rounded-full w-40" />
     </div>
-);
+));
 
 // ==========================================
-// LOCUM CARD (shared renderer)
+// LOCUM CARD — memoized, no framer-motion
 // ==========================================
-const LocumCard: React.FC<{
+const LocumCard = React.memo<{
     req: LocumRequest;
     isOwn: boolean;
     hasApplied: boolean;
     onApply: (req: LocumRequest) => void;
     onViewApplicants?: (req: LocumRequest) => void;
-}> = ({ req, isOwn, hasApplied, onApply, onViewApplicants }) => {
+}>(({ req, isOwn, hasApplied, onApply, onViewApplicants }) => {
     const meta = URGENCY_META[req.urgency];
 
     return (
-        <motion.div
-            layout
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.25 }}
-            className="bg-white dark:bg-zinc-950 md:rounded-2xl md:border md:border-slate-200/60 md:dark:border-zinc-800 md:shadow-sm md:hover:border-amber-200 dark:md:hover:border-amber-900 transition-all overflow-hidden border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-200/60"
-        >
-            <div className="p-4 md:p-5">
-                <div className="flex items-center gap-2 flex-wrap mb-2.5">
-                    <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full border ${meta.classes}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${meta.dot}`} />
-                        {meta.label}
+        <article className="bg-white dark:bg-zinc-950 p-4 border-b border-slate-100 dark:border-zinc-900">
+            <div className="flex items-center gap-2 flex-wrap mb-2.5">
+                <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full ${meta.classes}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${meta.dot}`} />
+                    {meta.label}
+                </span>
+                {req.specialty && (
+                    <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400">
+                        {req.specialty}
                     </span>
-                    {req.specialty && (
-                        <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900">
-                            {req.specialty}
-                        </span>
-                    )}
-                    {req.status !== 'open' && (
-                        <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-zinc-700">
-                            {req.status === 'filled' ? 'Filled' : 'Cancelled'}
-                        </span>
-                    )}
-                </div>
-
-                <h3 className="text-base md:text-lg font-bold text-slate-900 dark:text-white leading-tight">
-                    {req.facility_name || 'Shift Cover Needed'}
-                </h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-1">
-                    <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
-                    <span className="truncate">{req.facility_location}</span>
-                </p>
-
-                <div className="mt-3 bg-slate-50 dark:bg-zinc-900 rounded-xl px-3.5 py-3 border border-slate-100 dark:border-zinc-800 flex flex-wrap items-center gap-x-4 gap-y-1.5">
-                    <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-700 dark:text-slate-300">
-                        <Calendar className="w-4 h-4 text-amber-500 dark:text-amber-400" />
-                        {formatShiftDate(req.shift_date)}
-                    </span>
-                    {req.shift_start && req.shift_end && (
-                        <span className="flex items-center gap-1.5 text-sm text-slate-600 dark:text-slate-400">
-                            <Clock className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-                            {req.shift_start} – {req.shift_end}
-                        </span>
-                    )}
-                </div>
-
-                {req.notes && (
-                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-3 leading-relaxed line-clamp-3">
-                        {req.notes}
-                    </p>
                 )}
-
-                <div className="flex items-center gap-2.5 mt-3.5">
-                    <img
-                        src={req.requester?.avatar_url || '/192.png'}
-                        alt={getRequesterName(req)}
-                        className="w-8 h-8 rounded-full object-cover border border-slate-200 dark:border-zinc-700 flex-shrink-0"
-                    />
-                    <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 truncate">
-                                {getRequesterName(req)}
-                            </span>
-                            {req.requester?.verification_status === 'verified' && (
-                                <span className="w-3.5 h-3.5 flex-shrink-0">
-                                    <VerificationBadge status="verified" showText={false} />
-                                </span>
-                            )}
-                        </div>
-                        <p className="text-xs text-slate-400 dark:text-slate-500 truncate">
-                            {req.requester?.qualification || 'Colleague'}
-                        </p>
-                    </div>
-                </div>
-
-                <div className="flex items-center justify-between gap-3 mt-4 pt-3 border-t border-slate-100 dark:border-zinc-800/80">
-                    <span className="text-xs text-slate-400 dark:text-slate-500 font-medium flex items-center gap-1.5">
-                        <Users className="w-3.5 h-3.5" />
-                        {req.offer_count || 0} {req.offer_count === 1 ? 'applicant' : 'applicants'}
+                {req.status !== 'open' && (
+                    <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-slate-400">
+                        {req.status === 'filled' ? 'Filled' : 'Cancelled'}
                     </span>
+                )}
+            </div>
 
-                    {isOwn ? (
-                        onViewApplicants ? (
-                            <button
-                                onClick={() => onViewApplicants(req)}
-                                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold shadow-sm shadow-amber-500/20 active:scale-[97%] transition"
-                            >
-                                <Inbox className="w-4 h-4" />
-                                View Applicants
-                                <ChevronRight className="w-3.5 h-3.5" />
-                            </button>
-                        ) : (
-                            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-zinc-800 px-3 py-1.5 rounded-full">
-                                Your request
-                            </span>
-                        )
-                    ) : hasApplied ? (
-                        <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1.5 rounded-full border border-emerald-200 dark:border-emerald-900 inline-flex items-center gap-1.5">
-                            <Send className="w-3 h-3 fill-current" />
-                            Applied
+            <h3 className="text-base md:text-lg font-bold text-slate-900 dark:text-white leading-tight">
+                {req.facility_name || 'Shift Cover Needed'}
+            </h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-1">
+                <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
+                <span className="truncate">{req.facility_location}</span>
+            </p>
+
+            <div className="mt-3 bg-slate-100 dark:bg-zinc-900 rounded-2xl px-3.5 py-3 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-700 dark:text-slate-300">
+                    <Calendar className="w-4 h-4 text-amber-500 dark:text-amber-400" />
+                    {formatShiftDate(req.shift_date)}
+                </span>
+                {req.shift_start && req.shift_end && (
+                    <span className="flex items-center gap-1.5 text-sm text-slate-600 dark:text-slate-400">
+                        <Clock className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+                        {req.shift_start} – {req.shift_end}
+                    </span>
+                )}
+            </div>
+
+            {req.notes && (
+                <p className="text-sm text-slate-600 dark:text-slate-400 mt-3 leading-relaxed line-clamp-3">
+                    {req.notes}
+                </p>
+            )}
+
+            <div className="flex items-center gap-2.5 mt-3.5">
+                <img
+                    src={req.requester?.avatar_url || '/192.png'}
+                    alt={getRequesterName(req)}
+                    loading="lazy"
+                    decoding="async"
+                    className="w-8 h-8 rounded-full object-cover bg-slate-100 dark:bg-zinc-900 flex-shrink-0"
+                />
+                <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300 truncate">
+                            {getRequesterName(req)}
                         </span>
-                    ) : req.status === 'open' ? (
-                        <button
-                            onClick={() => onApply(req)}
-                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold shadow-sm shadow-indigo-600/20 active:scale-[97%] transition"
-                        >
-                            <Send className="w-4 h-4" />
-                            I'm Interested
-                        </button>
-                    ) : null}
+                        {req.requester?.verification_status === 'verified' && (
+                            <span className="w-3.5 h-3.5 flex-shrink-0">
+                                <VerificationBadge status="verified" showText={false} />
+                            </span>
+                        )}
+                    </div>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 truncate">
+                        {req.requester?.qualification || 'Colleague'}
+                    </p>
                 </div>
             </div>
-        </motion.div>
+
+            <div className="flex items-center justify-between gap-3 mt-4">
+                <span className="text-xs text-slate-400 dark:text-slate-500 font-medium flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5" />
+                    {req.offer_count || 0} {req.offer_count === 1 ? 'applicant' : 'applicants'}
+                </span>
+
+                {isOwn ? (
+                    onViewApplicants ? (
+                        <button
+                            onClick={() => onViewApplicants(req)}
+                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-amber-500 active:bg-amber-600 text-white text-sm font-bold transition"
+                        >
+                            <Inbox className="w-4 h-4" />
+                            View Applicants
+                            <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
+                    ) : (
+                        <span className="text-xs font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-zinc-800 px-3 py-1.5 rounded-full">
+                            Your request
+                        </span>
+                    )
+                ) : hasApplied ? (
+                    <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1.5 rounded-full inline-flex items-center gap-1.5">
+                        <Send className="w-3 h-3 fill-current" />
+                        Applied
+                    </span>
+                ) : req.status === 'open' ? (
+                    <button
+                        onClick={() => onApply(req)}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-indigo-600 active:bg-indigo-700 text-white text-sm font-bold transition"
+                    >
+                        <Send className="w-4 h-4" />
+                        I'm Interested
+                    </button>
+                ) : null}
+            </div>
+        </article>
     );
-};
+});
+
+LocumCard.displayName = 'LocumCard';
 
 // ==========================================
-// APPLY SHEET
+// APPLY SHEET — no drag, CSS animation
 // ==========================================
-const ApplySheet = ({
-    isOpen,
-    onClose,
-    request,
-    onSubmit,
-    isSubmitting
-}: {
+const ApplySheet = React.memo<{
     isOpen: boolean;
     onClose: () => void;
     request: LocumRequest | null;
     onSubmit: (message: string | null) => Promise<void>;
     isSubmitting: boolean;
-}) => {
+}>(({ isOpen, onClose, request, onSubmit, isSubmitting }) => {
     const [message, setMessage] = useState('');
-    const sheetY = useMotionValue(0);
-    const sheetOpacity = useTransform(sheetY, [0, 200], [1, 0.4]);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     useEffect(() => {
-        if (isOpen) setMessage('');
+        if (isOpen) {
+            setMessage('');
+            const t = setTimeout(() => textareaRef.current?.focus(), 100);
+            return () => clearTimeout(t);
+        }
     }, [isOpen]);
 
-    const handleSubmit = async () => {
+    const handleSubmit = useCallback(async () => {
+        if (isSubmitting) return;
         await onSubmit(message.trim() || null);
-    };
-
-    const handleClose = () => {
-        sheetY.set(0);
-        onClose();
-    };
+    }, [message, isSubmitting, onSubmit]);
 
     if (!isOpen || !request) return null;
 
     return (
-        <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[9999999999] flex items-end md:items-center justify-center md:p-4 bg-black/60 backdrop-blur-sm"
-            onClick={handleClose}
+        <div
+            className="fixed inset-0 z-[9999] flex items-end md:items-center justify-center md:p-4 bg-black/60"
+            onClick={onClose}
         >
-            <motion.div
-                drag="y"
-                dragConstraints={{ top: 0, bottom: 0 }}
-                dragElastic={{ top: 0, bottom: 0.6 }}
-                style={{ y: sheetY, opacity: sheetOpacity }}
-                onDragEnd={(_, info) => {
-                    if (info.offset.y > 120 || info.velocity.y > 500) handleClose();
-                    else sheetY.set(0);
-                }}
-                initial={{ y: '100%', opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                exit={{ y: '100%', opacity: 0 }}
-                transition={{ type: 'tween', duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
-                className="bg-white dark:bg-zinc-950 rounded-t-3xl md:rounded-2xl max-w-md w-full shadow-2xl overflow-hidden max-h-[92vh] flex flex-col md:border md:border-slate-200/60 md:dark:border-zinc-800"
+            <div
+                className="bg-white dark:bg-zinc-950 rounded-t-3xl md:rounded-3xl max-w-md w-full overflow-hidden max-h-[92vh] flex flex-col animate-in slide-in-from-bottom duration-200"
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="md:hidden flex justify-center pt-3 pb-1 flex-shrink-0">
                     <div className="w-12 h-1.5 bg-slate-300 dark:bg-zinc-700 rounded-full" />
                 </div>
 
-                <div className="flex items-center justify-between px-4 md:px-5 py-3 md:py-4 border-b border-slate-100 dark:border-zinc-800/80 flex-shrink-0">
+                <div className="flex items-center justify-between px-4 md:px-5 py-3 md:py-4 flex-shrink-0">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center">
                             <Send className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                         </div>
                         <div>
@@ -307,8 +257,8 @@ const ApplySheet = ({
                         </div>
                     </div>
                     <button
-                        onClick={handleClose}
-                        className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 transition"
+                        onClick={onClose}
+                        className="p-2 rounded-full active:bg-slate-100 dark:active:bg-zinc-900 transition"
                         aria-label="Close"
                     >
                         <X className="w-5 h-5 text-slate-400 dark:text-slate-500" />
@@ -316,7 +266,7 @@ const ApplySheet = ({
                 </div>
 
                 <div className="px-4 md:px-5 py-4 space-y-4 overflow-y-auto flex-1">
-                    <div className="bg-slate-50 dark:bg-zinc-900 rounded-xl p-3.5 border border-slate-100 dark:border-zinc-800">
+                    <div className="bg-slate-100 dark:bg-zinc-900 rounded-2xl p-3.5">
                         <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
                             {request.facility_name || 'Facility'}
                         </p>
@@ -343,11 +293,12 @@ const ApplySheet = ({
                             Add a message (optional)
                         </label>
                         <textarea
+                            ref={textareaRef}
                             value={message}
                             onChange={(e) => setMessage(e.target.value)}
                             placeholder="Tell them why you're a good fit or confirm your availability..."
                             rows={4}
-                            className="w-full text-sm px-3.5 py-3 bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-700 focus:outline-none focus:border-indigo-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition resize-none"
+                            className="w-full text-sm px-4 py-3 bg-slate-100 dark:bg-zinc-900 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/40 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition resize-none"
                         />
                         <p className="text-xs text-slate-400 dark:text-slate-500 mt-1.5">
                             Keep it short — response time matters for urgent shifts.
@@ -355,18 +306,18 @@ const ApplySheet = ({
                     </div>
                 </div>
 
-                <div className="flex gap-3 px-4 md:px-5 py-3 md:py-4 border-t border-slate-100 dark:border-zinc-800/80 bg-slate-50/50 dark:bg-zinc-900/50 flex-shrink-0">
+                <div className="flex gap-3 px-4 md:px-5 py-3 md:py-4 flex-shrink-0">
                     <button
-                        onClick={handleClose}
+                        onClick={onClose}
                         disabled={isSubmitting}
-                        className="flex-1 py-3 rounded-xl border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-slate-400 text-sm font-semibold hover:bg-slate-100 dark:hover:bg-zinc-800 transition active:scale-[98%] min-h-[44px]"
+                        className="flex-1 py-3 rounded-2xl bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-slate-300 text-sm font-semibold active:opacity-70 transition disabled:opacity-50 min-h-[44px]"
                     >
                         Cancel
                     </button>
                     <button
                         onClick={handleSubmit}
                         disabled={isSubmitting}
-                        className="flex-1 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition shadow-md shadow-indigo-600/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 active:scale-[98%] min-h-[44px]"
+                        className="flex-1 py-3 rounded-2xl bg-indigo-600 active:bg-indigo-700 text-white text-sm font-semibold transition disabled:opacity-50 flex items-center justify-center gap-2 min-h-[44px]"
                     >
                         {isSubmitting ? (
                             <>
@@ -381,11 +332,12 @@ const ApplySheet = ({
                         )}
                     </button>
                 </div>
-            </motion.div>
-        </motion.div>
+            </div>
+        </div>
     );
-};
+});
 
+ApplySheet.displayName = 'ApplySheet';
 
 // ==========================================
 // MAIN PAGE
@@ -394,16 +346,11 @@ export default function LocumPage() {
     const navigate = useNavigate();
 
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-
-    // Tab
     const [tab, setTab] = useState<'browse' | 'mine'>('browse');
 
-    // Browse data
     const [matched, setMatched] = useState<LocumRequest[]>([]);
     const [allRequests, setAllRequests] = useState<LocumRequest[]>([]);
     const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
-
-    // My requests
     const [myRequests, setMyRequests] = useState<LocumRequest[]>([]);
 
     const [loading, setLoading] = useState(true);
@@ -418,18 +365,19 @@ export default function LocumPage() {
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    const loadedForUserRef = useRef<string | null>(null);
 
-
-    // Auth
+    // ---------- Auth ----------
     useEffect(() => {
-        const getUser = async () => {
+        let cancelled = false;
+        (async () => {
             const { data: { user } } = await supabase.auth.getUser();
-            setCurrentUserId(user?.id || null);
-        };
-        getUser();
+            if (!cancelled) setCurrentUserId(user?.id || null);
+        })();
+        return () => { cancelled = true; };
     }, []);
 
-    // Load everything
+    // ---------- Load everything ----------
     const loadAll = useCallback(async (userId: string, forceFresh = false) => {
         try {
             if (forceFresh) setRefreshing(true);
@@ -445,13 +393,25 @@ export default function LocumPage() {
             setAllRequests(allData);
             setMyRequests(mine);
 
-            // Determine applied
-            const myOffers: string[] = [];
-            for (const r of allData) {
-                const offer = await locumService.getMyOfferForRequest(r.id, userId);
-                if (offer && offer.status !== 'withdrawn') myOffers.push(r.id);
+            // ✅ FIXED: was making one query per request (40 requests = 40 roundtrips).
+            // Now: one batched query for all offers by this user.
+            const allIds = allData.map(r => r.id);
+            if (allIds.length > 0) {
+                const { data: myOffers } = await supabase
+                    .from('locum_offers')
+                    .select('request_id, status')
+                    .eq('applicant_id', userId)
+                    .in('request_id', allIds);
+
+                const applied = new Set(
+                    (myOffers || [])
+                        .filter(o => o.status !== 'withdrawn')
+                        .map(o => o.request_id)
+                );
+                setAppliedIds(applied);
+            } else {
+                setAppliedIds(new Set());
             }
-            setAppliedIds(new Set(myOffers));
         } catch (err) {
             console.error('Load locum data error:', err);
             setMatched([]);
@@ -464,11 +424,14 @@ export default function LocumPage() {
     }, []);
 
     useEffect(() => {
-        if (currentUserId) loadAll(currentUserId);
+        if (!currentUserId) return;
+        if (loadedForUserRef.current === currentUserId) return;
+        loadedForUserRef.current = currentUserId;
+        loadAll(currentUserId);
     }, [currentUserId, loadAll]);
 
-    // Apply
-    const handleApply = async (message: string | null) => {
+    // ---------- Apply ----------
+    const handleApply = useCallback(async (message: string | null) => {
         if (!currentUserId || !applySheet.request) return;
         setIsSubmitting(true);
         try {
@@ -485,82 +448,79 @@ export default function LocumPage() {
         } finally {
             setIsSubmitting(false);
         }
-    };
+    }, [currentUserId, applySheet.request]);
 
-    const handleRefresh = () => {
+    const handleRefresh = useCallback(() => {
         if (!currentUserId) return;
         loadAll(currentUserId, true);
-    };
+    }, [currentUserId, loadAll]);
 
-    // Filters
-    const applyFilters = (list: LocumRequest[]) => list.filter(r => {
-        const matchesSearch = searchTerm === '' ||
-            (r.facility_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (r.facility_location || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (r.specialty || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const handleOpenApply = useCallback((req: LocumRequest) => {
+        setApplySheet({ isOpen: true, request: req });
+    }, []);
 
-        const matchesUrgency = urgencyFilter === 'all' || r.urgency === urgencyFilter;
+    const handleViewApplicants = useCallback((req: LocumRequest) => {
+        navigate(`/locum/${req.id}/applicants`);
+    }, [navigate]);
 
-        return matchesSearch && matchesUrgency;
-    });
+    // ---------- Filters (memoized) ----------
+    const filtered = useMemo(() => {
+        const term = searchTerm.toLowerCase().trim();
+        const matches = (r: LocumRequest) => {
+            const matchesSearch =
+                term === '' ||
+                (r.facility_name || '').toLowerCase().includes(term) ||
+                (r.facility_location || '').toLowerCase().includes(term) ||
+                (r.specialty || '').toLowerCase().includes(term);
+            const matchesUrgency = urgencyFilter === 'all' || r.urgency === urgencyFilter;
+            return matchesSearch && matchesUrgency;
+        };
 
-    const filteredMatched = applyFilters(matched);
-    const filteredAll = applyFilters(
-        allRequests.filter(r => !matched.some(m => m.id === r.id))
-    );
-    const filteredMine = applyFilters(myRequests);
+        const filteredMatched = matched.filter(matches);
+        const matchedIds = new Set(matched.map(m => m.id));
+        const filteredAll = allRequests.filter(r => !matchedIds.has(r.id) && matches(r));
+        const filteredMine = myRequests.filter(matches);
 
-    const totalBrowseVisible = filteredMatched.length + filteredAll.length;
+        return { filteredMatched, filteredAll, filteredMine };
+    }, [matched, allRequests, myRequests, searchTerm, urgencyFilter]);
 
-    // Render card wrapper
-    const renderCard = (req: LocumRequest, options?: { my?: boolean }) => (
-        <LocumCard
-            key={req.id}
-            req={req}
-            isOwn={req.requester_id === currentUserId}
-            hasApplied={appliedIds.has(req.id)}
-            onApply={(r) => setApplySheet({ isOpen: true, request: r })}
-            onViewApplicants={
-                options?.my || req.requester_id === currentUserId
-                    ? (r) => navigate(`/locum/${r.id}/applicants`)
-                    : undefined
-            }
-        />
-    );
+    const totalBrowseVisible = filtered.filteredMatched.length + filtered.filteredAll.length;
+    const hasFilters = searchTerm !== '' || urgencyFilter !== 'all';
 
+    // ---------- Render ----------
     return (
         <div className="w-full min-h-screen bg-slate-50 dark:bg-zinc-950">
-            <div className="max-w-2xl mx-auto px-3 md:px-6 py-4 md:py-8 pb-24">
+            <div className="max-w-2xl mx-auto md:px-6 md:py-8 pb-24">
 
-                {/* Header */}
-                <div className="mb-5 md:mb-8">
+                {/* Header — hidden on mobile */}
+                <div className="hidden md:block mb-8">
                     <span className="inline-block text-xs bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 font-bold px-2.5 py-1 rounded-full uppercase tracking-wider font-mono">
                         Locum & Cover
                     </span>
-                    <h1 className="text-2xl md:text-3xl lg:text-4xl font-display font-extrabold tracking-tight text-slate-900 dark:text-white mt-2">
+                    <h1 className="text-3xl lg:text-4xl font-display font-extrabold tracking-tight text-slate-900 dark:text-white mt-2">
                         Find or Offer Shift Cover
                     </h1>
-                    <p className="text-slate-500 dark:text-slate-400 text-sm md:text-base mt-1">
+                    <p className="text-slate-500 dark:text-slate-400 text-base mt-1">
                         Open shifts from facilities and colleagues near you.
                     </p>
                 </div>
 
                 {/* Tab switcher */}
-                <div className="bg-white dark:bg-zinc-950 rounded-2xl border border-slate-200/60 dark:border-zinc-800 p-1 shadow-sm mb-4 flex">
+                <div className="bg-white dark:bg-zinc-950 p-1 mb-4 flex md:rounded-2xl border-b border-slate-100 dark:border-zinc-900 md:border-0">
                     <button
                         onClick={() => setTab('browse')}
-                        className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition ${tab === 'browse'
-                            ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm'
-                            : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-900'
+                        className={`flex-1 py-2.5 rounded-full text-sm font-bold transition ${tab === 'browse'
+                            ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900'
+                            : 'text-slate-500 dark:text-slate-400 active:bg-slate-100 dark:active:bg-zinc-900'
                             }`}
                     >
                         Browse Shifts
                     </button>
                     <button
                         onClick={() => setTab('mine')}
-                        className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 ${tab === 'mine'
-                            ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm'
-                            : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-900'
+                        className={`flex-1 py-2.5 rounded-full text-sm font-bold transition flex items-center justify-center gap-2 ${tab === 'mine'
+                            ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900'
+                            : 'text-slate-500 dark:text-slate-400 active:bg-slate-100 dark:active:bg-zinc-900'
                             }`}
                     >
                         My Requests
@@ -575,9 +535,9 @@ export default function LocumPage() {
                     </button>
                 </div>
 
-                {/* Filters (only on browse) */}
+                {/* Filters (browse only) */}
                 {tab === 'browse' && (
-                    <div className="bg-white dark:bg-zinc-950 rounded-2xl border border-slate-200/60 dark:border-zinc-800 p-4 md:p-5 shadow-sm mb-4 md:mb-6 space-y-4">
+                    <div className="bg-white dark:bg-zinc-950 p-4 space-y-4 border-b border-slate-100 dark:border-zinc-900 md:rounded-2xl md:border-0 md:mb-6">
                         <div className="relative">
                             <div className="absolute inset-y-0 left-3 flex items-center text-slate-400 dark:text-slate-500 pointer-events-none">
                                 <Search className="w-4 h-4" />
@@ -587,16 +547,16 @@ export default function LocumPage() {
                                 placeholder="Search by facility, location, or specialty..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full text-sm pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-700 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition"
+                                className="w-full text-sm pl-10 pr-4 py-2.5 bg-slate-100 dark:bg-zinc-900 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500/40 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition"
                             />
                         </div>
 
-                        <div className="pt-3 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                             <button
                                 onClick={() => setUrgencyFilter('all')}
                                 className={`px-3 py-1.5 rounded-full text-xs font-semibold transition ${urgencyFilter === 'all'
                                     ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900'
-                                    : 'bg-slate-100 dark:bg-zinc-900 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-zinc-800'
+                                    : 'bg-slate-100 dark:bg-zinc-900 text-slate-600 dark:text-slate-400 active:bg-slate-200 dark:active:bg-zinc-800'
                                     }`}
                             >
                                 All
@@ -607,7 +567,7 @@ export default function LocumPage() {
                                     onClick={() => setUrgencyFilter(u)}
                                     className={`px-3 py-1.5 rounded-full text-xs font-semibold transition flex items-center gap-1.5 ${urgencyFilter === u
                                         ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900'
-                                        : 'bg-slate-100 dark:bg-zinc-900 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-zinc-800'
+                                        : 'bg-slate-100 dark:bg-zinc-900 text-slate-600 dark:text-slate-400 active:bg-slate-200 dark:active:bg-zinc-800'
                                         }`}
                                 >
                                     <span className={`w-1.5 h-1.5 rounded-full ${URGENCY_META[u].dot}`} />
@@ -618,7 +578,7 @@ export default function LocumPage() {
                             <button
                                 onClick={handleRefresh}
                                 disabled={refreshing}
-                                className="ml-auto inline-flex items-center gap-1.5 text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition disabled:opacity-50 active:scale-[97%]"
+                                className="ml-auto inline-flex items-center gap-1.5 text-sm font-semibold text-indigo-600 dark:text-indigo-400 active:opacity-60 transition disabled:opacity-50"
                             >
                                 <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
                                 <span className="hidden sm:inline">{refreshing ? 'Refreshing' : 'Refresh'}</span>
@@ -629,27 +589,27 @@ export default function LocumPage() {
 
                 {/* Content */}
                 {loading ? (
-                    <div className="space-y-3 md:space-y-4">
+                    <div>
                         {[1, 2, 3].map(i => <LocumCardSkeleton key={i} />)}
                     </div>
                 ) : tab === 'browse' ? (
                     totalBrowseVisible === 0 ? (
-                        <div className="bg-white dark:bg-zinc-950 border border-slate-200/60 dark:border-zinc-800 rounded-2xl p-8 md:p-16 text-center shadow-sm">
-                            <div className="w-16 h-16 rounded-2xl bg-slate-50 dark:bg-zinc-900 flex items-center justify-center text-slate-400 mx-auto mb-6 border border-slate-100 dark:border-zinc-800">
+                        <div className="text-center py-16 px-6">
+                            <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-zinc-900 flex items-center justify-center text-slate-400 mx-auto mb-6">
                                 <Briefcase className="w-6 h-6" />
                             </div>
                             <h3 className="font-bold text-slate-800 dark:text-slate-200 text-lg">
-                                {searchTerm || urgencyFilter !== 'all' ? 'No matching shifts' : 'No shifts available right now'}
+                                {hasFilters ? 'No matching shifts' : 'No shifts available right now'}
                             </h3>
                             <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 leading-relaxed max-w-sm mx-auto">
-                                {searchTerm || urgencyFilter !== 'all'
+                                {hasFilters
                                     ? 'Try clearing your filters.'
                                     : 'Be the first — post a request and reach nurses near you.'}
                             </p>
-                            {!searchTerm && urgencyFilter === 'all' && (
+                            {!hasFilters && (
                                 <button
                                     onClick={() => navigate('/locum/new')}
-                                    className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold active:scale-[98%] transition"
+                                    className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-amber-500 active:bg-amber-600 text-white text-sm font-semibold transition"
                                 >
                                     <Plus className="w-4 h-4" />
                                     Post a Shift Cover Request
@@ -657,10 +617,10 @@ export default function LocumPage() {
                             )}
                         </div>
                     ) : (
-                        <div className="space-y-8">
-                            {filteredMatched.length > 0 && (
-                                <div>
-                                    <div className="flex items-center gap-2 mb-3">
+                        <div className="space-y-6">
+                            {filtered.filteredMatched.length > 0 && (
+                                <section>
+                                    <div className="flex items-center gap-2 mb-3 px-4 md:px-0">
                                         <div className="w-6 h-6 rounded-lg bg-amber-100 dark:bg-amber-950/50 flex items-center justify-center flex-shrink-0">
                                             <Sparkles className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
                                         </div>
@@ -668,18 +628,29 @@ export default function LocumPage() {
                                             Matched for You
                                         </h2>
                                         <span className="text-xs text-slate-400 dark:text-slate-500 font-semibold">
-                                            · {filteredMatched.length}
+                                            · {filtered.filteredMatched.length}
                                         </span>
                                     </div>
-                                    <div className="space-y-3 md:space-y-4">
-                                        {filteredMatched.map(r => renderCard(r))}
+                                    <div>
+                                        {filtered.filteredMatched.map(r => (
+                                            <LocumCard
+                                                key={r.id}
+                                                req={r}
+                                                isOwn={r.requester_id === currentUserId}
+                                                hasApplied={appliedIds.has(r.id)}
+                                                onApply={handleOpenApply}
+                                                onViewApplicants={
+                                                    r.requester_id === currentUserId ? handleViewApplicants : undefined
+                                                }
+                                            />
+                                        ))}
                                     </div>
-                                </div>
+                                </section>
                             )}
 
-                            {filteredAll.length > 0 && (
-                                <div>
-                                    <div className="flex items-center gap-2 mb-3">
+                            {filtered.filteredAll.length > 0 && (
+                                <section>
+                                    <div className="flex items-center gap-2 mb-3 px-4 md:px-0">
                                         <div className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-zinc-800 flex items-center justify-center flex-shrink-0">
                                             <Briefcase className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
                                         </div>
@@ -687,21 +658,32 @@ export default function LocumPage() {
                                             All Locums
                                         </h2>
                                         <span className="text-xs text-slate-400 dark:text-slate-500 font-semibold">
-                                            · {filteredAll.length}
+                                            · {filtered.filteredAll.length}
                                         </span>
                                     </div>
-                                    <div className="space-y-3 md:space-y-4">
-                                        {filteredAll.map(r => renderCard(r))}
+                                    <div>
+                                        {filtered.filteredAll.map(r => (
+                                            <LocumCard
+                                                key={r.id}
+                                                req={r}
+                                                isOwn={r.requester_id === currentUserId}
+                                                hasApplied={appliedIds.has(r.id)}
+                                                onApply={handleOpenApply}
+                                                onViewApplicants={
+                                                    r.requester_id === currentUserId ? handleViewApplicants : undefined
+                                                }
+                                            />
+                                        ))}
                                     </div>
-                                </div>
+                                </section>
                             )}
                         </div>
                     )
                 ) : (
                     // MY REQUESTS TAB
-                    filteredMine.length === 0 ? (
-                        <div className="bg-white dark:bg-zinc-950 border border-slate-200/60 dark:border-zinc-800 rounded-2xl p-8 md:p-16 text-center shadow-sm">
-                            <div className="w-16 h-16 rounded-2xl bg-slate-50 dark:bg-zinc-900 flex items-center justify-center text-slate-400 mx-auto mb-6 border border-slate-100 dark:border-zinc-800">
+                    filtered.filteredMine.length === 0 ? (
+                        <div className="text-center py-16 px-6">
+                            <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-zinc-900 flex items-center justify-center text-slate-400 mx-auto mb-6">
                                 <Inbox className="w-6 h-6" />
                             </div>
                             <h3 className="font-bold text-slate-800 dark:text-slate-200 text-lg">
@@ -712,44 +694,48 @@ export default function LocumPage() {
                             </p>
                             <button
                                 onClick={() => navigate('/locum/new')}
-                                className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold active:scale-[98%] transition"
+                                className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-amber-500 active:bg-amber-600 text-white text-sm font-semibold transition"
                             >
                                 <Plus className="w-4 h-4" />
                                 Post Your First Request
                             </button>
                         </div>
                     ) : (
-                        <div className="space-y-3 md:space-y-4">
-                            {filteredMine.map(r => renderCard(r, { my: true }))}
+                        <div>
+                            {filtered.filteredMine.map(r => (
+                                <LocumCard
+                                    key={r.id}
+                                    req={r}
+                                    isOwn
+                                    hasApplied={false}
+                                    onApply={handleOpenApply}
+                                    onViewApplicants={handleViewApplicants}
+                                />
+                            ))}
                         </div>
                     )
                 )}
             </div>
 
-            {/* FAB */}
+            {/* FAB — smaller, cleaner, no gradient */}
             <button
                 onClick={() => navigate('/locum/new')}
-                className="fixed bottom-20 right-4 md:bottom-8 md:right-8 z-40 w-14 h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-2xl shadow-amber-500/40 flex items-center justify-center transition-all active:scale-95 group"
+                className="fixed bottom-20 right-4 md:bottom-8 md:right-8 z-40 w-14 h-14 rounded-full bg-amber-500 active:bg-amber-600 text-white flex items-center justify-center transition-transform active:scale-95"
                 aria-label="Post a shift cover request"
-                title="Post a shift cover request"
             >
-                <Plus className="w-6 h-6 md:w-7 md:h-7 group-hover:rotate-90 transition-transform duration-300" />
+                <Plus className="w-6 h-6" />
             </button>
 
-            {/* Apply bottom sheet */}
-            <AnimatePresence>
-                {applySheet.isOpen && applySheet.request && (
-                    <ApplySheet
-                        isOpen={applySheet.isOpen}
-                        onClose={() => setApplySheet({ isOpen: false, request: null })}
-                        request={applySheet.request}
-                        onSubmit={handleApply}
-                        isSubmitting={isSubmitting}
-                    />
-                )}
-            </AnimatePresence>
-
-
+            {/* Apply sheet */}
+            {applySheet.isOpen && applySheet.request && (
+                <ApplySheet
+                    isOpen={applySheet.isOpen}
+                    onClose={() => setApplySheet({ isOpen: false, request: null })}
+                    request={applySheet.request}
+                    onSubmit={handleApply}
+                    isSubmitting={isSubmitting}
+                />
+            )}
         </div>
     );
 }

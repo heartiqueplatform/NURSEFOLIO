@@ -3,25 +3,29 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { databaseService } from '../services/databaseService';
-import { supabase } from '../lib/supabase'; // <--- We need this to talk to the database directly
-import { StatsCard } from '../components/StatsCard';
+import { supabase } from '../lib/supabase';
 import {
-  BarChart3, Eye, Download, Search, ArrowRight,
-  ShieldAlert, Award, FileSpreadsheet, Palette,
-  GraduationCap, Hospital, Briefcase, ExternalLink, ChevronRight, CheckCircle2, Star, UserCheck
+  Eye, ArrowRight, ShieldAlert, Award, FileSpreadsheet, Palette,
+  GraduationCap, Hospital, ExternalLink, ChevronRight, CheckCircle2,
+  Star, UserCheck, Sparkles, TrendingUp, Flame, Target, Lock
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+
+// ==========================================================
+// TYPES
+// ==========================================================
 interface CombinedMilestone {
   type: 'experience' | 'education' | 'certification';
   title: string;
   subtitle: string;
-  icon: any; // Changed from string to any
+  icon: any;
   bgSide: string;
   id: string;
 }
+
 interface Endorsement {
   id: string;
   endorser_id: string;
@@ -34,6 +38,95 @@ interface Endorsement {
   endorser_title?: string;
 }
 
+// ==========================================================
+// RETENTION HELPERS
+// ==========================================================
+
+// Compute a "profile strength" score → drives the progress bar
+function computeProfileStrength(user: any, profileData: any, milestoneCount: number, endorsementCount: number): {
+  score: number;
+  missing: string[];
+} {
+  const checks: Array<{ label: string; done: boolean; weight: number }> = [
+    { label: 'Add a profile photo', done: !!user?.avatar_url, weight: 10 },
+    { label: 'Write a bio', done: !!user?.bio && user.bio.length > 20, weight: 15 },
+    { label: 'Add specialties', done: (profileData?.specialties?.length || 0) > 0, weight: 10 },
+    { label: 'Verify your license', done: user?.verification_status === 'verified', weight: 25 },
+    { label: 'Add work experience', done: milestoneCount > 0, weight: 15 },
+    { label: 'Add education', done: milestoneCount > 1, weight: 10 },
+    { label: 'Get your first endorsement', done: endorsementCount > 0, weight: 15 },
+  ];
+
+  const total = checks.reduce((sum, c) => sum + c.weight, 0);
+  const earned = checks.filter(c => c.done).reduce((sum, c) => sum + c.weight, 0);
+  const score = Math.round((earned / total) * 100);
+  const missing = checks.filter(c => !c.done).map(c => c.label);
+
+  return { score, missing };
+}
+
+// Next-best-action: one clear CTA ranked by impact
+function computeNextAction(user: any, profileStrength: ReturnType<typeof computeProfileStrength>): {
+  label: string;
+  sublabel: string;
+  to: string;
+  icon: any;
+  tone: 'urgent' | 'growth' | 'social';
+} | null {
+  if (user?.verification_status === 'unverified') {
+    return {
+      label: 'Verify your license',
+      sublabel: 'Verified nurses appear 4× more in search',
+      to: '/dashboard/settings',
+      icon: ShieldAlert,
+      tone: 'urgent',
+    };
+  }
+  if (!user?.avatar_url) {
+    return {
+      label: 'Add a profile photo',
+      sublabel: 'Profiles with photos get 3× more endorsements',
+      to: '/dashboard/edit-profile',
+      icon: Sparkles,
+      tone: 'growth',
+    };
+  }
+  if (profileStrength.score < 100 && profileStrength.missing[0]) {
+    return {
+      label: profileStrength.missing[0],
+      sublabel: `You're ${profileStrength.score}% complete — finish your profile`,
+      to: '/dashboard/edit-profile',
+      icon: Target,
+      tone: 'growth',
+    };
+  }
+  return null;
+}
+
+// ==========================================================
+// SUB-COMPONENTS
+// ==========================================================
+
+const ProgressBar = React.memo(({ value, tone = 'indigo' }: { value: number; tone?: 'indigo' | 'amber' | 'emerald' }) => {
+  const tones = {
+    indigo: 'bg-indigo-500',
+    amber: 'bg-amber-500',
+    emerald: 'bg-emerald-500',
+  };
+  return (
+    <div className="w-full h-1.5 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+      <div
+        className={`h-full ${tones[tone]} rounded-full transition-all duration-500`}
+        style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
+      />
+    </div>
+  );
+});
+ProgressBar.displayName = 'ProgressBar';
+
+// ==========================================================
+// MAIN
+// ==========================================================
 export default function DashboardHome() {
   const { user } = useAuth();
   const [milestones, setMilestones] = useState<CombinedMilestone[]>([]);
@@ -44,589 +137,668 @@ export default function DashboardHome() {
   const [endorsementsLoading, setEndorsementsLoading] = useState(true);
   const [realViewsCount, setRealViewsCount] = useState(0);
   const [realDownloadsCount, setRealDownloadsCount] = useState(0);
+  const [weeklyViews, setWeeklyViews] = useState<number>(0);
+
+  // ----------------------------------------------------------
+  // DATA FETCH — with the N+1 bug fixed
+  // ----------------------------------------------------------
   useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+
     async function fetchDashboardData() {
-      if (!user?.id) return;
       try {
         setLoading(true);
 
-        // Fetch all data in parallel
+        // Batched parallel fetch — everything in one round trip
         const [
           exps,
           edus,
           certs,
           profileDetails,
           nurseSkills,
-          endorsementsData,
-          viewsRes,      // Added this
-          downloadsRes   // Added this
+          endorsementsRaw,
+          viewsRes,
+          downloadsRes,
         ] = await Promise.all([
           databaseService.getExperiences(user.id),
           databaseService.getEducations(user.id),
           databaseService.getCertifications(user.id),
           databaseService.getProfileByUsername(user.username || ''),
           databaseService.getNurseSkills ? databaseService.getNurseSkills(user.id) : Promise.resolve([]),
-          databaseService.getProfileEndorsements ? databaseService.getProfileEndorsements(user.id) : Promise.resolve([]),
-          supabase.from('profile_views').select('*', { count: 'exact', head: true }).eq('profile_id', user.id), // Fetch real views
-          supabase.from('cv_downloads').select('*', { count: 'exact', head: true }).eq('profile_id', user.id)   // Fetch real downloads
+          // ✅ FIXED: fetch endorsements AND their endorser profiles in ONE query
+          // using Supabase foreign key joins instead of N+1 loop
+          supabase
+            .from('profile_endorsements')
+            .select(`
+                            id, endorser_id, profile_id, specialty, message, created_at,
+                            endorser:profiles!endorser_id (
+                                id, first_name, last_name, full_name, username,
+                                avatar_url, qualification, nursing_level
+                            )
+                        `)
+            .eq('profile_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(10),
+          supabase.from('profile_views').select('*', { count: 'exact', head: true }).eq('profile_id', user.id),
+          supabase.from('cv_downloads').select('*', { count: 'exact', head: true }).eq('profile_id', user.id),
         ]);
 
-        // Put the real numbers into your state
+        if (cancelled) return;
+
         setRealViewsCount(viewsRes.count || 0);
         setRealDownloadsCount(downloadsRes.count || 0);
-
-        // Set profile data for bio, specialties, etc.
         setProfileData(profileDetails);
 
-        // Process endorsements with endorser info
-        if (endorsementsData && endorsementsData.length > 0) {
-          // Fetch endorser details for each endorsement
-          const endorsementsWithDetails = await Promise.all(
-            endorsementsData.map(async (endorsement: any) => {
-              try {
-                const endorserProfile = await databaseService.getProfileById(endorsement.endorser_id);
-                return {
-                  ...endorsement,
-                  endorser_name: endorserProfile?.first_name && endorserProfile?.last_name
-                    ? `${endorserProfile.first_name} ${endorserProfile.last_name}`
-                    : endorserProfile?.username || 'A Colleague',
-                  endorser_avatar: endorserProfile?.avatar_url,
-                  endorser_title: endorserProfile?.qualification || endorserProfile?.nursing_level || 'Healthcare Professional'
-                };
-              } catch (err) {
-                console.error('Error fetching endorser details:', err);
-                return {
-                  ...endorsement,
-                  endorser_name: 'A Colleague',
-                  endorser_title: 'Healthcare Professional'
-                };
-              }
-            })
-          );
-          setEndorsements(endorsementsWithDetails);
+        // Map joined endorsements
+        if (endorsementsRaw.data) {
+          const mapped: Endorsement[] = endorsementsRaw.data.map((e: any) => {
+            const endorser = e.endorser;
+            const name = endorser?.full_name && endorser.full_name !== 'null'
+              ? endorser.full_name
+              : endorser?.first_name
+                ? `${endorser.first_name} ${endorser.last_name || ''}`.trim()
+                : endorser?.username || 'A Colleague';
+            return {
+              id: e.id,
+              endorser_id: e.endorser_id,
+              profile_id: e.profile_id,
+              specialty: e.specialty,
+              message: e.message,
+              created_at: e.created_at,
+              endorser_name: name,
+              endorser_avatar: endorser?.avatar_url,
+              endorser_title: endorser?.qualification || endorser?.nursing_level || 'Healthcare Professional',
+            };
+          });
+          setEndorsements(mapped);
         }
         setEndorsementsLoading(false);
 
-        // Build milestones from real data
+        // Milestones
         const items: CombinedMilestone[] = [];
 
-
-        // ... inside your function ...
-
-        // Map experiences (max 2)
-        if (exps && exps.length > 0) {
-          exps.slice(0, 2).forEach(exp => {
-            items.push({
-              id: `exp-${exp.id}`,
-              type: 'experience',
-              title: exp.position || exp.title || 'Clinical Position',
-              subtitle: `${exp.hospital_name || exp.facility || 'Healthcare Facility'}${exp.department ? ' • ' + exp.department : ''}`,
-              icon: Hospital, // Changed from '🏥'
-              bgSide: 'bg-amber-50/60 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 border border-amber-100 dark:border-amber-800',
-            });
+        (exps || []).slice(0, 2).forEach((exp: any) => {
+          items.push({
+            id: `exp-${exp.id}`,
+            type: 'experience',
+            title: exp.position || exp.title || 'Clinical Position',
+            subtitle: `${exp.hospital_name || exp.facility || 'Healthcare Facility'}${exp.department ? ' • ' + exp.department : ''}`,
+            icon: Hospital,
+            bgSide: 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400',
           });
-        }
+        });
 
-        // Map educations (max 2)
-        if (edus && edus.length > 0) {
-          edus.slice(0, 2).forEach(edu => {
-            items.push({
-              id: `edu-${edu.id}`,
-              type: 'education',
-              title: edu.course || edu.degree || 'Degree Program',
-              subtitle: `${edu.institution || 'Academic Institution'}${edu.field_of_study ? ' • ' + edu.field_of_study : ''}`,
-              icon: GraduationCap, // Changed from '🎓'
-              bgSide: 'bg-indigo-50 dark:bg-indigo-950/30 text-indigo-900 dark:text-indigo-200 border border-indigo-100/40 dark:border-indigo-800',
-            });
+        (edus || []).slice(0, 2).forEach((edu: any) => {
+          items.push({
+            id: `edu-${edu.id}`,
+            type: 'education',
+            title: edu.course || edu.degree || 'Degree Program',
+            subtitle: `${edu.institution || 'Academic Institution'}${edu.field_of_study ? ' · ' + edu.field_of_study : ''}`,
+            icon: GraduationCap,
+            bgSide: 'bg-indigo-100 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400',
           });
-        }
+        });
 
-        // Map certifications (max 1)
-        if (certs && certs.length > 0) {
-          certs.slice(0, 1).forEach(cert => {
-            items.push({
-              id: `cert-${cert.id}`,
-              type: 'certification',
-              title: cert.title || cert.name || 'Certification',
-              subtitle: cert.issuer || cert.issuing_organization || 'Issuing Organization',
-              icon: Award, // Changed from '📜'
-              bgSide: 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-900 dark:text-emerald-200 border border-emerald-100 dark:border-emerald-800',
-            });
+        (certs || []).slice(0, 1).forEach((cert: any) => {
+          items.push({
+            id: `cert-${cert.id}`,
+            type: 'certification',
+            title: cert.title || cert.name || 'Certification',
+            subtitle: cert.issuer || cert.issuing_organization || 'Issuing Organization',
+            icon: Award,
+            bgSide: 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400',
           });
-        }
+        });
+
         setMilestones(items);
 
-        // Fetch skills from nurse_skills table or use specialties from profile
+        // Skills
         if (nurseSkills && nurseSkills.length > 0) {
           setSkills(nurseSkills.map((s: any) => ({
             skill_name: s.skill_name,
-            proficiency: s.proficiency
+            proficiency: s.proficiency,
           })));
-        } else if (profileDetails?.specialties && profileDetails.specialties.length > 0) {
+        } else if (profileDetails?.specialties?.length) {
           setSkills(profileDetails.specialties);
         } else {
           setSkills([]);
         }
 
+        // Weekly views for the delta signal
+        const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+        const { count: weeklyCount } = await supabase
+          .from('profile_views')
+          .select('*', { count: 'exact', head: true })
+          .eq('profile_id', user.id)
+          .gte('created_at', weekAgo);
+
+        if (!cancelled) setWeeklyViews(weeklyCount || 0);
       } catch (err) {
-        console.error('Error fetching dashboard milestones', err);
-        // Set empty arrays to avoid undefined errors
-        setMilestones([]);
-        setSkills([]);
-        setEndorsements([]);
-        setEndorsementsLoading(false);
+        console.error('Error fetching dashboard data', err);
+        if (!cancelled) {
+          setMilestones([]);
+          setSkills([]);
+          setEndorsements([]);
+          setEndorsementsLoading(false);
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
 
     fetchDashboardData();
+    return () => { cancelled = true; };
   }, [user?.id, user?.username]);
 
-  // Validate theme preference
+  // ----------------------------------------------------------
+  // DERIVED
+  // ----------------------------------------------------------
   const validThemes = ['modern', 'clinical', 'dark', 'minimal'];
   const currentTheme = user?.profile_theme && validThemes.includes(user.profile_theme)
     ? user.profile_theme
     : 'modern';
 
+  const profileStrength = useMemo(
+    () => computeProfileStrength(user, profileData, milestones.length, endorsements.length),
+    [user, profileData, milestones.length, endorsements.length]
+  );
+
+  const nextAction = useMemo(
+    () => computeNextAction(user, profileStrength),
+    [user, profileStrength]
+  );
+
+  // The "hook" — proximity to next milestone
+  const nextMilestone = useMemo(() => {
+    const total = realViewsCount;
+    const milestonesList = [10, 50, 100, 500, 1000, 5000];
+    const next = milestonesList.find(m => m > total);
+    if (!next) return null;
+    const remaining = next - total;
+    const progress = (total / next) * 100;
+    return { next, remaining, progress };
+  }, [realViewsCount]);
+
   if (!user) return null;
 
-  // Calculate views from profile data or user object
-  // Use the real-time counts we just fetched from the database
-  const viewsCount = realViewsCount;
-  const downloadsCount = realDownloadsCount;
-  const endorsementsCount = endorsements.length;
+  // ----------------------------------------------------------
+  // RENDER
+  // ----------------------------------------------------------
   return (
-    <div className="space-y-0 md:space-y-2 font-sans">
+    <div className="w-full min-h-screen bg-slate-50 dark:bg-zinc-950">
+      <div className="max-w-2xl mx-auto md:px-4 md:py-6 pb-24">
 
-      {/* Greetings block - compact on mobile */}
-      <div className="flex flex-col gap-3 md:flex-row md:justify-between md:items-center px-0 md:px-0 py-2 md:py-0">
-        <div className="space-y-0.5">
-          <h1 className="text-xl md:text-3xl font-display font-bold text-slate-900 dark:text-white leading-tight">
-            Welcome back, {user.first_name || 'Clinician'}
-          </h1>
-          <p className="text-slate-500 dark:text-slate-400 text-xs md:text-sm">
-            Your clinical portfolio and credential networks are fully active this week.
+        {/* ============================================
+                    HERO — welcome + next best action
+                    ============================================ */}
+        <section className="px-4 md:px-0 pt-4 md:pt-0 pb-4">
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-widest">
+            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
           </p>
-        </div>
-        <div className="hidden md:flex items-center gap-2">
-          <div className="px-3.5 py-1.5 bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 rounded-full flex items-center gap-2 text-xs text-slate-500 dark:text-zinc-400 font-medium">
-            <span>Search live index...</span>
-            <span className="bg-slate-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-[10px] font-mono">⌘K</span>
-          </div>
-        </div>
-      </div>
+          <h1 className="text-2xl md:text-3xl font-display font-extrabold text-slate-900 dark:text-white leading-tight mt-1">
+            {getGreeting()}, {user.first_name || 'Clinician'}
+          </h1>
 
-      {/* Verification alerts if unverified - full width on mobile */}
-      {user.verification_status !== 'verified' && (
-        <div className="bg-amber-50/60 dark:bg-amber-950/30 border-t border-b md:border md:border-amber-200/50 md:dark:border-amber-800/50 md:rounded-2xl p-3 md:p-4 md:p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 md:gap-4 -mx-3 md:mx-0">
-          <div className="flex items-start gap-2 md:gap-3">
-            <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400 flex items-center justify-center flex-shrink-0">
-              <ShieldAlert className="w-4 h-4 md:w-5 md:h-5" />
-            </div>
-            <div className="space-y-0.5 md:space-y-1">
-              <h4 className="font-bold text-slate-900 dark:text-white text-xs md:text-sm">
-                {user.verification_status === 'pending' ? 'Verification Sent for Review' : 'Profile Credentials Unverified'}
-              </h4>
-              <p className="text-[11px] md:text-xs text-slate-600 dark:text-slate-400 max-w-xl font-medium leading-relaxed">
-                {user.verification_status === 'pending'
-                  ? "Audit admins are reviewing your practicing licenses or board registrations. Verification resolves in under one business day."
-                  : "Upload license numbers or graduation files to claim a Verified Practitioner badge. Verified nurses are prioritized in clinical searches."}
-              </p>
-            </div>
-          </div>
-          {user.verification_status === 'unverified' && (
+          {/* Next best action — the ONE thing to do next */}
+          {nextAction && (
             <Link
-              id="dashhome-verify-link"
-              to="/dashboard/settings"
-              className="px-3 md:px-4 py-1.5 md:py-2 bg-amber-100 dark:bg-amber-900/50 hover:bg-amber-200/80 dark:hover:bg-amber-800/50 text-amber-900 dark:text-amber-300 font-bold text-[10px] md:text-xs rounded-lg md:rounded-xl border border-amber-200/30 dark:border-amber-700 whitespace-nowrap transition-colors w-full sm:w-auto text-center"
+              to={nextAction.to}
+              className={`mt-4 flex items-center gap-3 p-3.5 rounded-2xl active:opacity-80 transition ${nextAction.tone === 'urgent'
+                ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200'
+                : nextAction.tone === 'growth'
+                  ? 'bg-indigo-50 dark:bg-indigo-950/30 text-indigo-900 dark:text-indigo-200'
+                  : 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-900 dark:text-emerald-200'
+                }`}
             >
-              Verify License Now
+              <div className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 ${nextAction.tone === 'urgent'
+                ? 'bg-amber-100 dark:bg-amber-900/50'
+                : nextAction.tone === 'growth'
+                  ? 'bg-indigo-100 dark:bg-indigo-900/50'
+                  : 'bg-emerald-100 dark:bg-emerald-900/50'
+                }`}>
+                <nextAction.icon className="w-5 h-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-sm">{nextAction.label}</p>
+                <p className="text-xs opacity-80 mt-0.5 truncate">{nextAction.sublabel}</p>
+              </div>
+              <ArrowRight className="w-4 h-4 opacity-60 flex-shrink-0" />
             </Link>
           )}
-        </div>
-      )}
+        </section>
 
-      {/* Bento Grid Panel Area - feed on mobile, grid on desktop */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-0 md:gap-6 -mx-3 md:mx-0">
-
-        {/* Hero Profile Cell - full width feed on mobile */}
-        <div className="md:col-span-8 bg-white dark:bg-zinc-950 md:border md:border-slate-200/60 md:dark:border-zinc-800 md:rounded-[32px] p-4 md:p-6 md:shadow-sm relative overflow-hidden flex flex-col justify-between border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-200/60">
-          <div className="absolute top-0 right-0 w-24 md:w-32 h-24 md:h-32 bg-indigo-50/40 dark:bg-indigo-950/20 rounded-bl-[80px] md:rounded-bl-[100px] -mr-4 -mt-4 -z-0"></div>
-
-          <div className="z-10 flex flex-col sm:flex-row gap-4 md:gap-6 items-start">
-            <div className="w-16 h-16 md:w-20 md:h-20 rounded-xl md:rounded-2xl overflow-hidden shadow-lg border-2 border-white dark:border-zinc-800 ring-4 ring-slate-100 dark:ring-zinc-800">
-              <img
-                src={user.avatar_url || profileData?.avatar_url || '/192.png'}
-                alt="Avatar"
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <div className="space-y-1 flex-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-lg md:text-2xl font-display font-bold text-slate-900 dark:text-white">
-                  {user.first_name || profileData?.first_name} {user.last_name || profileData?.last_name}
-                </h2>
-                {user.verification_status === 'verified' && (
-                  <span className="inline-flex items-center gap-1 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-400 text-[9px] md:text-[10px] font-bold px-1.5 md:px-2 py-0.5 rounded-full border border-indigo-100 dark:border-indigo-800">
-                    <CheckCircle2 className="w-2.5 h-2.5 md:w-3 md:h-3 text-indigo-600 dark:text-indigo-400" />
-                    <span>VERIFIED RN</span>
-                  </span>
-                )}
+        {/* ============================================
+                    PROFILE STRENGTH — progress scaffolding
+                    ============================================ */}
+        {profileStrength.score < 100 && (
+          <section className="px-4 md:px-0 py-4 border-t border-slate-100 dark:border-zinc-900">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-indigo-500" />
+                <span className="text-sm font-bold text-slate-900 dark:text-white">
+                  Profile strength
+                </span>
               </div>
-              <p className="text-indigo-600 dark:text-indigo-400 font-semibold text-xs md:text-sm">
-                {user.qualification || profileData?.qualification || user.nursing_level || profileData?.nursing_level || 'Registered ICU Clinician & Scholar'}
-              </p>
-
-              {/* Specialties from database */}
-              <div className="flex flex-wrap gap-1 md:gap-1.5 pt-1.5">
-                {profileData?.specialties && profileData.specialties.length > 0 ? (
-                  profileData.specialties.slice(0, 4).map((specialty: string, idx: number) => (
-                    <span key={idx} className="px-2 md:px-2.5 py-0.5 md:py-1 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 rounded-md md:rounded-lg text-[9px] md:text-[10px] font-bold tracking-tight">
-                      {specialty}
-                    </span>
-                  ))
-                ) : skills.length > 0 ? (
-                  skills.slice(0, 4).map((skill, idx) => (
-                    <span key={idx} className="px-2 md:px-2.5 py-0.5 md:py-1 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 rounded-md md:rounded-lg text-[9px] md:text-[10px] font-bold tracking-tight">
-                      {skill.skill_name}
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-[10px] md:text-xs text-slate-400 dark:text-zinc-500 italic">No specialties added yet</span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="z-10 mt-4 md:mt-6 pt-4 md:pt-6 border-t border-slate-100 dark:border-zinc-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 md:gap-4">
-            <div className="flex-1 max-w-sm">
-              <h4 className="text-[9px] md:text-[10px] font-bold text-slate-450 dark:text-zinc-500 uppercase tracking-widest">Biography Summary</h4>
-              <p className="text-[11px] md:text-xs text-slate-500 dark:text-zinc-400 mt-0.5 md:mt-1 line-clamp-2 leading-relaxed font-medium">
-                {user.bio || profileData?.bio || 'Professional practicing clinician with a strong focus on clinical documentation, patient safety, and peer teaching portfolios.'}
-              </p>
-            </div>
-            <a
-              id="dashhome-hero-btn"
-              href={`/nurse/${user.username || profileData?.username}`}
-              className="w-full sm:w-auto px-4 md:px-5 py-2 md:py-2.5 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg md:rounded-xl text-xs font-bold shadow-md shadow-indigo-600/10 flex items-center justify-center gap-1.5 transition-all"
-            >
-              <span>View Public Page</span>
-              <ExternalLink className="w-3 h-3 md:w-3.5 md:h-3.5" />
-            </a>
-          </div>
-        </div>
-
-        {/* views count bento box - full width on mobile */}
-        <div className="md:col-span-4 bg-gradient-to-br from-indigo-600 to-indigo-700 dark:from-indigo-700 dark:to-indigo-800 md:rounded-[32px] p-4 md:p-6 text-white flex flex-row md:flex-col justify-between md:justify-between items-center md:items-stretch shadow-lg shadow-indigo-600/10 relative overflow-hidden border-b border-indigo-500/20 md:border-b-0">
-          <div className="absolute top-0 right-0 w-32 md:w-44 h-32 md:h-44 bg-white/5 rounded-full blur-2xl"></div>
-
-          <div className="flex md:flex-col md:justify-between md:h-full items-center md:items-start gap-4 md:gap-0 z-10 w-full">
-            <div className="flex items-center gap-3 md:flex-col md:items-start md:gap-0">
-              <div className="p-2 md:p-3 bg-white/10 rounded-lg md:rounded-2xl border border-white/10">
-                <Eye className="w-5 h-5 md:w-6 md:h-6 text-white" />
-              </div>
-              <span className="text-[9px] md:text-[10px] bg-white/15 text-white tracking-widest uppercase rounded-md px-2 py-0.5 md:px-2.5 md:py-1 font-bold md:mt-4 md:self-start">
-                MONTHLY TRAFFIC
+              <span className="text-sm font-extrabold text-indigo-600 dark:text-indigo-400">
+                {profileStrength.score}%
               </span>
             </div>
+            <ProgressBar value={profileStrength.score} tone="indigo" />
+            {profileStrength.missing[0] && (
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                <span className="font-semibold text-slate-700 dark:text-slate-300">
+                  Next step:
+                </span>{' '}
+                {profileStrength.missing[0]}
+              </p>
+            )}
+          </section>
+        )}
 
-            <div className="text-right md:text-left">
-              <div className="text-2xl md:text-4xl font-display font-bold leading-none">{viewsCount || 0}</div>
-              <div className="text-indigo-150 text-[10px] md:text-xs font-semibold mt-0.5 md:mt-1.5 flex items-center gap-1 justify-end md:justify-start">
-                <span>Portfolio view count</span>
+        {/* ============================================
+                    STATS ROW — 3 columns, flat
+                    ============================================ */}
+        <section className="grid grid-cols-3 border-t border-slate-100 dark:border-zinc-900">
+          <StatTile
+            icon={Eye}
+            label="Views"
+            value={realViewsCount}
+            delta={weeklyViews > 0 ? `+${weeklyViews} this week` : null}
+            tone="indigo"
+          />
+          <StatTile
+            icon={FileSpreadsheet}
+            label="Downloads"
+            value={realDownloadsCount}
+            tone="emerald"
+          />
+          <StatTile
+            icon={UserCheck}
+            label="Endorsements"
+            value={endorsements.length}
+            tone="amber"
+          />
+        </section>
+
+        {/* ============================================
+                    MILESTONE HOOK — proximity effect
+                    ============================================ */}
+        {nextMilestone && (
+          <section className="px-4 md:px-0 py-4 border-t border-slate-100 dark:border-zinc-900">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Target className="w-4 h-4 text-emerald-500" />
+                <span className="text-sm font-bold text-slate-900 dark:text-white">
+                  {nextMilestone.remaining} views to {nextMilestone.next}
+                </span>
+              </div>
+              <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                {realViewsCount} / {nextMilestone.next}
+              </span>
+            </div>
+            <ProgressBar value={nextMilestone.progress} tone="emerald" />
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+              Share your profile link to hit this milestone faster.
+            </p>
+          </section>
+        )}
+
+        {/* ============================================
+                    UNVERIFIED BANNER — only if not verified
+                    ============================================ */}
+        {user.verification_status !== 'verified' && (
+          <section className="px-4 md:px-0 py-4 border-t border-slate-100 dark:border-zinc-900">
+            <div className="bg-amber-50 dark:bg-amber-950/30 rounded-2xl p-4 flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center flex-shrink-0">
+                <ShieldAlert className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-amber-900 dark:text-amber-200 text-sm">
+                  {user.verification_status === 'pending'
+                    ? 'Verification under review'
+                    : 'Verify your license'}
+                </p>
+                <p className="text-xs text-amber-800 dark:text-amber-300 mt-0.5 leading-relaxed">
+                  {user.verification_status === 'pending'
+                    ? 'Audit admins are reviewing your license — usually under 1 business day.'
+                    : 'Verified nurses are 4× more likely to appear in search results.'}
+                </p>
+                {user.verification_status === 'unverified' && (
+                  <Link
+                    to="/dashboard/settings"
+                    className="inline-flex items-center gap-1 mt-2 text-xs font-bold text-amber-900 dark:text-amber-200 active:opacity-70"
+                  >
+                    Start verification
+                    <ArrowRight className="w-3 h-3" />
+                  </Link>
+                )}
               </div>
             </div>
-          </div>
-        </div>
+          </section>
+        )}
 
-        {/* Milestones / Recent Achievements Box - feed style on mobile */}
-        <div className="md:col-span-5 bg-white dark:bg-zinc-950 md:border md:border-slate-200/60 md:dark:border-zinc-800 md:rounded-[32px] p-4 md:p-6 md:shadow-sm shadow-slate-100/40 dark:shadow-zinc-900/40 border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-200/60">
-          <div className="flex justify-between items-center mb-4 md:mb-6">
-            <h3 className="font-display font-bold text-slate-900 dark:text-white text-sm md:text-base">Key Milestones & Education</h3>
-            <Link to="/dashboard/experiences" className="text-[10px] md:text-xs text-indigo-600 dark:text-indigo-400 font-bold hover:underline flex items-center">
-              <span>Manage</span>
-              <ChevronRight className="w-3 h-3 md:w-3.5 md:h-3.5" />
-            </Link>
-          </div>
-
-          <div className="space-y-2 md:space-y-4">
-            {loading ? (
-              <div className="space-y-2 md:space-y-3 py-1 animate-pulse">
-                <div className="h-8 md:h-10 bg-slate-50 dark:bg-zinc-800 rounded-lg md:rounded-xl"></div>
-                <div className="h-8 md:h-10 bg-slate-50 dark:bg-zinc-800 rounded-lg md:rounded-xl"></div>
-              </div>
-            ) : milestones.length > 0 ? (
-              milestones.map((item) => {
-                // 1. Create a Capitalized reference to the icon component
-                const Icon = item.icon;
-
-                return (
-                  <div key={item.id} className="flex gap-3 md:gap-4 items-center p-2 md:p-3 hover:bg-slate-50 dark:hover:bg-zinc-800 md:border md:border-transparent md:hover:border-slate-100 md:dark:hover:border-zinc-700 rounded-xl md:rounded-2xl transition-all">
-                    <div className={`w-9 h-9 md:w-11 md:h-11 rounded-lg md:rounded-xl flex items-center justify-center flex-shrink-0 ${item.bgSide}`}>
-                      {/* 2. Render it as a component tag */}
-                      <Icon size={20} strokeWidth={2.5} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <h4 className="font-bold text-slate-800 dark:text-slate-200 text-xs md:text-sm truncate">{item.title}</h4>
-                      <p className="text-[10px] md:text-xs text-slate-400 dark:text-zinc-500 font-medium truncate mt-0.5">{item.subtitle}</p>
-                    </div>
-                  </div>
-                );
-              })
-            ) : (
-              <div className="py-2 text-center">
-                <p className="text-slate-400 dark:text-zinc-500 text-[11px] md:text-xs">No work experience or degree items added yet.</p>
-                <Link to="/dashboard/experiences" className="text-[10px] md:text-xs text-indigo-600 dark:text-indigo-400 font-bold hover:underline mt-1 md:mt-2 inline-block">
-                  Add Milestones Now
-                </Link>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Endorsements Panel - New! */}
-        <div className="md:col-span-4 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 md:border md:border-amber-200/60 md:dark:border-amber-800/40 md:rounded-[32px] p-4 md:p-6 md:shadow-sm border-b border-amber-100 dark:border-amber-800/30 md:border-b md:border-amber-200/60">
-          <div className="flex justify-between items-center mb-4 md:mb-6">
+        {/* ============================================
+                    ENDORSEMENTS — social proof first
+                    ============================================ */}
+        <section className="px-4 md:px-0 py-4 border-t border-slate-100 dark:border-zinc-900">
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <div className="p-1.5 bg-amber-100 dark:bg-amber-900/50 rounded-lg">
-                <UserCheck className="w-4 h-4 text-amber-700 dark:text-amber-400" />
-              </div>
-              <h3 className="font-display font-bold text-slate-900 dark:text-white text-sm md:text-base">Peer Endorsements</h3>
+              <UserCheck className="w-4 h-4 text-amber-500" />
+              <h2 className="text-sm font-bold text-slate-900 dark:text-white">
+                Peer endorsements
+              </h2>
+              {endorsements.length > 0 && (
+                <span className="text-xs font-bold bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded-full">
+                  {endorsements.length}
+                </span>
+              )}
             </div>
-            <span className="text-xs font-bold text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/50 px-2 py-1 rounded-full">
-              {endorsementsCount}
-            </span>
-          </div>
-
-          <div className="space-y-3 md:space-y-4">
-            {endorsementsLoading ? (
-              <div className="space-y-3 animate-pulse">
-                <div className="h-16 bg-white/50 dark:bg-white/5 rounded-xl"></div>
-                <div className="h-16 bg-white/50 dark:bg-white/5 rounded-xl"></div>
-              </div>
-            ) : endorsements.length > 0 ? (
-              endorsements.slice(0, 3).map((endorsement) => (
-                <div key={endorsement.id} className="bg-white/60 dark:bg-zinc-900/40 rounded-xl p-3 md:p-4 hover:shadow-md transition-all border border-amber-200/40 dark:border-amber-800/30">
-                  <div className="flex items-start gap-2 md:gap-3">
-                    <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center flex-shrink-0 text-white font-bold text-sm">
-                      {endorsement.endorser_name?.charAt(0) || 'P'}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between flex-wrap gap-1">
-                        <h4 className="font-bold text-slate-800 dark:text-slate-200 text-xs md:text-sm truncate">
-                          {endorsement.endorser_name}
-                        </h4>
-                        <span className="text-[9px] md:text-[10px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-1.5 py-0.5 rounded-full">
-                          {endorsement.specialty || 'Clinical Skill'}
-                        </span>
-                      </div>
-                      <p className="text-[10px] md:text-xs text-slate-500 dark:text-zinc-400 mt-0.5 line-clamp-2">
-                        {endorsement.message || `Endorsed your expertise in ${endorsement.specialty || 'clinical practice'}`}
-                      </p>
-                      <div className="flex items-center gap-2 mt-1.5">
-                        <div className="flex items-center gap-0.5">
-                          <Star className="w-2.5 h-2.5 text-amber-500 fill-amber-500" />
-                          <span className="text-[9px] text-slate-400 dark:text-zinc-500">Endorsement</span>
-                        </div>
-                        <span className="text-[9px] text-slate-400 dark:text-zinc-500">
-                          {new Date(endorsement.created_at).toLocaleDateString()}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-6 md:py-8">
-                <div className="w-12 h-12 mx-auto bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mb-3">
-                  <UserCheck className="w-6 h-6 text-amber-400 dark:text-amber-500" />
-                </div>
-                <p className="text-slate-500 dark:text-zinc-400 text-xs md:text-sm">No endorsements yet</p>
-                <p className="text-slate-400 dark:text-zinc-500 text-[10px] md:text-xs mt-1">Share your profile to receive peer endorsements</p>
-              </div>
-            )}
-
-            {endorsementsCount > 3 && (
-              <Link
-                to="/dashboard/endorsements"
-                className="block text-center text-[10px] md:text-xs text-amber-700 dark:text-amber-400 font-bold hover:underline mt-2"
-              >
-                View all {endorsementsCount} endorsements →
+            {endorsements.length > 3 && (
+              <Link to="/dashboard/endorsements" className="text-xs font-bold text-amber-600 dark:text-amber-400 active:opacity-70">
+                View all
               </Link>
             )}
           </div>
-        </div>
 
-        {/* Skills Bento Progress Panel - full width on mobile */}
-        <div className="md:col-span-3 bg-white dark:bg-zinc-950 md:border md:border-slate-200/60 md:dark:border-zinc-800 md:rounded-[32px] p-4 md:p-6 md:shadow-sm border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-200/60">
-          <h3 className="font-display font-bold text-slate-900 dark:text-white text-sm md:text-base mb-4 md:mb-6">
-            Top Specialties
-          </h3>
-
-          <div className="space-y-1.5 md:space-y-2">
-            {skills.length > 0 ? (
-              skills.slice(0, 4).map((skill: any, index) => {
-                const proficiencyMap: any = {
-                  Beginner: 25,
-                  Intermediate: 50,
-                  Advanced: 75,
-                  Expert: 100
-                };
-
-                const percentage = proficiencyMap[skill.proficiency] || 50;
-
-                const bgColors = [
-                  'bg-emerald-500',
-                  'bg-indigo-500',
-                  'bg-sky-500',
-                  'bg-indigo-600'
-                ];
-
-                return (
-                  <div key={index} className="space-y-0.5 md:space-y-1">
-                    <div className="flex justify-between items-center text-[9px] md:text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
-                      <span className="truncate max-w-[120px] dark:text-zinc-400">
-                        {skill.skill_name}
-                      </span>
-                      <span className="text-[9px] md:text-[10px] text-slate-500 dark:text-zinc-400">
-                        {percentage}%
-                      </span>
+          {endorsementsLoading ? (
+            <div className="space-y-2">
+              {[1, 2].map(i => (
+                <div key={i} className="h-20 bg-slate-100 dark:bg-zinc-900 rounded-2xl animate-pulse" />
+              ))}
+            </div>
+          ) : endorsements.length > 0 ? (
+            <div className="space-y-2">
+              {endorsements.slice(0, 3).map((endorsement) => (
+                <div
+                  key={endorsement.id}
+                  className="bg-slate-100 dark:bg-zinc-900 rounded-2xl p-3.5"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center flex-shrink-0 text-white font-bold text-sm">
+                      {endorsement.endorser_avatar ? (
+                        <img
+                          src={endorsement.endorser_avatar}
+                          alt=""
+                          loading="lazy"
+                          className="w-full h-full rounded-full object-cover"
+                        />
+                      ) : (
+                        endorsement.endorser_name?.charAt(0) || 'P'
+                      )}
                     </div>
-                    <div className="w-full h-1.5 md:h-2 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full ${bgColors[index] || 'bg-indigo-500'}`}
-                        style={{ width: `${percentage}%` }}
-                      />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-bold text-slate-900 dark:text-white text-sm truncate">
+                          {endorsement.endorser_name}
+                        </p>
+                        {endorsement.specialty && (
+                          <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-950/50 px-1.5 py-0.5 rounded-full">
+                            {endorsement.specialty}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                        {endorsement.endorser_title}
+                      </p>
+                      {endorsement.message && (
+                        <p className="text-xs text-slate-600 dark:text-slate-300 mt-2 leading-relaxed line-clamp-2 italic">
+                          "{endorsement.message}"
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <div className="w-12 h-12 mx-auto bg-amber-100 dark:bg-amber-950/30 rounded-full flex items-center justify-center mb-3">
+                <UserCheck className="w-6 h-6 text-amber-500" />
+              </div>
+              <p className="text-sm text-slate-700 dark:text-slate-300 font-semibold">
+                No endorsements yet
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                Share your public profile to collect peer endorsements.
+              </p>
+              <Link
+                to={`/nurse/${user.username || ''}`}
+                className="inline-flex items-center gap-1.5 mt-3 text-xs font-bold text-indigo-600 dark:text-indigo-400 active:opacity-70"
+              >
+                View public page
+                <ExternalLink className="w-3 h-3" />
+              </Link>
+            </div>
+          )}
+        </section>
+
+        {/* ============================================
+                    MILESTONES / CV
+                    ============================================ */}
+        <section className="px-4 md:px-0 py-4 border-t border-slate-100 dark:border-zinc-900">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <FileSpreadsheet className="w-4 h-4 text-indigo-500" />
+              <h2 className="text-sm font-bold text-slate-900 dark:text-white">
+                Career timeline
+              </h2>
+            </div>
+            <Link
+              to="/dashboard/experiences"
+              className="text-xs font-bold text-indigo-600 dark:text-indigo-400 active:opacity-70"
+            >
+              Manage
+            </Link>
+          </div>
+
+          {loading ? (
+            <div className="space-y-2">
+              <div className="h-14 bg-slate-100 dark:bg-zinc-900 rounded-2xl animate-pulse" />
+              <div className="h-14 bg-slate-100 dark:bg-zinc-900 rounded-2xl animate-pulse" />
+            </div>
+          ) : milestones.length > 0 ? (
+            <div className="space-y-2">
+              {milestones.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <div
+                    key={item.id}
+                    className="flex gap-3 items-center p-2 rounded-2xl active:bg-slate-100 dark:active:bg-zinc-900 transition"
+                  >
+                    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 ${item.bgSide}`}>
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-slate-900 dark:text-white text-sm truncate">
+                        {item.title}
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-medium truncate mt-0.5">
+                        {item.subtitle}
+                      </p>
                     </div>
                   </div>
                 );
-              })
-            ) : (
-              <p className="text-[11px] md:text-xs text-slate-400 dark:text-zinc-500 italic">
-                No specialties added yet
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-6">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                No work or education added yet.
               </p>
-            )}
-          </div>
-        </div>
-
-        {/* Theme Settings Cell - full width on mobile */}
-        <div className="md:col-span-3 bg-white dark:bg-zinc-900 md:rounded-xl p-4 md:p-6 text-slate-800 dark:text-white flex flex-col justify-between shadow-lg border-t md:border md:border-slate-200 dark:border-zinc-800 border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-200 h-full md:min-h-[260px]">
-          <div>
-            <div className="flex justify-between items-start mb-3 md:mb-4">
-              <h3 className="text-xs md:text-sm font-bold font-display uppercase tracking-wider text-slate-500 dark:text-zinc-400">Theme Profile</h3>
-              <Palette className="w-3.5 h-3.5 md:w-4 md:h-4 text-indigo-500 dark:text-indigo-400 animate-spin" style={{ animationDuration: '6s' }} />
+              <Link
+                to="/dashboard/experiences"
+                className="inline-flex items-center gap-1 mt-2 text-xs font-bold text-indigo-600 dark:text-indigo-400 active:opacity-70"
+              >
+                Add your first milestone
+                <ArrowRight className="w-3 h-3" />
+              </Link>
             </div>
+          )}
+        </section>
 
-            <div className="grid grid-cols-4 gap-1.5 md:gap-2 mt-3 md:mt-4">
-              <div
-                className={`aspect-square bg-gradient-to-br from-teal-500 to-emerald-500 rounded-lg md:rounded-xl cursor-default transition-all duration-200 ${currentTheme === 'modern'
-                  ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-zinc-900 ring-teal-500 scale-105 shadow-lg'
-                  : 'opacity-60 hover:opacity-80'
-                  }`}
-                title="Modern Premium"
-              ></div>
-              <div
-                className={`aspect-square bg-gradient-to-br from-blue-500 to-sky-400 rounded-lg md:rounded-xl cursor-default transition-all duration-200 ${currentTheme === 'clinical'
-                  ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-zinc-900 ring-blue-500 scale-105 shadow-lg'
-                  : 'opacity-60 hover:opacity-80'
-                  }`}
-                title="Clinical Clean"
-              ></div>
-              <div
-                className={`aspect-square bg-gradient-to-br from-slate-700 to-slate-900 dark:from-slate-800 dark:to-slate-950 rounded-lg md:rounded-xl cursor-default transition-all duration-200 ${currentTheme === 'dark'
-                  ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-zinc-900 ring-slate-600 scale-105 shadow-lg'
-                  : 'opacity-60 hover:opacity-80'
-                  }`}
-                title="Obsidian Night"
-              ></div>
-              <div
-                className={`aspect-square bg-gradient-to-br from-stone-400 to-stone-600 dark:from-stone-500 dark:to-stone-700 rounded-lg md:rounded-xl cursor-default transition-all duration-200 ${currentTheme === 'minimal'
-                  ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-zinc-900 ring-stone-500 scale-105 shadow-lg'
-                  : 'opacity-60 hover:opacity-80'
-                  }`}
-                title="Sleek Minimal"
-              ></div>
+        {/* ============================================
+                    SPECIALTIES (progress bars)
+                    ============================================ */}
+        {skills.length > 0 && (
+          <section className="px-4 md:px-0 py-4 border-t border-slate-100 dark:border-zinc-900">
+            <div className="flex items-center gap-2 mb-3">
+              <Award className="w-4 h-4 text-emerald-500" />
+              <h2 className="text-sm font-bold text-slate-900 dark:text-white">
+                Top specialties
+              </h2>
             </div>
-          </div>
+            <div className="space-y-3">
+              {skills.slice(0, 4).map((skill: any, index: number) => {
+                const proficiencyMap: Record<string, number> = {
+                  Beginner: 25,
+                  Intermediate: 50,
+                  Advanced: 75,
+                  Expert: 100,
+                };
+                const percentage = proficiencyMap[skill.proficiency] || 50;
+                return (
+                  <div key={index}>
+                    <div className="flex justify-between items-center mb-1.5">
+                      <span className="text-xs font-bold text-slate-700 dark:text-slate-300 truncate max-w-[180px]">
+                        {skill.skill_name}
+                      </span>
+                      <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                        {percentage}%
+                      </span>
+                    </div>
+                    <ProgressBar value={percentage} tone="emerald" />
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
-          <div className="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-slate-200 dark:border-zinc-800">
-            <Link
-              id="dashhome-theme-btn"
+        {/* ============================================
+                    QUICK LINKS — 4 flat rows, iOS-Settings style
+                    ============================================ */}
+        <section className="px-4 md:px-0 py-4 border-t border-slate-100 dark:border-zinc-900">
+          <h2 className="text-sm font-bold text-slate-900 dark:text-white mb-3">
+            Manage your profile
+          </h2>
+          <div className="space-y-0">
+            <QuickLink
+              to="/dashboard/edit-profile"
+              icon={Award}
+              label="Specialties & Biography"
+              subtitle="Tags, bio, contact info"
+            />
+            <QuickLink
+              to="/dashboard/experiences"
+              icon={FileSpreadsheet}
+              label="Clinical Hours & History"
+              subtitle="Experience, education, certs"
+            />
+            <QuickLink
               to="/dashboard/theme"
-              className="w-full py-2 md:py-2.5 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-white rounded-lg md:rounded-xl text-[10px] md:text-xs font-bold text-center block transition-all"
-            >
-              Customize Theme Settings
-            </Link>
+              icon={Palette}
+              label="Portfolio theme"
+              subtitle="Colours, typography, banner"
+            />
+            <QuickLink
+              to={`/nurse/${user.username || ''}`}
+              icon={ExternalLink}
+              label="View public page"
+              subtitle="See what colleagues see"
+              external
+            />
           </div>
-        </div>
+        </section>
+
+        {/* ============================================
+                    FOOTER SIGNAL — return cue
+                    ============================================ */}
+        <section className="px-4 md:px-0 py-6 text-center">
+          <div className="inline-flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500">
+            <Flame className="w-3.5 h-3.5" />
+            <span>
+              Come back tomorrow to grow your streak
+            </span>
+          </div>
+        </section>
 
       </div>
-
-      {/* Grid bottom fast links row - stacked on mobile, grid on desktop */}
-      <div className="space-y-3 md:space-y-4 pt-2 md:pt-4">
-        <h3 className="font-display font-bold text-slate-900 dark:text-white text-sm md:text-base px-0">Direct Management Operations</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-0 md:gap-6 -mx-3 md:mx-0">
-
-          <Link
-            id="shortcut-edit-prof"
-            to="/dashboard/edit-profile"
-            className="bg-white dark:bg-zinc-950 md:border md:border-slate-200/60 md:dark:border-zinc-800 md:rounded-xl p-3 md:p-5 hover:border-indigo-300 dark:hover:border-indigo-700 md:hover:shadow-md transition-all flex items-start gap-3 md:gap-4 border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-200/60"
-          >
-            <div className="p-2 md:p-3 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 rounded-lg md:rounded-xl border border-indigo-100/40 dark:border-indigo-800">
-              <Award className="w-4 h-4 md:w-5 md:h-5" />
-            </div>
-            <div className="space-y-0.5">
-              <h4 className="font-bold text-slate-850 dark:text-slate-200 text-xs md:text-sm">Specialties & Biography</h4>
-              <p className="text-slate-500 dark:text-zinc-400 text-[10px] md:text-xs">Update practicing tags, medical items or write bio statement.</p>
-            </div>
-          </Link>
-
-          <Link
-            id="shortcut-experiences"
-            to="/dashboard/experiences"
-            className="bg-white dark:bg-zinc-950 md:border md:border-slate-200/60 md:dark:border-zinc-800 md:rounded-xl p-3 md:p-5 hover:border-indigo-300 dark:hover:border-indigo-700 md:hover:shadow-md transition-all flex items-start gap-3 md:gap-4 border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-200/60"
-          >
-            <div className="p-2 md:p-3 bg-indigo-55/10 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 rounded-lg md:rounded-xl border border-indigo-100/20 dark:border-indigo-800">
-              <FileSpreadsheet className="w-4 h-4 md:w-5 md:h-5" />
-            </div>
-            <div className="space-y-0.5">
-              <h4 className="font-bold text-slate-850 dark:text-slate-200 text-xs md:text-sm">Clinical Hours & History</h4>
-              <p className="text-slate-500 dark:text-zinc-400 text-[10px] md:text-xs">Register nursing credentials, medical wards or degrees.</p>
-            </div>
-          </Link>
-
-          <Link
-            id="shortcut-endorsements"
-            to="/explore"
-            className="bg-white dark:bg-zinc-950 md:border md:border-slate-200/60 md:dark:border-zinc-800 md:rounded-xl p-3 md:p-5 hover:border-amber-300 dark:hover:border-amber-700 md:hover:shadow-md transition-all flex items-start gap-3 md:gap-4 border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-200/60"
-          >
-            <div className="p-2 md:p-3 bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 rounded-lg md:rounded-xl border border-amber-100/40 dark:border-amber-800">
-              <UserCheck className="w-4 h-4 md:w-5 md:h-5" />
-            </div>
-            <div className="space-y-0.5">
-              <h4 className="font-bold text-slate-850 dark:text-slate-200 text-xs md:text-sm">Peer Endorsements</h4>
-              <p className="text-slate-500 dark:text-zinc-400 text-[10px] md:text-xs">View and manage endorsements from colleagues.</p>
-            </div>
-          </Link>
-
-          <Link
-            id="shortcut-theme"
-            to="/dashboard/theme"
-            className="bg-white dark:bg-zinc-950 md:border md:border-slate-200/60 md:dark:border-zinc-800 md:rounded-xl p-3 md:p-5 hover:border-indigo-300 dark:hover:border-indigo-700 md:hover:shadow-md transition-all flex items-start gap-3 md:gap-4 border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-200/60"
-          >
-            <div className="p-2 md:p-3 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 rounded-lg md:rounded-xl border border-indigo-100/40 dark:border-indigo-800">
-              <Palette className="w-4 h-4 md:w-5 md:h-5" />
-            </div>
-            <div className="space-y-0.5">
-              <h4 className="font-bold text-slate-850 dark:text-slate-200 text-xs md:text-sm">Configure Portfolio Theme</h4>
-              <p className="text-slate-500 dark:text-zinc-400 text-[10px] md:text-xs">Alter portfolio coloring schemes, typography, and banners.</p>
-            </div>
-          </Link>
-
-        </div>
-      </div>
-
     </div>
   );
+}
+
+// ==========================================================
+// SUB-COMPONENTS
+// ==========================================================
+
+const StatTile = React.memo<{
+  icon: any;
+  label: string;
+  value: number;
+  delta?: string | null;
+  tone: 'indigo' | 'emerald' | 'amber';
+}>(({ icon: Icon, label, value, delta, tone }) => {
+  const toneStyles = {
+    indigo: 'text-indigo-600 dark:text-indigo-400',
+    emerald: 'text-emerald-600 dark:text-emerald-400',
+    amber: 'text-amber-600 dark:text-amber-400',
+  };
+  return (
+    <div className="px-3 py-4 text-center border-r border-slate-100 dark:border-zinc-900 last:border-r-0">
+      <Icon className={`w-4 h-4 mx-auto mb-1.5 ${toneStyles[tone]}`} />
+      <div className="text-2xl font-display font-extrabold text-slate-900 dark:text-white leading-none">
+        {value}
+      </div>
+      <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mt-1">
+        {label}
+      </p>
+      {delta && (
+        <p className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5">
+          {delta}
+        </p>
+      )}
+    </div>
+  );
+});
+StatTile.displayName = 'StatTile';
+
+const QuickLink = React.memo<{
+  to: string;
+  icon: any;
+  label: string;
+  subtitle: string;
+  external?: boolean;
+}>(({ to, icon: Icon, label, subtitle, external }) => {
+  const content = (
+    <div className="flex items-center gap-3 py-3 border-b border-slate-100 dark:border-zinc-900 active:bg-slate-100 dark:active:bg-zinc-900 transition rounded-none last:border-b-0">
+      <div className="w-9 h-9 rounded-2xl bg-slate-100 dark:bg-zinc-900 flex items-center justify-center flex-shrink-0">
+        <Icon className="w-4 h-4 text-slate-600 dark:text-slate-300" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+          {label}
+        </p>
+        <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+          {subtitle}
+        </p>
+      </div>
+      <ChevronRight className="w-4 h-4 text-slate-400 dark:text-slate-500 flex-shrink-0" />
+    </div>
+  );
+  if (external) {
+    return <a href={to}>{content}</a>;
+  }
+  return <Link to={to}>{content}</Link>;
+});
+QuickLink.displayName = 'QuickLink';
+
+// ==========================================================
+// HELPERS
+// ==========================================================
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
 }

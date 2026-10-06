@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -11,22 +11,64 @@ import {
     MessageCircle,
     X,
     Flame,
-    Skull,
     HeartHandshake,
     Activity
 } from 'lucide-react';
 
 // Nursing intervention options
 const RESUSCITATION_STEPS = [
-    { id: 1, text: "Blow gently on the wick", effect: "warmth", icon: Wind },
-    { id: 2, text: "Flick a spark from your fingertips", effect: "spark", icon: Sparkles },
-    { id: 3, text: "Recite an ancient fire mantra", effect: "magic", icon: BookOpen },
-    { id: 4, text: "Transfer energy from another candle", effect: "transfer", icon: ArrowRightLeft },
-    { id: 5, text: "Drop wax from a living flame", effect: "wax", icon: Droplet },
-    { id: 6, text: "Whisper encouragement to the ember", effect: "whisper", icon: MessageCircle },
+    { id: 1, text: "Blow gently on the wick", icon: Wind },
+    { id: 2, text: "Flick a spark from your fingertips", icon: Sparkles },
+    { id: 3, text: "Recite an ancient fire mantra", icon: BookOpen },
+    { id: 4, text: "Transfer energy from another candle", icon: ArrowRightLeft },
+    { id: 5, text: "Drop wax from a living flame", icon: Droplet },
+    { id: 6, text: "Whisper encouragement to the ember", icon: MessageCircle },
 ];
 
-export default function StreakCandle() {
+interface StreakCandleProps {
+    variant?: 'floating' | 'sidebar' | 'mobile';
+}
+
+// ---- Cache ----
+const STREAK_CACHE_KEY = 'streak_cache_v1';
+
+interface CachedStreak {
+    userId: string;
+    fetchedAt: number;
+    count: number;
+    active: boolean;
+    lastVisitAt: string;
+}
+
+function readStreakCache(userId: string): CachedStreak | null {
+    try {
+        const raw = localStorage.getItem(STREAK_CACHE_KEY);
+        if (!raw) return null;
+        const parsed: CachedStreak = JSON.parse(raw);
+        if (parsed.userId !== userId) return null;
+        return parsed;
+    } catch {
+        return null;
+    }
+}
+
+function writeStreakCache(c: CachedStreak) {
+    try {
+        localStorage.setItem(STREAK_CACHE_KEY, JSON.stringify(c));
+    } catch {
+        /* quota — ignore */
+    }
+}
+
+function isSameCalendarDay(a: Date, b: Date): boolean {
+    return (
+        a.getFullYear() === b.getFullYear() &&
+        a.getMonth() === b.getMonth() &&
+        a.getDate() === b.getDate()
+    );
+}
+
+export default function StreakCandle({ variant = 'floating' }: StreakCandleProps) {
     const { user } = useAuth();
     const [streakData, setStreakData] = useState<{ count: number; active: boolean } | null>(null);
     const [showResuscitateModal, setShowResuscitateModal] = useState(false);
@@ -35,42 +77,26 @@ export default function StreakCandle() {
     const [showSuccessMessage, setShowSuccessMessage] = useState(false);
     const [isDarkMode, setIsDarkMode] = useState(false);
 
-    // Detect dark mode
+    // ---- Dark mode observer ----
     useEffect(() => {
         const checkDarkMode = () => {
-            const isDark = document.documentElement.classList.contains('dark') ||
-                (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
-            setIsDarkMode(isDark);
+            setIsDarkMode(document.documentElement.classList.contains('dark'));
         };
-
         checkDarkMode();
-
-        // Watch for class changes on html element
         const observer = new MutationObserver(checkDarkMode);
         observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-
-        // Watch for system preference changes
-        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-        mediaQuery.addEventListener('change', checkDarkMode);
-
-        return () => {
-            observer.disconnect();
-            mediaQuery.removeEventListener('change', checkDarkMode);
-        };
+        return () => observer.disconnect();
     }, []);
 
-    useEffect(() => {
-        if (user?.id) {
-            checkAndUpdateStreak(user.id);
-        }
-    }, [user?.id]);
-
-    const checkAndUpdateStreak = async (userId: string) => {
-        const { data, error } = await supabase
+    // ---- syncStreak ----
+    const syncStreak = useCallback(async (userId: string, cancelled: boolean) => {
+        const { data } = await supabase
             .from('user_streaks')
             .select('*')
             .eq('user_id', userId)
             .single();
+
+        if (cancelled) return;
 
         const now = new Date();
         let newCount = data?.streak_count || 1;
@@ -78,11 +104,19 @@ export default function StreakCandle() {
 
         if (data) {
             const lastVisit = new Date(data.last_visit_at);
-            const diffTime = Math.abs(now.getTime() - lastVisit.getTime());
-            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            const diffDays = Math.floor(
+                Math.abs(now.getTime() - lastVisit.getTime()) / (1000 * 60 * 60 * 24)
+            );
 
             if (diffDays === 0) {
                 setStreakData({ count: data.streak_count, active: data.is_active });
+                writeStreakCache({
+                    userId,
+                    fetchedAt: Date.now(),
+                    count: data.streak_count,
+                    active: data.is_active,
+                    lastVisitAt: data.last_visit_at,
+                });
                 return;
             }
 
@@ -100,101 +134,115 @@ export default function StreakCandle() {
                 user_id: userId,
                 streak_count: newCount,
                 last_visit_at: now.toISOString(),
-                is_active: isActive
+                is_active: isActive,
             })
             .select()
             .single();
 
-        if (updated) {
-            setStreakData({ count: updated.streak_count, active: updated.is_active });
-        }
-    };
+        if (cancelled || !updated) return;
 
-    const handleCandleTap = () => {
+        setStreakData({ count: updated.streak_count, active: updated.is_active });
+        writeStreakCache({
+            userId,
+            fetchedAt: Date.now(),
+            count: updated.streak_count,
+            active: updated.is_active,
+            lastVisitAt: updated.last_visit_at,
+        });
+    }, []);
+
+    // ---- Boot: cache-first ----
+    useEffect(() => {
+        if (!user?.id) return;
+        let cancelled = false;
+        const userId = user.id;
+
+        (async () => {
+            const cached = readStreakCache(userId);
+            if (cached) {
+                if (cancelled) return;
+                setStreakData({ count: cached.count, active: cached.active });
+                const last = new Date(cached.lastVisitAt);
+                if (isSameCalendarDay(last, new Date())) return;
+            }
+            await syncStreak(userId, cancelled);
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [user?.id, syncStreak]);
+
+    const handleCandleTap = useCallback(() => {
         if (!streakData?.active) {
             setShowResuscitateModal(true);
             setResuscitationProgress(0);
             setSelectedSteps([]);
         }
-    };
+    }, [streakData?.active]);
 
-    const handleResuscitateAction = (step: typeof RESUSCITATION_STEPS[0]) => {
-        if (selectedSteps.includes(step.id)) return;
-
-        const newSelected = [...selectedSteps, step.id];
-        setSelectedSteps(newSelected);
-
-        // Progress increases with each unique action
-        const newProgress = Math.min(newSelected.length / 3, 1);
-        setResuscitationProgress(newProgress);
-
-        // Trigger visual feedback
-        const candleElement = document.querySelector('.candle-svg');
-        if (candleElement) {
-            candleElement.classList.add('candle-pulse');
-            setTimeout(() => candleElement.classList.remove('candle-pulse'), 500);
-        }
-
-        // Check if fully resuscitated (after 3 unique actions)
-        if (newSelected.length >= 3 && !streakData?.active) {
-            setTimeout(() => {
-                resuscitateCandle();
-            }, 600);
-        }
-    };
-
-    const resuscitateCandle = async () => {
+    const resuscitateCandle = useCallback(async () => {
         if (!user?.id) return;
-
-        // Update streak in database
+        const userId = user.id;
         const now = new Date();
+
         const { data: updated } = await supabase
             .from('user_streaks')
             .upsert({
-                user_id: user.id,
+                user_id: userId,
                 streak_count: 1,
                 last_visit_at: now.toISOString(),
-                is_active: true
+                is_active: true,
             })
             .select()
             .single();
 
         if (updated) {
             setStreakData({ count: updated.streak_count, active: updated.is_active });
+            writeStreakCache({
+                userId,
+                fetchedAt: Date.now(),
+                count: updated.streak_count,
+                active: updated.is_active,
+                lastVisitAt: updated.last_visit_at,
+            });
             setShowResuscitateModal(false);
             setShowSuccessMessage(true);
-
-            // Hide success message after 3 seconds
             setTimeout(() => setShowSuccessMessage(false), 3000);
         }
-    };
+    }, [user?.id]);
 
-    const getResuscitationMessage = () => {
+    const handleResuscitateAction = useCallback((step: typeof RESUSCITATION_STEPS[0]) => {
+        setSelectedSteps(prev => {
+            if (prev.includes(step.id)) return prev;
+            const next = [...prev, step.id];
+            setResuscitationProgress(Math.min(next.length / 3, 1));
+            if (next.length >= 3) {
+                setTimeout(() => resuscitateCandle(), 600);
+            }
+            return next;
+        });
+    }, [resuscitateCandle]);
+
+    const resuscitationMessage = useMemo(() => {
         if (resuscitationProgress === 0) return "The candle is dying... Choose a nursing action to revive it";
         if (resuscitationProgress < 0.5) return "A faint warmth returns... Continue your care";
         if (resuscitationProgress < 1) return "Almost there! One more intervention will bring it back";
         return "The flame flickers back to life!";
-    };
+    }, [resuscitationProgress]);
 
     if (!user || !streakData) return null;
 
-    const textColor = isDarkMode ? 'text-white' : 'text-gray-900';
-    const bgColor = isDarkMode ? 'bg-gray-900' : 'bg-white';
-    const modalBg = isDarkMode
-        ? 'bg-gradient-to-br from-gray-900 to-gray-800'
-        : 'bg-gradient-to-br from-white to-gray-100';
-    const borderColor = isDarkMode ? 'border-amber-500/30' : 'border-amber-400/40';
-    const buttonBg = isDarkMode ? 'bg-gray-700/50 hover:bg-gray-700' : 'bg-gray-100/50 hover:bg-gray-200';
-    const buttonBorder = isDarkMode ? 'border-gray-600' : 'border-gray-300';
-    const buttonHoverBorder = isDarkMode ? 'hover:border-amber-500/50' : 'hover:border-amber-500/70';
-    const selectedBg = isDarkMode ? 'bg-green-500/20' : 'bg-green-100';
-    const selectedBorder = isDarkMode ? 'border-green-500/50' : 'border-green-500';
-    const progressBg = isDarkMode ? 'bg-gray-700' : 'bg-gray-200';
-    const toastBg = isDarkMode
-        ? 'bg-gradient-to-r from-amber-600 to-orange-600'
-        : 'bg-gradient-to-r from-amber-500 to-orange-500';
-    const streakBg = isDarkMode ? 'bg-black/60' : 'bg-white/80';
-    const streakText = isDarkMode ? 'text-white' : 'text-gray-800';
+    // Wrapper positioning per variant — mobile now HORIZONTAL to fit beside candle
+    const wrapperClass =
+        variant === 'floating'
+            ? 'fixed bottom-16 right-3 z-[40] flex flex-col items-center cursor-pointer select-none'
+            : variant === 'sidebar'
+                ? 'flex flex-col items-center cursor-pointer py-2 select-none'
+                : 'flex flex-row items-center justify-center gap-1 cursor-pointer select-none';
+
+    const svgW = variant === 'mobile' ? 18 : 28;
+    const svgH = variant === 'mobile' ? 38 : 60;
 
     return (
         <>
@@ -206,12 +254,12 @@ export default function StreakCandle() {
                         animate={{
                             x: "100vw",
                             y: [200, 150, 250, 200],
-                            opacity: [0, 1, 1, 0]
+                            opacity: [0, 1, 1, 0],
                         }}
                         transition={{
                             duration: 12,
                             repeat: Infinity,
-                            ease: "linear"
+                            ease: "linear",
                         }}
                         className="fixed top-0 pointer-events-none z-[9999] w-80 h-1 bg-gradient-to-r from-transparent via-orange-300 to-transparent blur-md"
                     />
@@ -225,7 +273,7 @@ export default function StreakCandle() {
                         initial={{ opacity: 0, y: 50 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 50 }}
-                        className={`fixed bottom-40 right-20 z-[200] ${toastBg} ${textColor} px-4 py-2 rounded-full shadow-lg text-sm font-medium flex items-center gap-2`}
+                        className="fixed bottom-40 right-6 z-[200] bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2"
                     >
                         <Flame className="w-4 h-4" />
                         Candle revived! Streak restored to 1 day
@@ -233,15 +281,12 @@ export default function StreakCandle() {
                 )}
             </AnimatePresence>
 
-            {/* CANDLE UI - TAPPABLE */}
-            <div
-                className="fixed bottom-16 right-3 z-[40] flex flex-col items-center group cursor-pointer"
-                onClick={handleCandleTap}
-            >
+            {/* CANDLE UI */}
+            <div className={wrapperClass} onClick={handleCandleTap}>
                 <svg
                     className="candle-svg"
-                    width="28"
-                    height="60"
+                    width={svgW}
+                    height={svgH}
                     viewBox="0 0 48 90"
                     xmlns="http://www.w3.org/2000/svg"
                     style={{ overflow: 'visible' }}
@@ -308,7 +353,6 @@ export default function StreakCandle() {
                             .sc-s3 { animation: sc-smoke 1.8s ease-out 1.2s infinite; }
                             .candle-pulse { animation: candle-pulse 0.5s ease-in-out !important; }
                             .candle-svg { transition: filter 0.3s ease; }
-                            .candle-svg:hover { filter: drop-shadow(0 0 8px rgba(255,109,0,0.5)); }
                         `}</style>
                     </defs>
 
@@ -356,57 +400,70 @@ export default function StreakCandle() {
                     )}
                 </svg>
 
-                {/* Streak text with icon */}
-                <div className={`-mt-2 ${streakBg} ${streakText} text-[8px] px-1.5 py-0.5 rounded-full backdrop-blur-md whitespace-nowrap flex items-center gap-1`}>
-                    {streakData.active ? (
-                        <>
-                            <Flame className="w-2.5 h-2.5" />
-                            Streak: {streakData.count} day{streakData.count === 1 ? '' : 's'}
-                        </>
-                    ) : (
-                        <>
-                            <HeartHandshake className="w-2.5 h-2.5" />
-                            Tap to resuscitate
-                        </>
-                    )}
-                </div>
+                {/* Streak label — only on floating + sidebar */}
+                {variant !== 'mobile' && (
+                    <div className="-mt-2 bg-white/80 dark:bg-zinc-900/80 text-slate-800 dark:text-white text-[8px] px-1.5 py-0.5 rounded-full backdrop-blur-md whitespace-nowrap flex items-center gap-1 border-0">
+                        {streakData.active ? (
+                            <>
+                                <Flame className="w-2.5 h-2.5" />
+                                Streak: {streakData.count} day{streakData.count === 1 ? '' : 's'}
+                            </>
+                        ) : (
+                            <>
+                                <HeartHandshake className="w-2.5 h-2.5" />
+                                Tap to resuscitate
+                            </>
+                        )}
+                    </div>
+                )}
+
+                {/* Mobile — compact pill SIDE-BY-SIDE with candle (no overlap) */}
+                {variant === 'mobile' && (
+                    <span
+                        className={`text-[10px] font-bold flex items-center gap-0.5 px-1.5 py-0.5 rounded-full whitespace-nowrap border-0 ${streakData.active
+                            ? 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400'
+                            : 'bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400'
+                            }`}
+                    >
+                        <Flame className="w-2.5 h-2.5" />
+                        {streakData.active ? `${streakData.count}d` : 'Off'}
+                    </span>
+                )}
             </div>
 
-            {/* RESUSCITATION MODAL */}
+            {/* RESUSCITATION MODAL — no shadows, XL corners, app palette */}
             <AnimatePresence>
                 {showResuscitateModal && (
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+                        className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
                         onClick={() => setShowResuscitateModal(false)}
                     >
                         <motion.div
-                            initial={{ scale: 0.9, opacity: 0 }}
+                            initial={{ scale: 0.95, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.9, opacity: 0 }}
-                            className={`${modalBg} rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl border ${borderColor} max-h-[90vh] flex flex-col`}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            className="bg-white dark:bg-zinc-950 rounded-3xl max-w-md w-full border border-slate-100 dark:border-zinc-900 max-h-[90vh] flex flex-col overflow-hidden"
                             onClick={(e) => e.stopPropagation()}
                         >
-                            {/* Header */}
-                            <div className="text-center mb-4 flex-shrink-0">
+                            <div className="text-center pt-6 pb-4 px-6 flex-shrink-0">
                                 <div className="flex justify-center mb-2">
-                                    <div className="p-3 rounded-full bg-amber-500/10">
-                                        <Activity className={`w-8 h-8 ${isDarkMode ? 'text-amber-400' : 'text-amber-600'}`} />
+                                    <div className="w-14 h-14 rounded-full bg-amber-50 dark:bg-amber-950/40 flex items-center justify-center">
+                                        <Activity className="w-7 h-7 text-amber-600 dark:text-amber-400" />
                                     </div>
                                 </div>
-                                <h3 className={`text-xl font-bold ${isDarkMode ? 'text-amber-400' : 'text-amber-700'}`}>
+                                <h3 className="text-lg font-bold text-slate-900 dark:text-white">
                                     Resuscitate the Candle
                                 </h3>
-                                <p className={`${isDarkMode ? 'text-gray-300' : 'text-gray-600'} text-sm mt-1`}>
-                                    {getResuscitationMessage()}
+                                <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 leading-relaxed">
+                                    {resuscitationMessage}
                                 </p>
                             </div>
 
-                            {/* Progress bar */}
-                            <div className="mb-4 flex-shrink-0">
-                                <div className={`h-2 ${progressBg} rounded-full overflow-hidden`}>
+                            <div className="px-6 mb-4 flex-shrink-0">
+                                <div className="h-2 bg-slate-100 dark:bg-zinc-900 rounded-full overflow-hidden">
                                     <motion.div
                                         className="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full"
                                         initial={{ width: 0 }}
@@ -414,47 +471,40 @@ export default function StreakCandle() {
                                         transition={{ duration: 0.3 }}
                                     />
                                 </div>
-                                <p className={`text-right text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} mt-1`}>
+                                <p className="text-right text-xs text-slate-500 dark:text-slate-400 mt-1.5">
                                     {Math.floor(resuscitationProgress * 100)}% revived
                                 </p>
                             </div>
 
-                            {/* Nursing intervention options - SCROLLABLE */}
-                            <div className="space-y-2 overflow-y-auto flex-1 mb-4 pr-1 custom-scrollbar">
+                            <div className="space-y-2 overflow-y-auto flex-1 mb-4 px-6">
                                 {RESUSCITATION_STEPS.map((step) => {
                                     const Icon = step.icon;
                                     const isSelected = selectedSteps.includes(step.id);
                                     return (
-                                        <motion.button
+                                        <button
                                             key={step.id}
-                                            whileHover={{ scale: isSelected ? 1 : 1.02 }}
-                                            whileTap={{ scale: isSelected ? 1 : 0.98 }}
                                             onClick={() => handleResuscitateAction(step)}
                                             disabled={isSelected}
-                                            className={`
-                                                w-full text-left px-4 py-3 rounded-xl transition-all duration-200 flex items-center gap-3
-                                                ${isSelected
-                                                    ? `${selectedBg} border ${selectedBorder} cursor-not-allowed`
-                                                    : `${buttonBg} border ${buttonBorder} ${buttonHoverBorder}`
-                                                }
-                                            `}
+                                            className={`w-full text-left px-4 py-3 rounded-2xl transition-all duration-200 flex items-center gap-3 border-0 ${isSelected
+                                                ? 'bg-emerald-50 dark:bg-emerald-950/30 cursor-not-allowed'
+                                                : 'bg-slate-100 dark:bg-zinc-900 active:bg-slate-200 dark:active:bg-zinc-800'
+                                                }`}
                                         >
-                                            <Icon className={`w-5 h-5 flex-shrink-0 ${isSelected ? 'text-green-500' : isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
-                                            <span className={`text-sm flex-1 ${isSelected ? (isDarkMode ? 'text-gray-400' : 'text-gray-500') : (isDarkMode ? 'text-gray-200' : 'text-gray-700')}`}>
+                                            <Icon className={`w-5 h-5 flex-shrink-0 ${isSelected ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`} />
+                                            <span className={`text-sm flex-1 ${isSelected ? 'text-slate-500 dark:text-slate-500' : 'text-slate-700 dark:text-slate-300'}`}>
                                                 {step.text}
                                             </span>
                                             {isSelected && (
-                                                <span className="text-green-500 text-xs font-medium">done</span>
+                                                <span className="text-emerald-600 dark:text-emerald-400 text-xs font-bold">done</span>
                                             )}
-                                        </motion.button>
+                                        </button>
                                     );
                                 })}
                             </div>
 
-                            {/* Close button */}
                             <button
                                 onClick={() => setShowResuscitateModal(false)}
-                                className={`flex-shrink-0 w-full px-4 py-2 ${buttonBg} rounded-xl ${isDarkMode ? 'text-gray-300' : 'text-gray-600'} text-sm transition-colors flex items-center justify-center gap-2`}
+                                className="flex-shrink-0 mx-6 mb-6 px-4 py-3 rounded-2xl bg-slate-100 dark:bg-zinc-900 text-slate-600 dark:text-slate-400 text-sm font-semibold active:bg-slate-200 dark:active:bg-zinc-800 transition-colors flex items-center justify-center gap-2"
                             >
                                 <X className="w-4 h-4" />
                                 Cancel
@@ -463,24 +513,6 @@ export default function StreakCandle() {
                     </motion.div>
                 )}
             </AnimatePresence>
-
-            {/* Custom scrollbar styles */}
-            <style>{`
-                .custom-scrollbar::-webkit-scrollbar {
-                    width: 6px;
-                }
-                .custom-scrollbar::-webkit-scrollbar-track {
-                    background: ${isDarkMode ? '#374151' : '#e5e7eb'};
-                    border-radius: 10px;
-                }
-                .custom-scrollbar::-webkit-scrollbar-thumb {
-                    background: ${isDarkMode ? '#f59e0b' : '#fbbf24'};
-                    border-radius: 10px;
-                }
-                .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-                    background: ${isDarkMode ? '#fbbf24' : '#f59e0b'};
-                }
-            `}</style>
         </>
     );
 }

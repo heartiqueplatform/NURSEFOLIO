@@ -3,18 +3,93 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useThemeMode } from '../contexts/ThemeContext';
+import StreakCandle from './StreakCandle';
 import {
   Briefcase, GraduationCap, Award, BookOpen,
   Palette, FileText, Settings, BarChart3,
-  Home, UserPlus, LogOut, ArrowLeft, ShieldCheck,
+  Home, UserPlus, LogOut, ShieldCheck,
   ChevronLeft, ChevronRight, Compass, Sun, Moon,
-  Heart, FileSignature
+  Heart, FileSignature, Loader2
 } from 'lucide-react';
 
+// ==========================================================
+// MENU STRUCTURE — grouped for scannability
+// ==========================================================
+const MENU_GROUPS = [
+  {
+    id: 'daily',
+    label: 'Daily',
+    items: [
+      { id: 'feed', name: 'Daily Pulse', path: '/feed', icon: FileText },
+      { id: 'overview', name: 'Overview', path: '/dashboard', icon: Home },
+      { id: 'explore', name: 'Explore Registry', path: '/explore', icon: Compass },
+      { id: 'locum', name: 'Locum & Cover', path: '/locum', icon: Briefcase },
+    ],
+  },
+  {
+    id: 'profile',
+    label: 'Profile',
+    items: [
+      { id: 'edit-profile', name: 'Edit Profile', path: '/dashboard/edit-profile', icon: UserPlus },
+      { id: 'skills', name: 'Skills & Logbook', path: '/dashboard/skills', icon: Award },
+      { id: 'pending-verifications', name: 'Verify Procedures', path: '/verify/pending', icon: FileSignature },
+      { id: 'work-experience', name: 'Work Experience', path: '/dashboard/experiences', icon: Briefcase },
+      { id: 'education', name: 'Education & Degrees', path: '/dashboard/education', icon: GraduationCap },
+      { id: 'certifications', name: 'Certifications', path: '/dashboard/certifications', icon: Award },
+      { id: 'research', name: 'Clinical Research', path: '/dashboard/publications', icon: BookOpen },
+    ],
+  },
+  {
+    id: 'tools',
+    label: 'Career Tools',
+    items: [
+      { id: 'cv-generator', name: 'My CV', path: '/cv', icon: FileText },
+      { id: 'upload-cv', name: 'Upload CV', path: '/dashboard/cv', icon: FileText },
+      { id: 'theme', name: 'Portfolio Theme', path: '/dashboard/theme', icon: Palette },
+      { id: 'analytics', name: 'Analytics', path: '/dashboard/analytics', icon: BarChart3 },
+      { id: 'settings', name: 'Settings', path: '/dashboard/settings', icon: Settings },
+    ],
+  },
+];
+
+// ==========================================================
+// MENU LINK — reusable, memoized
+// ==========================================================
+const MenuLink = React.memo<{
+  to: string;
+  end?: boolean;
+  icon: any;
+  label: string;
+  collapsed: boolean;
+  isExplore?: boolean;
+}>(({ to, end, icon: Icon, label, collapsed, isExplore }) => (
+  <NavLink
+    to={to}
+    end={end}
+    title={collapsed ? label : undefined}
+    className={({ isActive }) =>
+      `flex items-center gap-3 px-3 py-2.5 rounded-2xl text-sm transition-colors ${collapsed ? 'justify-center' : ''
+      } ${isActive
+        ? 'bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400 font-bold'
+        : isExplore
+          ? 'text-slate-600 dark:text-slate-400 active:bg-slate-100 dark:active:bg-zinc-900 font-medium'
+          : 'text-slate-600 dark:text-slate-400 active:bg-slate-100 dark:active:bg-zinc-900 font-medium'
+      }`
+    }
+  >
+    <Icon className={`w-4 h-4 flex-shrink-0 ${isExplore && !collapsed ? 'text-amber-500 dark:text-amber-400' : ''}`} />
+    {!collapsed && <span className="truncate">{label}</span>}
+  </NavLink>
+));
+MenuLink.displayName = 'MenuLink';
+
+// ==========================================================
+// MAIN
+// ==========================================================
 export const Sidebar: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -28,328 +103,258 @@ export const Sidebar: React.FC = () => {
     }
   });
 
-  // ── NEW: controls the goodbye overlay ──
-  const [showGoodbyeModal, setShowGoodbyeModal] = useState(false);
+  const [showExitModal, setShowExitModal] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
-  const toggleCollapse = () => {
+  // Persist collapse state
+  const toggleCollapse = useCallback(() => {
     setIsCollapsed(prev => {
-      const newVal = !prev;
+      const next = !prev;
       try {
-        localStorage.setItem('sidebar-collapsed', String(newVal));
+        localStorage.setItem('sidebar-collapsed', String(next));
       } catch (err) {
         console.warn('Failed to persist sidebar state', err);
       }
-      return newVal;
+      return next;
     });
-  };
+  }, []);
 
-  const handleSignOut = async () => {
-    await logout();
-    navigate('/');
-  };
-  // In your sidebar, navigate to fetch first pending first
-  const goToPendingVerifications = async () => {
-    const { data } = await supabase
-      .from('clinical_procedures')
-      .select('id')
-      .eq('verification_status', 'pending')
-      .limit(1);
+  // Escape closes modal
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showExitModal) setShowExitModal(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showExitModal]);
 
-    if (data && data.length > 0) {
-      navigate(`/verify/${data[0].id}`);
-    } else {
-      navigate('/dashboard');
+  const handleSignOut = useCallback(async () => {
+    setSigningOut(true);
+    try {
+      await logout();
+      navigate('/');
+    } finally {
+      setSigningOut(false);
     }
-  };
-  // ── NEW: open the overlay instead of signing out immediately ──
-  const handleExitClick = () => {
-    setShowGoodbyeModal(true);
-  };
+  }, [logout, navigate]);
 
-  const menuItems = [
-    {
-      id: 'feed',
-      name: 'Daily Pulse',
-      path: '/feed',
-      icon: FileText
-    },
-    { id: 'overview', name: 'Overview', path: '/dashboard', icon: Home },
-    { id: 'explore', name: 'Explore Registry', path: '/explore', icon: Compass },
-    { id: 'locum', name: 'Locum & Cover', path: '/locum', icon: Briefcase },
-    { id: 'edit-profile', name: 'Edit Profile', path: '/dashboard/edit-profile', icon: UserPlus },
-    { id: 'skills', name: 'Skills/Logbook', path: '/dashboard/skills', icon: Award },
-    {
-      id: 'pending-verifications',
-      name: 'Verify Procedures',
-      path: '/verify/pending',
-      icon: FileSignature
-    },
-    { id: 'work-experience', name: 'Work Experience', path: '/dashboard/experiences', icon: Briefcase },
+  const handleExitClick = useCallback(() => setShowExitModal(true), []);
+  const handleCancelExit = useCallback(() => setShowExitModal(false), []);
 
-    // CV Generator — flagship feature. Placed near profile-building tools
-    // because it consumes the data those pages populate.
-    { id: 'cv-generator', name: 'My CV', path: '/cv', icon: FileText },
-
-    { id: 'education', name: 'Education & Degrees', path: '/dashboard/education', icon: GraduationCap },
-    { id: 'certifications', name: 'Certifications', path: '/dashboard/certifications', icon: Award },
-    { id: 'research', name: 'Clinical Research', path: '/dashboard/publications', icon: BookOpen },
-    { id: 'theme', name: 'Portfolio Theme', path: '/dashboard/theme', icon: Palette },
-    { id: 'upload-cv', name: 'Upload CV / Resume', path: '/dashboard/cv', icon: FileText },
-    { id: 'analytics', name: 'Analytics Board', path: '/dashboard/analytics', icon: BarChart3 },
-    { id: 'settings', name: 'General Settings', path: '/dashboard/settings', icon: Settings },
-  ];
+  const userInitials = useMemo(() => {
+    if (!user) return '';
+    return `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`;
+  }, [user]);
 
   return (
     <>
-      {/* ── NEW: Goodbye Overlay Modal ── */}
-      {showGoodbyeModal && (
+      {/* ============================================
+          EXIT MODAL
+          ============================================ */}
+      {showExitModal && (
         <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm"
-          onClick={() => setShowGoodbyeModal(false)}
+          className="fixed inset-0 z-[9999] flex items-end md:items-center justify-center md:p-4 bg-black/70"
+          onClick={() => !signingOut && handleCancelExit()}
         >
           <div
-            className="relative bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl p-8 mx-4 max-w-sm w-full text-center border border-slate-100 dark:border-slate-800 animate-goodbye-pop"
-            onClick={e => e.stopPropagation()}
+            className="bg-white dark:bg-zinc-950 rounded-t-3xl md:rounded-3xl max-w-md w-full p-6 md:p-8 animate-in slide-in-from-bottom duration-200"
+            onClick={(e) => e.stopPropagation()}
           >
-            {/* Animated heart */}
-            <div className="flex justify-center mb-4">
-              <div className="w-16 h-16 rounded-full bg-rose-50 dark:bg-rose-950/50 flex items-center justify-center animate-goodbye-pulse">
+            <div className="flex justify-center mb-5">
+              <div className="w-16 h-16 rounded-full bg-rose-50 dark:bg-rose-950/40 flex items-center justify-center">
                 <Heart className="w-8 h-8 text-rose-500 fill-rose-400" />
               </div>
             </div>
 
-            <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-1">
-              Goodbye, {user?.first_name} 👋
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white text-center">
+              Sign out, {user?.first_name || 'Nurse'}?
             </h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mb-1 leading-relaxed">
-              We'll miss you around here. 💙
-            </p>
-            <p className="text-xs text-slate-400 dark:text-slate-500 mb-6 leading-relaxed italic">
-              "Every nurse you meet carries a little piece of their patients with them. Thank you for the care you give every day."
+            <p className="text-sm text-slate-500 dark:text-slate-400 text-center mt-1 leading-relaxed">
+              Your streak stays active for 3 days if you come back.
             </p>
 
-            {/* Emotion dots */}
-            <div className="flex justify-center gap-2 mb-6 text-xl">
-              <span title="Safe travels">🌸</span>
-              <span title="You're amazing">✨</span>
-              <span title="Come back soon">🏥</span>
-              <span title="We care">💛</span>
-            </div>
-
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 mt-6">
               <button
                 onClick={handleSignOut}
-                className="w-full py-3 rounded-xl bg-rose-500 hover:bg-rose-600 text-white text-sm font-semibold transition-all shadow-md shadow-rose-200 dark:shadow-rose-950/40"
+                disabled={signingOut}
+                className="w-full py-3.5 rounded-2xl bg-rose-600 active:bg-rose-700 text-white text-sm font-bold transition disabled:opacity-50 flex items-center justify-center gap-2 min-h-[48px]"
               >
-                Yes, sign me out
+                {signingOut ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Signing out
+                  </>
+                ) : (
+                  'Yes, sign me out'
+                )}
               </button>
               <button
-                onClick={() => setShowGoodbyeModal(false)}
-                className="w-full py-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-sm font-semibold transition-all"
+                onClick={handleCancelExit}
+                disabled={signingOut}
+                className="w-full py-3 rounded-2xl bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-slate-300 text-sm font-bold active:opacity-70 transition disabled:opacity-50 min-h-[48px]"
               >
-                Actually, I'll stay 🙂
+                Stay signed in
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── ORIGINAL SIDEBAR — fully preserved ── */}
-      {/* MAMA'S CHANGE 1: Added h-screen sticky top-0 to keep the sidebar fixed while the rest of the page scrolls */}
-      <aside className={`transition-all duration-300 sticky top-0 h-screen overflow-hidden ${isCollapsed ? 'w-20' : 'w-64'} bg-white dark:bg-zinc-950 text-slate-900 dark:text-white flex flex-col justify-between border-r border-slate-200 dark:border-slate-800 p-4 hidden lg:flex flex-shrink-0`}>
-
+      {/* ============================================
+          SIDEBAR — flat, no shadows/borders clutter
+          ============================================ */}
+      <aside
+        className={`sticky top-0 h-screen overflow-hidden hidden lg:flex flex-col flex-shrink-0 bg-white dark:bg-zinc-950 border-r border-slate-100 dark:border-zinc-900 transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-64'
+          }`}
+      >
+        {/* Collapse toggle — small floating chevron */}
         <button
           onClick={toggleCollapse}
-          className="absolute -right-3 top-8 bg-white dark:bg-zinc-950 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-800 p-1.5 rounded-full shadow-md cursor-pointer z-50 flex items-center justify-center transition"
+          className="absolute -right-3 top-6 w-7 h-7 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 text-slate-500 dark:text-slate-400 active:bg-slate-100 dark:active:bg-zinc-800 rounded-full flex items-center justify-center transition z-50"
+          aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {isCollapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
         </button>
 
-        {/* Header (Non-scrolling) */}
-        <div className={`flex items-center gap-2 mb-8 mt-2 flex-shrink-0 ${isCollapsed ? 'justify-center' : 'px-2'}`}>
-          {/* Replaced the div with your image */}
+        {/* Header */}
+        <div className={`flex items-center gap-2 mb-4 mt-4 flex-shrink-0 ${isCollapsed ? 'justify-center px-2' : 'px-5'}`}>
           <img
             src="/192.png"
-            alt="Logo"
-            className="w-8 h-8 rounded-lg flex-shrink-0 shadow-sm shadow-indigo-600/10 object-cover"
+            alt="Nursefolio"
+            className="w-8 h-8 rounded-xl flex-shrink-0 object-cover"
           />
-
           {!isCollapsed && (
             <Link
               to="/"
-              className="font-sans font-bold text-xl text-indigo-900 dark:text-indigo-400 tracking-tight transition animate-fade-in"
+              className="font-display font-bold text-lg text-slate-900 dark:text-white tracking-tight"
             >
               Nursefolio
             </Link>
           )}
         </div>
 
-        {/* MAMA'S CHANGE 2: Wrapped Nav & User Info in a container with overflow-y-auto */}
-        <div className="flex flex-col flex-1 overflow-y-auto custom-scrollbar pr-1">
+        {/* Scrollable nav area */}
+        <div className="flex-1 overflow-y-auto px-3 pb-3 custom-scrollbar">
 
-          {/* User Info block */}
+          {/* User card */}
           {user && (
-            <div className={`mb-6 pb-6 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3 flex-shrink-0 ${isCollapsed ? 'justify-center px-0' : 'px-2'}`}>
-              {user.avatar_url ? (
-                <img
-                  src={user.avatar_url}
-                  alt="Profile"
-                  className="w-10 h-10 rounded-xl object-cover border border-slate-100 dark:border-slate-700 shadow-sm flex-shrink-0"
-                />
-              ) : (
-                <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950 border border-indigo-100 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-xs flex-shrink-0">
-                  {user.first_name?.[0]}{user.last_name?.[0]}
-                </div>
-              )}
-
-              {!isCollapsed && (
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate leading-tight">
-                    {user.first_name} {user.last_name}
-                  </p>
-                  <div className="flex items-center gap-1 mt-0.5">
-                    <span className="text-xs text-indigo-600 dark:text-indigo-400 font-medium truncate">@{user.username}</span>
-                    {user.verification_status === 'verified' && (
-                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
-                    )}
+            <Link
+              to={`/nurse/${user.username}`}
+              className={`block mb-5 rounded-2xl bg-slate-50 dark:bg-zinc-900 active:bg-slate-100 dark:active:bg-zinc-800 transition ${isCollapsed ? 'p-2' : 'p-3'
+                }`}
+            >
+              <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''}`}>
+                {user.avatar_url ? (
+                  <img
+                    src={user.avatar_url}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    className="w-9 h-9 rounded-full object-cover bg-slate-200 dark:bg-zinc-800 flex-shrink-0"
+                  />
+                ) : (
+                  <div className="w-9 h-9 rounded-full bg-teal-100 dark:bg-teal-950/40 flex items-center justify-center text-teal-700 dark:text-teal-400 font-bold text-xs flex-shrink-0">
+                    {userInitials}
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+
+                {!isCollapsed && (
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                        {user.first_name} {user.last_name}
+                      </p>
+                      {user.verification_status === 'verified' && (
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                      @{user.username}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </Link>
           )}
 
-          {/* Links Navigation */}
-          <nav className="space-y-1 pb-4">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              const isExplore = item.id === 'explore';
-
-              return (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  end={item.path === '/dashboard'}
-                  title={isCollapsed ? item.name : undefined}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${isCollapsed ? 'justify-center' : ''} ${isActive
-                      ? 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-400 border border-indigo-100/50 dark:border-indigo-800/50 shadow-sm font-semibold'
-                      : isExplore
-                        ? 'hover:bg-amber-50 dark:hover:bg-amber-950/30 hover:text-amber-700 dark:hover:text-amber-400 text-slate-500 dark:text-slate-400 border border-transparent'
-                        : 'hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200 text-slate-500 dark:text-slate-400 border border-transparent'
-                    }`
-                  }
-                >
-                  <Icon className={`w-4 h-4 flex-shrink-0 ${isExplore && !isCollapsed ? 'text-amber-500 dark:text-amber-400' : ''}`} />
-                  {!isCollapsed && <span>{item.name}</span>}
-                </NavLink>
-              );
-            })}
-          </nav>
+          {/* Menu groups */}
+          {MENU_GROUPS.map(group => (
+            <div key={group.id} className="mb-4 last:mb-2">
+              {!isCollapsed && (
+                <p className="px-3 mb-1.5 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                  {group.label}
+                </p>
+              )}
+              <nav className="space-y-0.5">
+                {group.items.map(item => (
+                  <MenuLink
+                    key={item.id}
+                    to={item.path}
+                    end={item.path === '/dashboard'}
+                    icon={item.icon}
+                    label={item.name}
+                    collapsed={isCollapsed}
+                    isExplore={item.id === 'explore'}
+                  />
+                ))}
+              </nav>
+            </div>
+          ))}
         </div>
 
-        {/* Footer controls (Non-scrolling) */}
-        <div className="space-y-4 pt-6 mt-6 border-t border-slate-100 dark:border-slate-800 flex-shrink-0">
-          {/* Theme Toggle Button */}
+        {/* Footer — streak candle + theme toggle + view public + sign out */}
+        <div className="flex-shrink-0 px-3 py-3 border-t border-slate-100 dark:border-zinc-900 space-y-1">
+          {/* Streak candle — compact tile, sits above the theme toggle */}
+          <StreakCandle variant="sidebar" />
+
+          {/* Theme toggle */}
           <button
             onClick={toggleThemeMode}
-            className={`flex items-center gap-3 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer w-full ${isCollapsed ? 'justify-center px-0' : 'px-3.5'
-              } bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700`}
-            title={isCollapsed ? (themeMode === 'dark' ? 'Light Mode' : 'Dark Mode') : (themeMode === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode')}
+            title={isCollapsed ? (themeMode === 'dark' ? 'Light mode' : 'Dark mode') : undefined}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-sm font-medium text-slate-600 dark:text-slate-400 active:bg-slate-100 dark:active:bg-zinc-900 transition-colors ${isCollapsed ? 'justify-center' : ''
+              }`}
           >
             {themeMode === 'dark' ? (
               <Sun className="w-4 h-4 flex-shrink-0" />
             ) : (
               <Moon className="w-4 h-4 flex-shrink-0" />
             )}
-            {!isCollapsed && <span>{themeMode === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>}
+            {!isCollapsed && <span>{themeMode === 'dark' ? 'Light mode' : 'Dark mode'}</span>}
           </button>
 
+          {/* View public hub */}
           {user && (
-            <div className="p-4 bg-white dark:bg-slate-800 rounded-2xl text-slate-900 dark:text-white shadow-sm dark:shadow-none hidden sm:block">
-              {!isCollapsed ? (
-                <>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400 mb-1 font-mono uppercase tracking-wider">
-                    Verification Status
-                  </p>
-
-                  <div className="flex items-center gap-2">
-                    <div
-                      className={`w-2 h-2 rounded-full ${user.verification_status === 'verified'
-                        ? 'bg-emerald-500'
-                        : 'bg-rose-500'
-                        }`}
-                    />
-
-                    <span className="text-xs font-semibold capitalize">
-                      {user.verification_status}
-                    </span>
-                  </div>
-                </>
-              ) : (
-                <div className="flex justify-center">
-                  <div
-                    className={`w-2 h-2 rounded-full ${user.verification_status === 'verified'
-                      ? 'bg-emerald-500'
-                      : 'bg-rose-500'
-                      }`}
-                  />
-                </div>
-              )}
-            </div>
+            <Link
+              to={`/nurse/${user.username}`}
+              title={isCollapsed ? 'View public profile' : undefined}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-sm font-medium text-slate-600 dark:text-slate-400 active:bg-slate-100 dark:active:bg-zinc-900 transition-colors ${isCollapsed ? 'justify-center' : ''
+                }`}
+            >
+              <Compass className="w-4 h-4 flex-shrink-0" />
+              {!isCollapsed && <span className="truncate">Public profile</span>}
+            </Link>
           )}
 
-          <div className="space-y-1.5">
-            <Link
-              to={`/nurse/${user?.username}`}
-              className={`flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition ${isCollapsed ? 'px-0' : 'px-3.5'}`}
-            >
-              <ArrowLeft className={`w-4 h-4 ${isCollapsed ? '' : 'rotate-180'}`} />
-              {!isCollapsed && <span>View My Public Hub</span>}
-            </Link>
-
-            {/* ── CHANGED: onClick now opens overlay instead of signing out directly ── */}
+          {/* Sign out */}
+          {user && (
             <button
               onClick={handleExitClick}
-              className={`flex items-center gap-3 py-2.5 rounded-xl text-xs font-semibold text-slate-400 dark:text-slate-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 hover:text-rose-600 dark:hover:text-rose-400 w-full transition cursor-pointer ${isCollapsed ? 'justify-center px-0' : 'px-3.5'}`}
+              title={isCollapsed ? 'Sign out' : undefined}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-sm font-medium text-slate-600 dark:text-slate-400 active:bg-rose-50 dark:active:bg-rose-950/30 active:text-rose-600 dark:active:text-rose-400 transition-colors ${isCollapsed ? 'justify-center' : ''
+                }`}
             >
               <LogOut className="w-4 h-4 flex-shrink-0" />
-              {!isCollapsed && <span>Exit Portal</span>}
+              {!isCollapsed && <span>Sign out</span>}
             </button>
-          </div>
+          )}
         </div>
 
-        {/* Mama's Styling Tip: Add this to your global CSS or Tailwind config to make the scrollbar look pretty */}
+        {/* Scrollbar styling */}
         <style>{`
-          .custom-scrollbar::-webkit-scrollbar {
-            width: 4px;
-          }
-          .custom-scrollbar::-webkit-scrollbar-track {
-            background: transparent;
-          }
-          .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #e2e8f0;
-            border-radius: 10px;
-          }
-          .dark .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #334155;
-          }
-
-          /* ── NEW: goodbye overlay animations ── */
-          @keyframes goodbye-pop {
-            0%   { opacity: 0; transform: scale(0.88) translateY(12px); }
-            70%  { transform: scale(1.03) translateY(-2px); }
-            100% { opacity: 1; transform: scale(1) translateY(0); }
-          }
-          @keyframes goodbye-pulse {
-            0%, 100% { transform: scale(1); }
-            50%       { transform: scale(1.15); }
-          }
-          .animate-goodbye-pop {
-            animation: goodbye-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-          }
-          .animate-goodbye-pulse {
-            animation: goodbye-pulse 1.6s ease-in-out infinite;
-          }
+          .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+          .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+          .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+          .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; }
         `}</style>
       </aside>
     </>

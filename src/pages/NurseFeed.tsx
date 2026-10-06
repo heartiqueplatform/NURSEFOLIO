@@ -3,16 +3,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { UserProfile } from '../types';
 import { EndorsementManager } from '../components/EndorsementManager';
 import {
     Heart, Share2, ThumbsUp, Send, Loader2, MessageCircle,
-    Clock, CheckCircle2, X, Eye, Sparkles, TrendingUp, Users,
-    Lightbulb, Smile, Target, Coffee, HeartHandshake,
-    GraduationCap, Link2
+    Clock, CheckCircle2, X, Sparkles, TrendingUp, Users,
+    Lightbulb, Smile, Coffee, HeartHandshake,
+    GraduationCap
 } from 'lucide-react';
 
 // ==========================================================
@@ -165,10 +164,10 @@ const getAuthorDisplayName = (author: NursePost['author']): string => {
 };
 
 // ==========================================================
-// SKELETON
+// SKELETON — flat, edge-to-edge
 // ==========================================================
-const PostSkeleton = () => (
-    <div className="bg-white dark:bg-zinc-950 md:rounded-2xl md:border md:border-slate-200/60 md:dark:border-zinc-800 p-4 md:p-5 animate-pulse border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-200/60">
+const PostSkeleton = React.memo(() => (
+    <div className="bg-white dark:bg-zinc-950 p-4 border-b border-slate-100 dark:border-zinc-900 animate-pulse">
         <div className="flex items-start gap-3">
             <div className="w-10 h-10 md:w-11 md:h-11 rounded-full bg-slate-200 dark:bg-zinc-800 flex-shrink-0" />
             <div className="flex-1 space-y-2">
@@ -180,25 +179,25 @@ const PostSkeleton = () => (
                     <div className="h-3 bg-slate-200 dark:bg-zinc-800 rounded w-2/3" />
                 </div>
                 <div className="flex gap-3 mt-4">
-                    <div className="h-8 bg-slate-200 dark:bg-zinc-800 rounded-lg w-16" />
-                    <div className="h-8 bg-slate-200 dark:bg-zinc-800 rounded-lg w-16" />
+                    <div className="h-8 bg-slate-200 dark:bg-zinc-800 rounded-full w-16" />
+                    <div className="h-8 bg-slate-200 dark:bg-zinc-800 rounded-full w-16" />
                 </div>
             </div>
         </div>
     </div>
-);
+));
 
 // ==========================================================
-// POST CARD
+// POST CARD — memoized, no framer-motion
 // ==========================================================
 const PostCard: React.FC<{
     post: NursePost;
     currentUserId: string;
     likeState: LikeState;
-    onLike: (postId: string) => Promise<void>;
-    onShare: (postId: string, content: string) => void;
+    onLike: (postId: string) => void;
+    onShare: (postId: string) => void;
     onEndorse: (author: NursePost['author']) => void;
-}> = ({ post, currentUserId, likeState, onLike, onShare, onEndorse }) => {
+}> = React.memo(({ post, currentUserId, likeState, onLike, onShare, onEndorse }) => {
     const currentLikeState = likeState[post.id] || {
         count: post.like_count || 0,
         isLiked: post.is_liked_by_user || false
@@ -206,193 +205,189 @@ const PostCard: React.FC<{
 
     const isOwnPost = currentUserId === post.user_id;
     const [shareFeedback, setShareFeedback] = useState<string | null>(null);
+    const feedbackTimerRef = useRef<number | null>(null);
 
-    const handleShareTap = async () => {
-        // Prefer native share sheet (mobile)
+    const showFeedback = useCallback((msg: string) => {
+        setShareFeedback(msg);
+        if (feedbackTimerRef.current) window.clearTimeout(feedbackTimerRef.current);
+        feedbackTimerRef.current = window.setTimeout(() => setShareFeedback(null), 2000);
+    }, []);
+
+    useEffect(() => {
+        return () => {
+            if (feedbackTimerRef.current) window.clearTimeout(feedbackTimerRef.current);
+        };
+    }, []);
+
+    const handleShareTap = useCallback(async () => {
+        const url = `${window.location.origin}/feed?postId=${post.id}`;
+        const preview = post.content.slice(0, 100) + (post.content.length > 100 ? '...' : '');
+
         if (navigator.share) {
             try {
-                await navigator.share({
-                    title: 'Nursefolio Post',
-                    text: `"${post.content.slice(0, 100)}${post.content.length > 100 ? '...' : ''}"`,
-                    url: `${window.location.origin}/feed?postId=${post.id}`
-                });
-                onShare(post.id, post.content);
+                await navigator.share({ title: 'Nursefolio Post', text: `"${preview}"`, url });
+                onShare(post.id);
                 return;
-            } catch {
-                // user cancelled — fall through to copy
-            }
+            } catch { /* cancelled — fall through */ }
         }
 
-        // Fallback: copy link
         try {
-            await navigator.clipboard.writeText(`${window.location.origin}/feed?postId=${post.id}`);
-            setShareFeedback('Link copied');
-            setTimeout(() => setShareFeedback(null), 2000);
-            onShare(post.id, post.content);
+            await navigator.clipboard.writeText(url);
+            showFeedback('Link copied');
+            onShare(post.id);
         } catch {
-            setShareFeedback('Could not share');
-            setTimeout(() => setShareFeedback(null), 2000);
+            showFeedback('Could not share');
         }
-    };
+    }, [post.id, post.content, onShare, showFeedback]);
 
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -12 }}
-            transition={{ duration: 0.25 }}
-            className="bg-white dark:bg-zinc-950 md:rounded-2xl md:border md:border-slate-200/60 md:dark:border-zinc-800 md:hover:border-indigo-200 dark:md:hover:border-indigo-900 md:hover:shadow-sm transition-all duration-200 overflow-hidden border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-200/60"
-        >
-            <div className="p-4 md:p-5">
-                {/* Author Row */}
-                <div className="flex items-start gap-3 mb-3">
-                    <img
-                        src={post.author?.avatar_url || '/192.png'}
-                        alt={getAuthorDisplayName(post.author)}
-                        className="w-10 h-10 md:w-11 md:h-11 rounded-full object-cover border border-slate-200 dark:border-zinc-700 flex-shrink-0"
-                    />
-                    <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                            <h3 className="font-bold text-slate-900 dark:text-white text-sm truncate">
-                                {getAuthorDisplayName(post.author)}
-                            </h3>
-                            {post.author?.verification_status === 'verified' && (
-                                <CheckCircle2 className="w-4 h-4 text-indigo-500 dark:text-indigo-400 flex-shrink-0" />
-                            )}
-                        </div>
-                        <div className="flex items-center gap-2 mt-0.5 text-xs">
-                            <span className="text-indigo-600 dark:text-indigo-400 font-semibold truncate">
-                                {post.author?.qualification || 'Registered Nurse'}
-                            </span>
-                            <span className="text-slate-300 dark:text-zinc-700">·</span>
-                            <span className="text-slate-500 dark:text-slate-400 flex-shrink-0">
-                                {getRelativeTime(post.created_at)}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Content */}
-                <p className="text-[15px] text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap mb-4">
-                    {post.content}
-                </p>
-
-                {/* Actions */}
-                <div className="flex items-center gap-1 pt-3 border-t border-slate-100 dark:border-zinc-800/80">
-                    {/* Like */}
-                    <button
-                        onClick={() => onLike(post.id)}
-                        className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all duration-200 text-sm font-semibold active:scale-[97%] ${currentLikeState.isLiked
-                            ? 'text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20'
-                            : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-800'
-                            }`}
-                    >
-                        <Heart className={`w-4 h-4 ${currentLikeState.isLiked ? 'fill-current' : ''}`} />
-                        <span>{currentLikeState.count}</span>
-                    </button>
-
-                    {/* Share */}
-                    <div className="relative">
-                        <button
-                            onClick={handleShareTap}
-                            className="flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all duration-200 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-800 active:scale-[97%]"
-                        >
-                            <Share2 className="w-4 h-4" />
-                            <span>{post.share_count || 0}</span>
-                        </button>
-                        {shareFeedback && (
-                            <div className="absolute bottom-full left-0 mb-2 bg-slate-900 dark:bg-zinc-800 text-white text-xs rounded-lg px-3 py-1.5 whitespace-nowrap shadow-lg z-10">
-                                {shareFeedback}
-                            </div>
+        <article className="bg-white dark:bg-zinc-950 px-4 py-4 border-b border-slate-100 dark:border-zinc-900 md:last:border-0">
+            {/* Author */}
+            <div className="flex items-start gap-3 mb-3">
+                <img
+                    src={post.author?.avatar_url || '/192.png'}
+                    alt={getAuthorDisplayName(post.author)}
+                    loading="lazy"
+                    decoding="async"
+                    className="w-10 h-10 md:w-11 md:h-11 rounded-full object-cover bg-slate-100 dark:bg-zinc-900 flex-shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                        <h3 className="font-bold text-slate-900 dark:text-white text-sm truncate">
+                            {getAuthorDisplayName(post.author)}
+                        </h3>
+                        {post.author?.verification_status === 'verified' && (
+                            <CheckCircle2 className="w-4 h-4 text-indigo-500 dark:text-indigo-400 flex-shrink-0" />
                         )}
                     </div>
-
-                    {/* Endorse (hide on own post) */}
-                    {!isOwnPost && post.author && (
-                        <button
-                            onClick={() => onEndorse(post.author)}
-                            className="flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all duration-200 text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 active:scale-[97%] ml-auto"
-                        >
-                            <ThumbsUp className="w-4 h-4" />
-                            <span className="hidden sm:inline">Endorse</span>
-                            <span>{post.author.endorsement_count || 0}</span>
-                        </button>
-                    )}
+                    <div className="flex items-center gap-2 mt-0.5 text-xs">
+                        <span className="text-indigo-600 dark:text-indigo-400 font-semibold truncate">
+                            {post.author?.qualification || 'Registered Nurse'}
+                        </span>
+                        <span className="text-slate-300 dark:text-zinc-700">·</span>
+                        <span className="text-slate-500 dark:text-slate-400 flex-shrink-0">
+                            {getRelativeTime(post.created_at)}
+                        </span>
+                    </div>
                 </div>
             </div>
-        </motion.div>
+
+            {/* Content */}
+            <p className="text-[15px] text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap mb-3">
+                {post.content}
+            </p>
+
+            {/* Actions */}
+            <div className="flex items-center gap-1">
+                <button
+                    onClick={() => onLike(post.id)}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-full transition-colors text-sm font-semibold active:opacity-60 ${currentLikeState.isLiked
+                        ? 'text-rose-500 bg-rose-50 dark:bg-rose-950/20'
+                        : 'text-slate-500 dark:text-slate-400 active:bg-slate-100 dark:active:bg-zinc-900'
+                        }`}
+                    aria-label={currentLikeState.isLiked ? 'Unlike' : 'Like'}
+                >
+                    <Heart className={`w-4 h-4 ${currentLikeState.isLiked ? 'fill-current' : ''}`} />
+                    <span>{currentLikeState.count}</span>
+                </button>
+
+                <div className="relative">
+                    <button
+                        onClick={handleShareTap}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-full transition-colors text-sm font-semibold text-slate-500 dark:text-slate-400 active:bg-slate-100 dark:active:bg-zinc-900"
+                        aria-label="Share"
+                    >
+                        <Share2 className="w-4 h-4" />
+                        <span>{post.share_count || 0}</span>
+                    </button>
+                    {shareFeedback && (
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-slate-900 dark:bg-zinc-800 text-white text-xs rounded-full px-3 py-1.5 whitespace-nowrap z-10">
+                            {shareFeedback}
+                        </div>
+                    )}
+                </div>
+
+                {!isOwnPost && post.author && (
+                    <button
+                        onClick={() => onEndorse(post.author)}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-full transition-colors text-sm font-semibold text-indigo-600 dark:text-indigo-400 active:bg-indigo-50 dark:active:bg-indigo-950/30 ml-auto"
+                        aria-label="Endorse"
+                    >
+                        <ThumbsUp className="w-4 h-4" />
+                        <span className="hidden sm:inline">Endorse</span>
+                        <span>{post.author.endorsement_count || 0}</span>
+                    </button>
+                )}
+            </div>
+        </article>
     );
-};
+});
+
+PostCard.displayName = 'PostCard';
 
 // ==========================================================
-// POST COMPOSER MODAL
+// COMPOSER MODAL — flat, no drag, CSS animation
 // ==========================================================
 const PostComposerModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
     onSubmit: (content: string) => Promise<void>;
     submitting: boolean;
-}> = ({ isOpen, onClose, onSubmit, submitting }) => {
+}> = React.memo(({ isOpen, onClose, onSubmit, submitting }) => {
     const [content, setContent] = useState('');
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     useEffect(() => {
         if (isOpen && textareaRef.current) {
-            setTimeout(() => textareaRef.current?.focus(), 100);
+            const t = setTimeout(() => textareaRef.current?.focus(), 100);
+            return () => clearTimeout(t);
         }
     }, [isOpen]);
 
-    const handleSubmit = async () => {
-        if (!content.trim()) return;
-        await onSubmit(content);
+    const reset = useCallback(() => {
         setContent('');
         setSelectedCategory(null);
-        onClose();
-    };
+    }, []);
 
-    const handlePromptClick = (prompt: string) => {
+    const handleSubmit = useCallback(async () => {
+        if (!content.trim() || submitting) return;
+        await onSubmit(content);
+        reset();
+        onClose();
+    }, [content, submitting, onSubmit, reset, onClose]);
+
+    const handlePromptClick = useCallback((prompt: string) => {
         setContent(prev => (prev ? `${prev} ${prompt}` : prompt));
         textareaRef.current?.focus();
-    };
+    }, []);
 
-    const handleClose = () => {
-        setContent('');
-        setSelectedCategory(null);
+    const handleClose = useCallback(() => {
+        reset();
         onClose();
-    };
+    }, [reset, onClose]);
 
     if (!isOpen) return null;
 
+    const activeTemplate = selectedCategory
+        ? PROMPT_TEMPLATES.find(c => c.id === selectedCategory)
+        : null;
+
     return (
-        <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[9999] flex items-end md:items-center justify-center md:p-4 bg-black/60 backdrop-blur-sm"
+        <div
+            className="fixed inset-0 z-[9999] flex items-end md:items-center justify-center md:p-4 bg-black/60"
             onClick={handleClose}
         >
-            <motion.div
-                drag="y"
-                dragConstraints={{ top: 0, bottom: 0 }}
-                dragElastic={{ top: 0, bottom: 0.5 }}
-                onDragEnd={(_, info) => {
-                    if (info.offset.y > 120 || info.velocity.y > 500) handleClose();
-                }}
-                initial={{ y: '100%', opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                exit={{ y: '100%', opacity: 0 }}
-                transition={{ type: 'tween', duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
-                className="bg-white dark:bg-zinc-950 rounded-t-3xl md:rounded-2xl shadow-2xl w-full md:max-w-2xl max-h-[92vh] md:max-h-[90vh] overflow-hidden flex flex-col md:border md:border-slate-200/60 md:dark:border-zinc-800"
+            <div
+                className="bg-white dark:bg-zinc-950 rounded-t-3xl md:rounded-3xl w-full md:max-w-2xl max-h-[92vh] md:max-h-[90vh] overflow-hidden flex flex-col animate-in slide-in-from-bottom duration-200"
                 onClick={(e) => e.stopPropagation()}
             >
-                {/* Drag handle (mobile) */}
                 <div className="md:hidden flex justify-center pt-3 pb-1 flex-shrink-0">
                     <div className="w-12 h-1.5 bg-slate-300 dark:bg-zinc-700 rounded-full" />
                 </div>
 
                 {/* Header */}
-                <div className="flex items-center justify-between px-4 md:px-5 py-3 md:py-4 border-b border-slate-100 dark:border-zinc-800/80 flex-shrink-0">
+                <div className="flex items-center justify-between px-4 md:px-5 py-3 md:py-4 flex-shrink-0">
                     <div className="flex items-center gap-2">
                         <Sparkles className="w-5 h-5 text-indigo-500" />
                         <h2 className="text-base md:text-lg font-bold text-slate-900 dark:text-white">
@@ -401,7 +396,7 @@ const PostComposerModal: React.FC<{
                     </div>
                     <button
                         onClick={handleClose}
-                        className="p-2 rounded-lg text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-800 transition"
+                        className="p-2 rounded-full text-slate-400 dark:text-slate-500 active:bg-slate-100 dark:active:bg-zinc-900 transition"
                         aria-label="Close"
                     >
                         <X className="w-5 h-5" />
@@ -416,14 +411,13 @@ const PostComposerModal: React.FC<{
                         onChange={(e) => setContent(e.target.value)}
                         placeholder="What's on your mind today? Share your nursing journey, experiences, or encouragement..."
                         rows={5}
-                        className="w-full text-[15px] px-4 py-3 bg-slate-50 dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-700 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition resize-none"
+                        className="w-full text-[15px] px-4 py-3 bg-slate-100 dark:bg-zinc-900 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/40 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition resize-none"
                     />
 
                     <div className="text-right text-xs text-slate-400 dark:text-slate-500">
                         {content.length} characters
                     </div>
 
-                    {/* Prompt library */}
                     <div className="space-y-3">
                         <div className="flex items-center gap-2">
                             <Lightbulb className="w-4 h-4 text-amber-500" />
@@ -433,63 +427,57 @@ const PostComposerModal: React.FC<{
                         </div>
 
                         <div className="flex flex-wrap gap-2">
-                            {PROMPT_TEMPLATES.map(cat => (
-                                <button
-                                    key={cat.id}
-                                    onClick={() => setSelectedCategory(selectedCategory === cat.id ? null : cat.id)}
-                                    className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold transition ${selectedCategory === cat.id
-                                        ? 'bg-indigo-100 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300'
-                                        : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-zinc-700'
-                                        }`}
-                                >
-                                    <cat.icon className="w-3.5 h-3.5" />
-                                    {cat.title}
-                                </button>
-                            ))}
+                            {PROMPT_TEMPLATES.map(cat => {
+                                const selected = selectedCategory === cat.id;
+                                return (
+                                    <button
+                                        key={cat.id}
+                                        onClick={() => setSelectedCategory(selected ? null : cat.id)}
+                                        className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold transition-colors ${selected
+                                            ? 'bg-indigo-600 text-white'
+                                            : 'bg-slate-100 dark:bg-zinc-900 text-slate-600 dark:text-slate-400 active:bg-slate-200 dark:active:bg-zinc-800'
+                                            }`}
+                                    >
+                                        <cat.icon className="w-3.5 h-3.5" />
+                                        {cat.title}
+                                    </button>
+                                );
+                            })}
                         </div>
 
-                        <AnimatePresence mode="wait">
-                            {selectedCategory && (
-                                <motion.div
-                                    initial={{ opacity: 0, height: 0 }}
-                                    animate={{ opacity: 1, height: 'auto' }}
-                                    exit={{ opacity: 0, height: 0 }}
-                                    className="overflow-hidden"
-                                >
-                                    <div className="bg-slate-50 dark:bg-zinc-900 rounded-xl p-3 space-y-2">
-                                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                                            Tap any prompt to add to your post
-                                        </p>
-                                        <div className="flex flex-wrap gap-2">
-                                            {PROMPT_TEMPLATES.find(c => c.id === selectedCategory)?.prompts.map((prompt, idx) => (
-                                                <button
-                                                    key={idx}
-                                                    onClick={() => handlePromptClick(prompt)}
-                                                    className="text-left px-3 py-2 bg-white dark:bg-zinc-800 rounded-lg text-xs text-slate-700 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 hover:text-indigo-600 dark:hover:text-indigo-400 transition border border-slate-200 dark:border-zinc-700"
-                                                >
-                                                    {prompt}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
+                        {activeTemplate && (
+                            <div className="bg-slate-50 dark:bg-zinc-900 rounded-2xl p-3 space-y-2 animate-in fade-in duration-150">
+                                <p className="text-xs text-slate-500 dark:text-slate-400">
+                                    Tap any prompt to add to your post
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                    {activeTemplate.prompts.map((prompt, idx) => (
+                                        <button
+                                            key={idx}
+                                            onClick={() => handlePromptClick(prompt)}
+                                            className="text-left px-3 py-2 bg-white dark:bg-zinc-800 rounded-full text-xs text-slate-700 dark:text-slate-300 active:bg-indigo-50 dark:active:bg-indigo-950/30 transition"
+                                        >
+                                            {prompt}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
                 {/* Footer */}
-                <div className="flex items-center justify-end gap-3 px-4 md:px-5 py-3 md:py-4 border-t border-slate-100 dark:border-zinc-800/80 flex-shrink-0">
+                <div className="flex items-center justify-end gap-3 px-4 md:px-5 py-3 md:py-4 flex-shrink-0">
                     <button
                         onClick={handleClose}
-                        className="px-4 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-xl transition"
+                        className="px-4 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-400 active:bg-slate-100 dark:active:bg-zinc-900 rounded-full transition"
                     >
                         Cancel
                     </button>
                     <button
                         onClick={handleSubmit}
                         disabled={!content.trim() || submitting}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed active:scale-[98%] min-h-[44px]"
+                        className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 active:bg-indigo-700 text-white rounded-full text-sm font-semibold transition disabled:opacity-50 min-h-[44px]"
                     >
                         {submitting ? (
                             <>
@@ -504,13 +492,15 @@ const PostComposerModal: React.FC<{
                         )}
                     </button>
                 </div>
-            </motion.div>
-        </motion.div>
+            </div>
+        </div>
     );
-};
+});
+
+PostComposerModal.displayName = 'PostComposerModal';
 
 // ==========================================================
-// MAIN FEED COMPONENT
+// MAIN FEED
 // ==========================================================
 export default function NurseFeed() {
     const [posts, setPosts] = useState<NursePost[]>([]);
@@ -524,70 +514,54 @@ export default function NurseFeed() {
         profile: UserProfile | null;
     }>({ isOpen: false, profile: null });
 
-    // Track which post IDs have been view-recorded in this session
-    // so we don't double-record on re-renders.
     const recordedViewIds = useRef<Set<string>>(new Set());
+    const loadedForUserRef = useRef<string | null>(null);
 
-    const feedEndRef = useRef<HTMLDivElement>(null);
-
-    // ---------------------------------------------
-    // Auth
-    // ---------------------------------------------
+    // ---------- Auth ----------
     useEffect(() => {
-        const getCurrentUser = async () => {
+        let cancelled = false;
+        (async () => {
             const { data: { user } } = await supabase.auth.getUser();
-            setCurrentUserId(user?.id || null);
-        };
-        getCurrentUser();
+            if (!cancelled) setCurrentUserId(user?.id || null);
+        })();
+        return () => { cancelled = true; };
     }, []);
 
-    // ---------------------------------------------
-    // Record views — batch insert
-    // ---------------------------------------------
+    // ---------- Record views (batched) ----------
     const recordViews = useCallback(async (postIds: string[], userId: string) => {
-        // Filter out anything already recorded this session
         const newIds = postIds.filter(id => !recordedViewIds.current.has(id));
         if (newIds.length === 0) return;
-
-        // Mark as recorded immediately (prevents double-fire)
         newIds.forEach(id => recordedViewIds.current.add(id));
 
         try {
             await supabase.from('post_views').insert(
-                newIds.map(post_id => ({
-                    post_id,
-                    user_id: userId,
-                    view_type: 'shown'
-                }))
+                newIds.map(post_id => ({ post_id, user_id: userId, view_type: 'shown' }))
             );
         } catch (err) {
             console.warn('Failed to record views:', err);
-            // Don't roll back the recordedViewIds set — recording again would be worse
         }
     }, []);
 
-    // ---------------------------------------------
-    // Load feed — batch cache → RPC → posts
-    // ---------------------------------------------
+    // ---------- Load feed ----------
     const loadFeed = useCallback(async (userId: string) => {
         setLoading(true);
         try {
             let postIds: string[] = [];
 
-            // 1. Check for a fresh cached batch
+            // 1. Cached batch
             const { data: existingBatch } = await supabase
                 .from('feed_batches')
-                .select('post_ids, expires_at')
+                .select('post_ids')
                 .eq('user_id', userId)
                 .gt('expires_at', new Date().toISOString())
                 .order('expires_at', { ascending: false })
                 .limit(1)
                 .maybeSingle();
 
-            if (existingBatch?.post_ids && existingBatch.post_ids.length > 0) {
+            if (existingBatch?.post_ids?.length) {
                 postIds = existingBatch.post_ids;
             } else {
-                // 2. Generate a fresh batch via RPC
+                // 2. Fresh batch via RPC
                 const { data: fresh, error: rpcErr } = await supabase
                     .rpc('get_feed_batch', {
                         p_user_id: userId,
@@ -596,10 +570,8 @@ export default function NurseFeed() {
                     });
 
                 if (rpcErr) throw rpcErr;
-
                 postIds = (fresh || []).map((row: any) => row.post_id);
 
-                // 3. Persist the batch for 4 hours (fire-and-forget)
                 if (postIds.length > 0) {
                     supabase
                         .rpc('save_feed_batch', {
@@ -615,65 +587,75 @@ export default function NurseFeed() {
 
             if (postIds.length === 0) {
                 setPosts([]);
-                setLoading(false);
                 return;
             }
 
-            // 4. Fetch full post rows for those IDs
+            // 3. Fetch posts + author
             const { data: postsData, error: postsError } = await supabase
                 .from('nurse_posts')
                 .select(`
-          *,
-          author:profiles (
-            id,
-            full_name,
-            first_name,
-            last_name,
-            username,
-            avatar_url,
-            qualification,
-            verification_status
-          )
-        `)
+                    *,
+                    author:profiles (
+                        id, full_name, first_name, last_name, username,
+                        avatar_url, qualification, verification_status
+                    )
+                `)
                 .in('id', postIds);
 
             if (postsError) throw postsError;
 
-            // 5. Fetch likes + shares + endorsement counts for these posts only
-            const [{ data: likesData }, { data: sharesData }, { data: endorsementsData }] = await Promise.all([
+            // Extract unique author IDs from the loaded posts
+            const authorIds = Array.from(
+                new Set((postsData || []).map((p: any) => p.user_id).filter(Boolean))
+            );
+
+            // 4. Fetch likes / shares / endorsement counts — SCOPED to this batch
+            const [likesRes, sharesRes, endorsementsRes] = await Promise.all([
                 supabase.from('post_likes').select('post_id, user_id').in('post_id', postIds),
                 supabase.from('post_shares').select('post_id').in('post_id', postIds),
-                supabase.from('profile_endorsements').select('profile_id')
+                // ✅ FIXED: was selecting ALL endorsements in the DB.
+                // Now scoped to only the post authors in this batch.
+                authorIds.length > 0
+                    ? supabase
+                        .from('profile_endorsements')
+                        .select('profile_id')
+                        .in('profile_id', authorIds)
+                    : Promise.resolve({ data: [] as { profile_id: string }[] })
             ]);
 
             const likesMap = new Map<string, number>();
             const sharesMap = new Map<string, number>();
             const userLikesSet = new Set<string>();
 
-            likesData?.forEach(l => {
+            likesRes.data?.forEach(l => {
                 likesMap.set(l.post_id, (likesMap.get(l.post_id) || 0) + 1);
                 if (l.user_id === userId) userLikesSet.add(l.post_id);
             });
 
-            sharesData?.forEach(s => {
+            sharesRes.data?.forEach(s => {
                 sharesMap.set(s.post_id, (sharesMap.get(s.post_id) || 0) + 1);
             });
 
             const endorsementCountsMap = new Map<string, number>();
-            endorsementsData?.forEach(e => {
-                endorsementCountsMap.set(e.profile_id, (endorsementCountsMap.get(e.profile_id) || 0) + 1);
+            endorsementsRes.data?.forEach((e: any) => {
+                endorsementCountsMap.set(
+                    e.profile_id,
+                    (endorsementCountsMap.get(e.profile_id) || 0) + 1
+                );
             });
 
-            // 6. Preserve the batch order (important — batch is pre-shuffled)
-            const orderedPosts = postIds
-                .map(id => postsData?.find(p => p.id === id))
+            // 5. Preserve batch order
+            const orderedPosts: NursePost[] = postIds
+                .map(id => postsData?.find((p: any) => p.id === id))
                 .filter(Boolean)
                 .map((post: any) => ({
                     ...post,
-                    author: {
-                        ...post.author,
-                        endorsement_count: endorsementCountsMap.get(post.user_id) || 0
-                    },
+                    author: post.author
+                        ? {
+                            ...post.author,
+                            endorsement_count: endorsementCountsMap.get(post.user_id) || 0
+                        }
+                        : undefined,
                     like_count: likesMap.get(post.id) || 0,
                     share_count: sharesMap.get(post.id) || 0,
                     is_liked_by_user: userLikesSet.has(post.id)
@@ -681,14 +663,14 @@ export default function NurseFeed() {
 
             setPosts(orderedPosts);
 
-            // 7. Seed like state
-            const newLikeState: LikeState = {};
+            // 6. Seed like state
+            const nextLikeState: LikeState = {};
             orderedPosts.forEach(p => {
-                newLikeState[p.id] = { count: p.like_count, isLiked: p.is_liked_by_user };
+                nextLikeState[p.id] = { count: p.like_count, isLiked: p.is_liked_by_user };
             });
-            setLikeState(newLikeState);
+            setLikeState(nextLikeState);
 
-            // 8. Record views (fire and forget)
+            // 7. Record views
             recordViews(postIds, userId);
         } catch (err) {
             console.error('Error loading feed:', err);
@@ -699,18 +681,20 @@ export default function NurseFeed() {
     }, [recordViews]);
 
     useEffect(() => {
-        if (currentUserId) loadFeed(currentUserId);
+        if (!currentUserId) return;
+        if (loadedForUserRef.current === currentUserId) return;
+        loadedForUserRef.current = currentUserId;
+        loadFeed(currentUserId);
     }, [currentUserId, loadFeed]);
 
-    // ---------------------------------------------
-    // Create post
-    // ---------------------------------------------
-    const handleCreatePost = async (content: string) => {
+    // ---------- Create post ----------
+    const handleCreatePost = useCallback(async (content: string) => {
         if (!currentUserId || !content.trim()) return;
         setSubmitting(true);
 
-        // Optimistic insert
         const tempId = `temp-${Date.now()}`;
+
+        // Fetch only what we need for the optimistic card
         const { data: myProfile } = await supabase
             .from('profiles')
             .select('full_name, first_name, last_name, username, avatar_url, qualification, verification_status')
@@ -749,9 +733,12 @@ export default function NurseFeed() {
             if (error) throw error;
 
             setPosts(prev =>
-                prev.map(p => (p.id === tempId ? { ...tempPost, id: data.id, created_at: data.created_at } : p))
+                prev.map(p =>
+                    p.id === tempId
+                        ? { ...tempPost, id: data.id, created_at: data.created_at }
+                        : p
+                )
             );
-
             window.scrollTo({ top: 0, behavior: 'smooth' });
         } catch (err) {
             console.error('Error creating post:', err);
@@ -760,18 +747,15 @@ export default function NurseFeed() {
         } finally {
             setSubmitting(false);
         }
-    };
+    }, [currentUserId]);
 
-    // ---------------------------------------------
-    // Like / Unlike
-    // ---------------------------------------------
-    const handleLike = async (postId: string) => {
+    // ---------- Like ----------
+    const handleLike = useCallback(async (postId: string) => {
         if (!currentUserId) return;
         const current = likeState[postId];
         const newIsLiked = !current?.isLiked;
         const newCount = Math.max(0, (current?.count || 0) + (newIsLiked ? 1 : -1));
 
-        // Optimistic update
         setLikeState(prev => ({
             ...prev,
             [postId]: { count: newCount, isLiked: newIsLiked }
@@ -800,7 +784,6 @@ export default function NurseFeed() {
             }
         } catch (err) {
             console.error('Like toggle failed:', err);
-            // Roll back
             setLikeState(prev => ({
                 ...prev,
                 [postId]: current || { count: 0, isLiked: false }
@@ -808,39 +791,40 @@ export default function NurseFeed() {
             setPosts(prev =>
                 prev.map(p =>
                     p.id === postId
-                        ? { ...p, like_count: current?.count || 0, is_liked_by_user: current?.isLiked || false }
+                        ? {
+                            ...p,
+                            like_count: current?.count || 0,
+                            is_liked_by_user: current?.isLiked || false
+                        }
                         : p
                 )
             );
         }
-    };
+    }, [currentUserId, likeState]);
 
-    // ---------------------------------------------
-    // Share
-    // ---------------------------------------------
-    const handleShare = async (postId: string, _content: string) => {
+    // ---------- Share ----------
+    const handleShare = useCallback(async (postId: string) => {
         if (!currentUserId) return;
+        // Optimistic
+        setPosts(prev =>
+            prev.map(p =>
+                p.id === postId ? { ...p, share_count: (p.share_count || 0) + 1 } : p
+            )
+        );
         try {
             await supabase.from('post_shares').insert({
                 post_id: postId,
                 user_id: currentUserId,
                 platform: navigator.share ? 'native' : 'copy'
             });
-            setPosts(prev =>
-                prev.map(p =>
-                    p.id === postId ? { ...p, share_count: (p.share_count || 0) + 1 } : p
-                )
-            );
         } catch (err) {
             console.warn('Share tracking failed:', err);
         }
-    };
+    }, [currentUserId]);
 
-    // ---------------------------------------------
-    // Endorse
-    // ---------------------------------------------
-    const handleEndorse = (author: NursePost['author']) => {
-        if (!author) return;
+    // ---------- Endorse ----------
+    const handleEndorse = useCallback((author: NursePost['author']) => {
+        if (!author || !currentUserId) return;
         const profile: UserProfile = {
             id: author.id,
             first_name: author.first_name,
@@ -858,40 +842,50 @@ export default function NurseFeed() {
             nursing_level: null
         };
         setEndorsementModal({ isOpen: true, profile });
-    };
+    }, [currentUserId]);
 
-    // ---------------------------------------------
-    // Pull-to-refresh — clears batch and regenerates
-    // ---------------------------------------------
-    const handleRefresh = async () => {
+    // ---------- Refresh ----------
+    const handleRefresh = useCallback(async () => {
         if (!currentUserId) return;
-        // Clear the current batch so a fresh one is generated
         await supabase.from('feed_batches').delete().eq('user_id', currentUserId);
         recordedViewIds.current.clear();
         loadFeed(currentUserId);
-    };
+    }, [currentUserId, loadFeed]);
 
-    // ---------------------------------------------
-    // Render
-    // ---------------------------------------------
+    // Memoized endorsement display name
+    const endorsementDisplayName = useMemo(() => {
+        if (!endorsementModal.profile) return '';
+        return getAuthorDisplayName({
+            id: endorsementModal.profile.id,
+            first_name: endorsementModal.profile.first_name || '',
+            last_name: endorsementModal.profile.last_name || '',
+            full_name: endorsementModal.profile.full_name,
+            username: endorsementModal.profile.username || '',
+            avatar_url: endorsementModal.profile.avatar_url,
+            qualification: endorsementModal.profile.qualification,
+            verification_status: endorsementModal.profile.verification_status
+        });
+    }, [endorsementModal.profile]);
+
+    // ---------- Render ----------
     return (
-        <div className="min-h-screen bg-white dark:bg-zinc-950">
-            <div className="max-w-2xl mx-auto px-0 md:px-4 py-4 md:py-8">
-                {/* Header */}
-                <div className="mb-4 md:mb-6 px-4 md:px-0">
-                    <h1 className="text-2xl md:text-3xl text-center font-display font-extrabold text-slate-900 dark:text-white tracking-tight">
+        <div className="min-h-screen bg-slate-50 dark:bg-zinc-950">
+            <div className="max-w-2xl mx-auto md:px-4 md:py-8">
+                {/* Header — hidden on mobile for native feel */}
+                <div className="hidden md:block mb-6">
+                    <h1 className="text-3xl font-display font-extrabold text-slate-900 dark:text-white tracking-tight">
                         Nurse Daily Pulse
                     </h1>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 text-center mt-1">
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                         A personalized feed of what nurses are sharing today
                     </p>
                 </div>
 
-                {/* Composer Trigger */}
-                <div className="bg-white dark:bg-zinc-950 md:rounded-2xl md:border md:border-slate-200/60 md:dark:border-zinc-800 p-3 md:p-4 mb-0 md:mb-6 md:shadow-sm border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-200/60">
+                {/* Composer trigger — flat, edge-to-edge on mobile */}
+                <div className="bg-white dark:bg-zinc-950 p-3 border-b border-slate-100 dark:border-zinc-900 md:border-0 md:mb-6">
                     <button
                         onClick={() => setIsComposerOpen(true)}
-                        className="w-full flex items-center gap-3 px-4 py-3 bg-slate-50 dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-700 text-left text-slate-500 dark:text-slate-400 text-sm hover:bg-slate-100 dark:hover:bg-zinc-800 transition active:scale-[99%]"
+                        className="w-full flex items-center gap-3 px-4 py-3 bg-slate-100 dark:bg-zinc-900 rounded-full text-left text-slate-500 dark:text-slate-400 text-sm active:bg-slate-200 dark:active:bg-zinc-800 transition"
                     >
                         <Sparkles className="w-4 h-4 text-indigo-500" />
                         <span>Share your nursing journey today...</span>
@@ -900,48 +894,41 @@ export default function NurseFeed() {
 
                 {/* Feed */}
                 {loading ? (
-                    <div className="space-y-0 md:space-y-4">
+                    <div>
                         {[1, 2, 3].map(i => <PostSkeleton key={i} />)}
                     </div>
                 ) : posts.length === 0 ? (
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="text-center py-12 md:py-16 mx-3 md:mx-0 bg-white dark:bg-zinc-950 md:rounded-2xl md:border md:border-slate-200/60 md:dark:border-zinc-800"
-                    >
-                        <div className="w-16 h-16 md:w-20 md:h-20 mx-auto bg-indigo-50 dark:bg-indigo-950/30 rounded-full flex items-center justify-center mb-4">
-                            <MessageCircle className="w-8 h-8 md:w-10 md:h-10 text-indigo-500 dark:text-indigo-400" />
+                    <div className="text-center py-16 px-6">
+                        <div className="w-16 h-16 mx-auto bg-indigo-50 dark:bg-indigo-950/30 rounded-full flex items-center justify-center mb-4">
+                            <MessageCircle className="w-8 h-8 text-indigo-500 dark:text-indigo-400" />
                         </div>
                         <h3 className="font-display font-bold text-slate-800 dark:text-slate-200 text-lg">
                             You're all caught up
                         </h3>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 max-w-sm mx-auto px-4">
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 max-w-sm mx-auto">
                             You've seen everything fresh for now. Share something to start the next wave, or check back later.
                         </p>
                         <button
                             onClick={handleRefresh}
-                            className="mt-5 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition active:scale-[98%]"
+                            className="mt-5 px-5 py-2.5 rounded-full bg-indigo-600 active:bg-indigo-700 text-white text-sm font-semibold transition"
                         >
                             Refresh Feed
                         </button>
-                    </motion.div>
+                    </div>
                 ) : (
-                    <AnimatePresence>
-                        <div className="space-y-0 md:space-y-4">
-                            {posts.map(post => (
-                                <PostCard
-                                    key={post.id}
-                                    post={post}
-                                    currentUserId={currentUserId || ''}
-                                    likeState={likeState}
-                                    onLike={handleLike}
-                                    onShare={handleShare}
-                                    onEndorse={handleEndorse}
-                                />
-                            ))}
-                            <div ref={feedEndRef} />
-                        </div>
-                    </AnimatePresence>
+                    <div>
+                        {posts.map(post => (
+                            <PostCard
+                                key={post.id}
+                                post={post}
+                                currentUserId={currentUserId || ''}
+                                likeState={likeState}
+                                onLike={handleLike}
+                                onShare={handleShare}
+                                onEndorse={handleEndorse}
+                            />
+                        ))}
+                    </div>
                 )}
             </div>
 
@@ -954,29 +941,18 @@ export default function NurseFeed() {
             />
 
             {/* Endorsement Manager */}
-            <AnimatePresence>
-                {endorsementModal.isOpen && endorsementModal.profile && currentUserId && (
-                    <EndorsementManager
-                        isOpen={endorsementModal.isOpen}
-                        onClose={() => setEndorsementModal({ isOpen: false, profile: null })}
-                        profileId={endorsementModal.profile.id}
-                        profileName={getAuthorDisplayName({
-                            id: endorsementModal.profile.id,
-                            first_name: endorsementModal.profile.first_name || '',
-                            last_name: endorsementModal.profile.last_name || '',
-                            full_name: endorsementModal.profile.full_name,
-                            username: endorsementModal.profile.username || '',
-                            avatar_url: endorsementModal.profile.avatar_url,
-                            qualification: endorsementModal.profile.qualification,
-                            verification_status: endorsementModal.profile.verification_status
-                        })}
-                        currentUserId={currentUserId}
-                        onEndorsementChange={() => {
-                            if (currentUserId) loadFeed(currentUserId);
-                        }}
-                    />
-                )}
-            </AnimatePresence>
+            {endorsementModal.isOpen && endorsementModal.profile && currentUserId && (
+                <EndorsementManager
+                    isOpen={endorsementModal.isOpen}
+                    onClose={() => setEndorsementModal({ isOpen: false, profile: null })}
+                    profileId={endorsementModal.profile.id}
+                    profileName={endorsementDisplayName}
+                    currentUserId={currentUserId}
+                    onEndorsementChange={() => {
+                        if (currentUserId) loadFeed(currentUserId);
+                    }}
+                />
+            )}
         </div>
     );
 }

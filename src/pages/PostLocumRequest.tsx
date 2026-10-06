@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { locumService, LocumUrgency } from '../services/locumService';
@@ -18,21 +18,21 @@ import {
 const URGENCY_META: Record<LocumUrgency, { label: string; classes: string; dot: string; hint: string }> = {
     urgent: {
         label: 'Urgent',
-        classes: 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border-rose-300 dark:border-rose-800',
+        classes: 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400',
         dot: 'bg-rose-500 animate-pulse',
-        hint: 'Needed within 24 hours'
+        hint: 'Within 24 hours'
     },
     soon: {
         label: 'Soon',
-        classes: 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-800',
+        classes: 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400',
         dot: 'bg-amber-500',
-        hint: 'Needed within 1–3 days'
+        hint: 'Within 1–3 days'
     },
     planned: {
         label: 'Planned',
-        classes: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800',
+        classes: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400',
         dot: 'bg-emerald-500',
-        hint: 'Scheduled in advance'
+        hint: 'Scheduled ahead'
     }
 };
 
@@ -41,6 +41,36 @@ const SPECIALTIES = [
     'Neurology', 'Maternity', 'Surgical', 'Psychiatric', 'Community Health',
     'Theatre', 'Renal', 'Orthopedics', 'Geriatrics', 'General Ward'
 ];
+
+// ==========================================
+// FIELD WRAPPER
+// ==========================================
+const Field = React.memo<{
+    label: string;
+    required?: boolean;
+    optional?: boolean;
+    hint?: string;
+    icon?: any;
+    children: React.ReactNode;
+}>(({ label, required, optional, hint, icon: Icon, children }) => (
+    <div>
+        <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600 dark:text-slate-400 mb-1.5">
+            {Icon && <Icon className="w-3.5 h-3.5" />}
+            <span>{label}</span>
+            {required && <span className="text-rose-500">*</span>}
+            {optional && <span className="text-slate-400 dark:text-slate-500 font-normal">(optional)</span>}
+        </label>
+        {children}
+        {hint && (
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1.5">{hint}</p>
+        )}
+    </div>
+));
+Field.displayName = 'Field';
+
+// Shared input classes
+const inputClass =
+    'w-full text-sm px-4 py-3 bg-slate-100 dark:bg-zinc-900 rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-500/40 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition';
 
 // ==========================================
 // MAIN PAGE
@@ -69,10 +99,15 @@ export default function PostLocumRequest() {
     const [error, setError] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
-    // Prefill phone from profile
+    // ----------------------------------------------------------
+    // Prefill from profile
+    // ----------------------------------------------------------
     useEffect(() => {
-        const getUser = async () => {
+        let cancelled = false;
+
+        (async () => {
             const { data: { user } } = await supabase.auth.getUser();
+            if (cancelled) return;
             if (!user) {
                 navigate('/login');
                 return;
@@ -85,22 +120,31 @@ export default function PostLocumRequest() {
                 .eq('id', user.id)
                 .single();
 
+            if (cancelled) return;
             if (profile?.phone_number) setContactPhone(profile.phone_number);
-            if (profile?.location && !facilityLocation) setFacilityLocation(profile.location);
-
+            if (profile?.location) setFacilityLocation(profile.location);
             setLoadingUser(false);
-        };
-        getUser();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+        })();
 
-    const handleSubmit = async (e: React.FormEvent) => {
+        return () => { cancelled = true; };
+    }, [navigate]);
+
+    // ----------------------------------------------------------
+    // Submit
+    // ----------------------------------------------------------
+    const handleSubmit = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
 
         if (!currentUserId) { setError('You must be signed in'); return; }
         if (!facilityLocation.trim()) { setError('Please enter the facility location'); return; }
         if (!shiftDate) { setError('Please pick a shift date'); return; }
+
+        // Sanity check: end time after start time
+        if (shiftStart && shiftEnd && shiftEnd <= shiftStart) {
+            setError('End time must be after start time');
+            return;
+        }
 
         setSubmitting(true);
         try {
@@ -114,46 +158,75 @@ export default function PostLocumRequest() {
                 shift_end: shiftEnd || null,
                 urgency,
                 notes: notes.trim() || null,
-                contact_phone: contactPhone.trim() || null
+                contact_phone: contactPhone.trim() || null,
             });
-            // Navigate back to /locum with a success indicator
             navigate('/locum?posted=1');
         } catch (err: any) {
             console.error('Post request failed:', err);
             setError(err?.message || 'Failed to post request. Please try again.');
             setSubmitting(false);
         }
-    };
+    }, [
+        currentUserId, facilityName, facilityLocation, specialty, shiftDate,
+        shiftStart, shiftEnd, urgency, notes, contactPhone, navigate
+    ]);
 
-    const handleCancel = () => {
+    const handleCancel = useCallback(() => {
         if (submitting) return;
         navigate('/locum');
-    };
+    }, [submitting, navigate]);
 
+    // ----------------------------------------------------------
+    // Derived — controls the disabled state of the submit button
+    // ----------------------------------------------------------
+    const canSubmit = useMemo(() => {
+        return (
+            facilityLocation.trim().length > 0 &&
+            shiftDate.length > 0 &&
+            !submitting
+        );
+    }, [facilityLocation, shiftDate, submitting]);
+
+    // ----------------------------------------------------------
+    // Loading
+    // ----------------------------------------------------------
     if (loadingUser) {
         return (
-            <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 flex items-center justify-center">
-                <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-full min-h-screen bg-slate-50 dark:bg-zinc-950">
+                <div className="max-w-2xl mx-auto px-4 md:px-6 py-6">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="w-9 h-9 rounded-full bg-slate-200 dark:bg-zinc-800 animate-pulse" />
+                        <div className="h-6 bg-slate-200 dark:bg-zinc-800 rounded w-48 animate-pulse" />
+                    </div>
+                    <div className="space-y-4">
+                        {[1, 2, 3, 4].map(i => (
+                            <div key={i} className="h-20 bg-slate-100 dark:bg-zinc-900 rounded-2xl animate-pulse" />
+                        ))}
+                    </div>
+                </div>
             </div>
         );
     }
 
+    // ----------------------------------------------------------
+    // Render
+    // ----------------------------------------------------------
     return (
-        <div className="w-full min-h-screen bg-slate-50 dark:bg-zinc-950 pb-24">
-            <div className="max-w-2xl mx-auto px-3 md:px-6 py-4 md:py-8">
+        <div className="w-full min-h-screen bg-slate-50 dark:bg-zinc-950 pb-32">
+            <div className="max-w-2xl mx-auto md:px-6 md:py-8">
 
-                {/* Back header */}
-                <div className="flex items-center gap-3 mb-5 md:mb-8">
+                {/* Header */}
+                <div className="flex items-center gap-3 px-4 md:px-0 py-4 md:py-0 md:mb-8 border-b border-slate-100 dark:border-zinc-900 md:border-0">
                     <button
                         onClick={handleCancel}
                         disabled={submitting}
-                        className="p-2 -ml-2 rounded-full text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition active:scale-95 disabled:opacity-50"
+                        className="p-2 -ml-2 rounded-full text-slate-600 dark:text-slate-400 active:bg-slate-100 dark:active:bg-zinc-900 transition disabled:opacity-50"
                         aria-label="Back"
                     >
                         <ArrowLeft className="w-5 h-5" />
                     </button>
                     <div className="min-w-0">
-                        <h1 className="text-xl md:text-2xl font-display font-extrabold tracking-tight text-slate-900 dark:text-white">
+                        <h1 className="text-lg md:text-2xl font-display font-extrabold tracking-tight text-slate-900 dark:text-white">
                             Post a Shift Cover Request
                         </h1>
                         <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
@@ -162,39 +235,29 @@ export default function PostLocumRequest() {
                     </div>
                 </div>
 
-                {/* Motivation banner */}
-                <div className="bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-amber-950/40 dark:via-orange-950/30 dark:to-rose-950/20 border border-amber-100 dark:border-amber-900/50 rounded-2xl p-4 mb-5">
-                    <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-900 border border-amber-100 dark:border-amber-900 flex items-center justify-center flex-shrink-0">
-                            <Briefcase className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-slate-900 dark:text-white">
-                                Fill every field for the best match
-                            </p>
-                            <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
-                                Nurses see your request based on <strong>location</strong> and <strong>specialty</strong>. Urgent shifts reach more people faster.
-                            </p>
-                        </div>
-                    </div>
-                </div>
+                <form onSubmit={handleSubmit} className="px-4 md:px-0 pt-4 md:pt-0 space-y-6">
 
-                {/* Form */}
-                <form onSubmit={handleSubmit} className="space-y-5">
-
+                    {/* Error banner */}
                     {error && (
-                        <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-400 p-3.5 rounded-xl text-sm font-semibold flex items-start gap-2">
+                        <div className="bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 p-3.5 rounded-2xl text-sm font-semibold flex items-start gap-2 animate-in fade-in duration-150">
                             <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                             <span>{error}</span>
                         </div>
                     )}
 
-                    {/* URGENCY */}
-                    <div className="bg-white dark:bg-zinc-950 rounded-2xl border border-slate-200/60 dark:border-zinc-800 p-4 md:p-5">
-                        <label className="block text-sm font-bold text-slate-800 dark:text-slate-200 mb-3">
-                            How urgent is this shift?
-                        </label>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    {/* ============================================
+                        URGENCY — the first question, biggest decision
+                        ============================================ */}
+                    <section>
+                        <div className="mb-3">
+                            <h2 className="text-sm font-bold text-slate-900 dark:text-white">
+                                How urgent is this shift?
+                            </h2>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                Urgent requests reach more nurses faster
+                            </p>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
                             {(['urgent', 'soon', 'planned'] as LocumUrgency[]).map(u => {
                                 const meta = URGENCY_META[u];
                                 const isActive = urgency === u;
@@ -203,194 +266,193 @@ export default function PostLocumRequest() {
                                         key={u}
                                         type="button"
                                         onClick={() => setUrgency(u)}
-                                        className={`p-3.5 rounded-xl text-left border-2 transition active:scale-[98%] ${isActive
-                                            ? meta.classes + ' border-current'
-                                            : 'bg-white dark:bg-zinc-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-zinc-700 hover:border-slate-300 dark:hover:border-zinc-600'
+                                        className={`p-3 rounded-2xl text-left transition active:opacity-70 ${isActive
+                                            ? meta.classes + ' ring-2 ring-current/30'
+                                            : 'bg-slate-100 dark:bg-zinc-900 text-slate-600 dark:text-slate-400'
                                             }`}
+                                        aria-pressed={isActive}
                                     >
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <span className={`w-2 h-2 rounded-full ${meta.dot}`} />
+                                        <div className="flex items-center gap-1.5 mb-1">
+                                            <span className={`w-1.5 h-1.5 rounded-full ${meta.dot}`} />
                                             <span className="text-sm font-bold">{meta.label}</span>
                                         </div>
-                                        <p className="text-xs opacity-80">{meta.hint}</p>
+                                        <p className="text-[10px] opacity-80 leading-tight">{meta.hint}</p>
                                     </button>
                                 );
                             })}
                         </div>
-                    </div>
+                    </section>
 
-                    {/* FACILITY */}
-                    <div className="bg-white dark:bg-zinc-950 rounded-2xl border border-slate-200/60 dark:border-zinc-800 p-4 md:p-5 space-y-4">
-                        <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                    {/* ============================================
+                        FACILITY
+                        ============================================ */}
+                    <section className="space-y-4">
+                        <div className="flex items-center gap-2">
                             <Building className="w-4 h-4 text-amber-500" />
-                            Facility Details
-                        </h3>
+                            <h2 className="text-sm font-bold text-slate-900 dark:text-white">
+                                Facility details
+                            </h2>
+                        </div>
 
-                        <div>
-                            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1.5">
-                                Facility name <span className="text-slate-400 font-normal">(optional)</span>
-                            </label>
+                        <Field label="Facility name" optional icon={Building}>
                             <input
                                 type="text"
                                 value={facilityName}
                                 onChange={(e) => setFacilityName(e.target.value)}
                                 placeholder="e.g., Kenyatta National Hospital"
-                                className="w-full text-sm px-3.5 py-3 bg-slate-50 dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-700 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition"
+                                autoComplete="organization"
+                                className={inputClass}
                             />
-                        </div>
+                        </Field>
 
-                        <div>
-                            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1.5 flex items-center gap-1.5">
-                                <MapPin className="w-3.5 h-3.5" />
-                                Location <span className="text-rose-500">*</span>
-                            </label>
+                        <Field
+                            label="Location"
+                            required
+                            icon={MapPin}
+                            hint="Used to match you with nurses nearby"
+                        >
                             <input
                                 type="text"
                                 required
                                 value={facilityLocation}
                                 onChange={(e) => setFacilityLocation(e.target.value)}
                                 placeholder="e.g., Nairobi, Westlands"
-                                className="w-full text-sm px-3.5 py-3 bg-slate-50 dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-700 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition"
+                                autoComplete="address-level2"
+                                className={inputClass}
                             />
-                            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1.5">
-                                Used to match you with nurses nearby
-                            </p>
-                        </div>
+                        </Field>
 
-                        <div>
-                            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1.5">
-                                Specialty needed <span className="text-slate-400 font-normal">(optional)</span>
-                            </label>
+                        <Field label="Specialty needed" optional>
                             <select
                                 value={specialty}
                                 onChange={(e) => setSpecialty(e.target.value)}
-                                className="w-full text-sm px-3.5 py-3 bg-slate-50 dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-700 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20 text-slate-800 dark:text-slate-200 transition"
+                                className={inputClass}
                             >
                                 <option value="">Any specialty</option>
                                 {SPECIALTIES.map(s => <option key={s} value={s}>{s}</option>)}
                             </select>
-                        </div>
-                    </div>
+                        </Field>
+                    </section>
 
-                    {/* WHEN */}
-                    <div className="bg-white dark:bg-zinc-950 rounded-2xl border border-slate-200/60 dark:border-zinc-800 p-4 md:p-5 space-y-4">
-                        <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                    {/* ============================================
+                        WHEN
+                        ============================================ */}
+                    <section className="space-y-4">
+                        <div className="flex items-center gap-2">
                             <Calendar className="w-4 h-4 text-amber-500" />
-                            When is the shift?
-                        </h3>
+                            <h2 className="text-sm font-bold text-slate-900 dark:text-white">
+                                When is the shift?
+                            </h2>
+                        </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            <div className="sm:col-span-3 md:col-span-1">
-                                <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1.5">
-                                    Date <span className="text-rose-500">*</span>
-                                </label>
-                                <input
-                                    type="date"
-                                    required
-                                    value={shiftDate}
-                                    onChange={(e) => setShiftDate(e.target.value)}
-                                    className="w-full text-sm px-3.5 py-3 bg-slate-50 dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-700 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20 text-slate-800 dark:text-slate-200 transition"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1.5 flex items-center gap-1.5">
-                                    <Clock className="w-3.5 h-3.5" />
-                                    Start time
-                                </label>
+                        <Field label="Date" required icon={Calendar}>
+                            <input
+                                type="date"
+                                required
+                                value={shiftDate}
+                                onChange={(e) => setShiftDate(e.target.value)}
+                                min={new Date().toISOString().split('T')[0]}
+                                className={inputClass}
+                            />
+                        </Field>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <Field label="Start time" icon={Clock}>
                                 <input
                                     type="time"
                                     value={shiftStart}
                                     onChange={(e) => setShiftStart(e.target.value)}
-                                    className="w-full text-sm px-3.5 py-3 bg-slate-50 dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-700 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20 text-slate-800 dark:text-slate-200 transition"
+                                    className={inputClass}
                                 />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1.5 flex items-center gap-1.5">
-                                    <Clock className="w-3.5 h-3.5" />
-                                    End time
-                                </label>
+                            </Field>
+                            <Field label="End time" icon={Clock}>
                                 <input
                                     type="time"
                                     value={shiftEnd}
                                     onChange={(e) => setShiftEnd(e.target.value)}
-                                    className="w-full text-sm px-3.5 py-3 bg-slate-50 dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-700 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20 text-slate-800 dark:text-slate-200 transition"
+                                    className={inputClass}
                                 />
-                            </div>
+                            </Field>
                         </div>
-                    </div>
+                    </section>
 
-                    {/* DETAILS */}
-                    <div className="bg-white dark:bg-zinc-950 rounded-2xl border border-slate-200/60 dark:border-zinc-800 p-4 md:p-5 space-y-4">
-                        <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                    {/* ============================================
+                        DETAILS & CONTACT
+                        ============================================ */}
+                    <section className="space-y-4">
+                        <div className="flex items-center gap-2">
                             <MessageSquare className="w-4 h-4 text-amber-500" />
-                            Details & Contact
-                        </h3>
+                            <h2 className="text-sm font-bold text-slate-900 dark:text-white">
+                                Details & contact
+                            </h2>
+                        </div>
 
-                        <div>
-                            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1.5">
-                                Notes <span className="text-slate-400 font-normal">(optional)</span>
-                            </label>
+                        <Field label="Notes" optional>
                             <textarea
                                 value={notes}
                                 onChange={(e) => setNotes(e.target.value)}
                                 placeholder="Ward details, patient load, requirements, dress code..."
                                 rows={4}
-                                className="w-full text-sm px-3.5 py-3 bg-slate-50 dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-700 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 resize-none transition"
+                                className={`${inputClass} resize-none`}
                             />
-                        </div>
+                        </Field>
 
-                        <div>
-                            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1.5 flex items-center gap-1.5">
-                                <Phone className="w-3.5 h-3.5" />
-                                Contact phone
-                            </label>
+                        <Field
+                            label="Contact phone"
+                            optional
+                            icon={Phone}
+                            hint="Shared only with the nurse you accept"
+                        >
                             <input
                                 type="tel"
                                 value={contactPhone}
                                 onChange={(e) => setContactPhone(e.target.value)}
                                 placeholder="+254 7XX XXX XXX"
-                                className="w-full text-sm px-3.5 py-3 bg-slate-50 dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-700 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition"
+                                autoComplete="tel"
+                                inputMode="tel"
+                                className={inputClass}
                             />
-                            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1.5">
-                                Shared only with the nurse you accept
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* STICKY ACTION BAR */}
-                    <div className="sticky bottom-16 md:bottom-0 -mx-3 md:mx-0 px-3 md:px-0 pt-3 pb-2 md:pb-4 bg-slate-50/90 dark:bg-zinc-950/90 backdrop-blur-md md:bg-transparent md:dark:bg-transparent md:backdrop-blur-none">
-                        <div className="bg-white dark:bg-zinc-950 md:bg-transparent md:dark:bg-transparent rounded-2xl md:rounded-none border border-slate-200/60 dark:border-zinc-800 md:border-0 p-3 md:p-0 shadow-lg md:shadow-none">
-                            <div className="flex gap-3">
-                                <button
-                                    type="button"
-                                    onClick={handleCancel}
-                                    disabled={submitting}
-                                    className="flex-1 py-3.5 rounded-xl border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-slate-400 text-sm font-bold hover:bg-slate-100 dark:hover:bg-zinc-800 transition active:scale-[98%] min-h-[48px] disabled:opacity-50"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={submitting || !facilityLocation.trim() || !shiftDate}
-                                    className="flex-[2] py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-sm font-bold transition shadow-lg shadow-amber-500/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 active:scale-[98%] min-h-[48px]"
-                                >
-                                    {submitting ? (
-                                        <>
-                                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                            Posting...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Send className="w-4 h-4" />
-                                            Post Request
-                                        </>
-                                    )}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                        </Field>
+                    </section>
 
                 </form>
+            </div>
+
+            {/* ============================================
+                STICKY ACTION BAR
+                ============================================ */}
+            <div className="fixed bottom-0 left-0 right-0 z-30 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md border-t border-slate-100 dark:border-zinc-900 md:border-0 md:bg-transparent md:dark:bg-transparent md:backdrop-blur-none">
+                <div className="max-w-2xl mx-auto px-4 md:px-6 py-3 md:py-4">
+                    <div className="flex gap-3">
+                        <button
+                            type="button"
+                            onClick={handleCancel}
+                            disabled={submitting}
+                            className="flex-1 py-3.5 rounded-2xl bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-slate-300 text-sm font-bold active:opacity-70 transition min-h-[48px] disabled:opacity-50"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            form=""
+                            onClick={handleSubmit}
+                            disabled={!canSubmit}
+                            className="flex-[2] py-3.5 rounded-2xl bg-amber-500 active:bg-amber-600 text-white text-sm font-bold transition disabled:opacity-50 flex items-center justify-center gap-2 min-h-[48px]"
+                        >
+                            {submitting ? (
+                                <>
+                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    Posting...
+                                </>
+                            ) : (
+                                <>
+                                    <Send className="w-4 h-4" />
+                                    Post Request
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     );

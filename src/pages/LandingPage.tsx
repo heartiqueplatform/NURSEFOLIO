@@ -3,398 +3,638 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'motion/react';
 import {
-  Activity, Search, ShieldCheck, FileText,
-  Palette, Smartphone, ArrowRight, HeartHandshake,
-  Sun, Moon, MapPin, Briefcase, ChevronRight,
-  Sparkles, LogIn, LayoutDashboard
+  Search, ShieldCheck, FileText, Palette, ArrowRight,
+  HeartHandshake, Activity, Sparkles, MapPin, Award,
+  Briefcase, CheckCircle2, Users, Clock, BookOpen,
+  Stethoscope, Compass, TrendingUp, Lock
 } from 'lucide-react';
-
-// --- IMPORTS FOR REAL DATA ---
-import { databaseService } from '../services/databaseService';
-import { UserProfile } from '../types';
-import { VerificationBadge } from '../components/VerificationBadge';
-import { useThemeMode } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import PageLoader from '../components/PageLoader';
 
+// ==========================================================
+// MAIN
+// ==========================================================
 export default function LandingPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
-  const { themeMode, toggleThemeMode } = useThemeMode();
   const { user, loading: authLoading } = useAuth();
 
-  // --- REAL DATA STATES ---
-  const [profiles, setProfiles] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const handleProtectedAction = (e: React.MouseEvent) => {
-    e.preventDefault();
-    navigate('/register');
-  };
-
-  // Kick logged-in users off the marketing page and into the dashboard
   useEffect(() => {
-    if (!authLoading && user) {
-      navigate('/dashboard', { replace: true });
-    }
+    if (!authLoading && user) navigate('/dashboard', { replace: true });
   }, [authLoading, user, navigate]);
 
-  useEffect(() => {
-    const loadNurses = async () => {
-      try {
-        setLoading(true);
-        const data = await databaseService.getProfiles();
-
-        if (!data || data.length === 0) return;
-
-        if (data.length < 10) {
-          setProfiles([...data, ...data, ...data, ...data]);
-        } else {
-          setProfiles([...data, ...data]);
-        }
-      } catch (err) {
-        console.error("Database error:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadNurses();
-  }, []);
-
-  const goToRegister = () => navigate('/register');
-
-  const handleSearchSubmit = (e: React.FormEvent) => {
+  const handleSearchSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/explore?search=${encodeURIComponent(searchQuery)}`);
-    } else {
-      navigate('/explore');
-    }
-  };
+    const q = searchQuery.trim();
+    if (q) navigate(`/explore?search=${encodeURIComponent(q)}`);
+    else navigate('/explore');
+  }, [searchQuery, navigate]);
 
-  // Hold the screen with the same loader as ProtectedRoute while auth resolves
-  // and while the redirect effect fires — prevents a flash of the marketing page.
-  if (authLoading) {
-    return <PageLoader />;
-  }
-
-  if (user) {
-    return <PageLoader />;
-  }
+  if (authLoading || user) return <PageLoader />;
 
   return (
-    <div className="bg-white dark:bg-zinc-950 mt-16 overflow-hidden">
+    <div className="bg-white dark:bg-zinc-950">
 
-      {/* Hero Section */}
-      <div className="relative pt-6 md:pt-10 pb-16 md:pb-24 lg:pt-16 lg:pb-32 dark:bg-zinc-950">
+      {/* ============================================
+          HERO — sells the outcome, not the product
+          ============================================ */}
+      <section className="pt-10 md:pt-16 lg:pt-20 pb-14 md:pb-20">
+        <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8">
 
-        {/* Soft floating background orb */}
-        <div className="absolute top-20 right-1/4 w-64 md:w-96 h-64 md:h-96 bg-indigo-200/10 dark:bg-indigo-500/5 rounded-full blur-3xl -z-10 animate-pulse duration-[6000ms]"></div>
-        <div className="absolute bottom-10 left-1/3 w-60 md:w-80 h-60 md:h-80 bg-indigo-100/10 dark:bg-indigo-400/5 rounded-full blur-3xl -z-10"></div>
+          <div className="max-w-3xl mx-auto text-center">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400 text-xs font-bold">
+              <MapPin className="w-3.5 h-3.5" />
+              Built for Kenyan nurses
+            </span>
 
-        <div className="max-w-7xl mx-auto px-3 md:px-4 lg:px-8">
-          <div className="lg:grid lg:grid-cols-12 lg:gap-8 items-center">
+            <h1 className="mt-5 text-4xl md:text-5xl lg:text-6xl font-display font-extrabold tracking-tight text-slate-900 dark:text-white leading-[1.05]">
+              Your nursing career,
+              <br className="hidden sm:block" />
+              {' '}in one link.
+            </h1>
 
-            {/* Left Column Information */}
-            <div className="sm:text-center md:max-w-2xl md:mx-auto lg:col-span-7 lg:text-left">
-              <motion.div
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-                className="inline-flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-0.5 md:py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 text-[10px] md:text-xs font-semibold border border-indigo-100/50 dark:border-indigo-800/50 mb-4 md:mb-6"
+            <p className="mt-5 md:mt-6 text-base md:text-lg text-slate-600 dark:text-slate-400 leading-relaxed">
+              Nursefolio is a professional portfolio for nurses. Instead of sending
+              your CV on WhatsApp for the fifth time, share one link — with your license,
+              experience, certifications, and available shifts.
+            </p>
+
+            <div className="mt-8 md:mt-10 flex flex-col sm:flex-row gap-3 justify-center">
+              <Link
+                to="/register"
+                className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full bg-teal-600 active:bg-teal-700 text-white text-sm font-bold transition min-h-[48px]"
               >
-                <ShieldCheck className="w-3.5 h-3.5 md:w-4 md:h-4 text-indigo-600 dark:text-indigo-400" />
-                <span>Verified Credentials & Portfolios for Healthcare Professionals</span>
-              </motion.div>
-
-              <motion.h1
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.1 }}
-                className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-display font-extrabold tracking-tight text-slate-900 dark:text-white leading-[1.1]"
+                Create your free portfolio
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+              <Link
+                to="/explore"
+                className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-slate-300 text-sm font-bold active:opacity-70 transition min-h-[48px]"
               >
-                The premium portfolio and career space for{' '}
-                <span className="text-indigo-600 dark:text-indigo-400">Nurses</span>
-              </motion.h1>
-
-              <motion.p
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-                className="mt-3 md:mt-4 text-sm md:text-base lg:text-lg text-slate-500 dark:text-slate-400 leading-relaxed font-normal max-w-xl"
-              >
-                Build a stunning, shareable digital portfolio designed specifically for nursing boards, hospitals, and medical agencies. Share certifications, verified licenses, and clinical experience in minutes.
-              </motion.p>
-
-              {/* Quick Search and CTA */}
-              <motion.div
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.3 }}
-                className="mt-6 md:mt-8 sm:max-w-lg sm:mx-auto lg:mx-0"
-              >
-                <form onSubmit={handleSearchSubmit} className="relative flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-0 bg-white dark:bg-zinc-950 p-1.5 rounded-xl md:rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm focus-within:border-indigo-400 focus-within:ring-2 md:focus-within:ring-4 focus-within:ring-indigo-100/50 transition-all">
-                  <div className="hidden sm:flex pl-3 text-slate-400 dark:text-slate-500">
-                    <Search className="w-4 h-4 md:w-5 md:h-5" />
-                  </div>
-                  <input
-                    id="hero-search-input"
-                    type="text"
-                    placeholder="Search by specialty, location, or name..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full px-3 py-2 md:py-2 bg-transparent text-sm focus:outline-none text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-lg sm:rounded-none"
-                  />
-                  <button
-                    id="hero-submit-btn"
-                    type="submit"
-                    className="group relative w-full sm:w-auto inline-flex items-center justify-center gap-2 overflow-hidden bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-700 hover:via-indigo-600 hover:to-purple-700 text-white text-sm font-semibold px-4 md:px-5 py-2 md:py-2.5 rounded-lg md:rounded-xl shadow-lg shadow-indigo-500/25 hover:shadow-xl hover:shadow-indigo-500/40 transition-all duration-300 active:scale-[97%] cursor-pointer whitespace-nowrap"
-                  >
-                    <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></span>
-
-                    <Search className="w-4 h-4 md:w-5 md:h-5 group-hover:scale-110 transition-transform duration-300" />
-
-                    <span>Find Nurses</span>
-
-                    <ArrowRight className="w-4 h-4 md:w-5 md:h-5 group-hover:translate-x-1 transition-transform duration-300" />
-
-                    <span className="absolute inset-0 rounded-lg md:rounded-xl ring-2 ring-indigo-400/50 group-hover:ring-indigo-300/70 ring-offset-2 ring-offset-transparent transition-all duration-300"></span>
-                  </button>
-                  {/* FANCY GO TO PORTAL BUTTON */}
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.5, delay: 0.4 }}
-                    className="w-full sm:w-auto"
-                  >
-                    <button
-                      onClick={() => navigate('/dashboard')}
-                      className="group relative w-full sm:w-auto inline-flex items-center justify-center gap-1.5 md:gap-2 overflow-hidden bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-600 hover:via-teal-600 hover:to-cyan-600 text-white text-sm font-semibold px-4 md:px-5 py-2 md:py-2.5 rounded-lg md:rounded-xl shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/40 transition-all duration-300 active:scale-[97%] cursor-pointer whitespace-nowrap"
-                    >
-                      <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></span>
-
-                      <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-yellow-300 group-hover:rotate-12 transition-transform duration-300" />
-
-                      <span>Go to Portal</span>
-
-                      <ArrowRight className="w-4 h-4 md:w-5 md:h-5 group-hover:translate-x-1 transition-transform duration-300" />
-
-                      <span className="absolute inset-0 rounded-lg md:rounded-xl ring-2 ring-emerald-400/50 group-hover:ring-emerald-300/70 ring-offset-2 ring-offset-transparent transition-all duration-300"></span>
-                    </button>
-                  </motion.div>
-                </form>
-                <div className="mt-3 md:mt-4 flex flex-wrap items-center gap-2 md:gap-4 text-[10px] md:text-xs text-slate-400 dark:text-slate-500 pl-1 md:pl-2">
-                  <span className="font-semibold">Popular Specialties:</span>
-                  <Link to="/explore?specialty=Intensive%20Care" className="hover:text-indigo-600 dark:hover:text-indigo-400 underline">Critical Care</Link>
-                  <Link to="/explore?specialty=Pediatrics" className="hover:text-indigo-600 dark:hover:text-indigo-400 underline">Pediatrics</Link>
-                  <Link to="/explore?specialty=Gerontology" className="hover:text-indigo-600 dark:hover:text-indigo-400 underline">Geriatrics</Link>
-                </div>
-              </motion.div>
+                Browse nurses
+              </Link>
             </div>
 
-            {/* Right Column - Endless Vertical Marquee */}
-            <div className="mt-8 md:mt-12 lg:mt-0 lg:col-span-5 relative">
-              <div className="h-[400px] md:h-[500px] overflow-hidden relative rounded-2xl md:rounded-3xl border border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-zinc-900/30">
-
-                {/* Fade Effect */}
-                <div className="absolute top-0 left-0 right-0 h-16 md:h-20 bg-gradient-to-b from-white dark:from-zinc-950 to-transparent z-10"></div>
-                <div className="absolute bottom-0 left-0 right-0 h-16 md:h-20 bg-gradient-to-t from-white dark:from-zinc-950 to-transparent z-10"></div>
-
-                {/* The Moving List */}
-                <motion.div
-                  animate={{ y: ["0%", "-50%"] }}
-                  transition={{
-                    duration: 60,
-                    repeat: Infinity,
-                    ease: "linear"
-                  }}
-                  className="flex flex-col gap-3 md:gap-4 p-3 md:p-4"
-                >
-                  {profiles.map((p, index) => (
-                    <div
-                      key={index}
-                      onClick={goToRegister}
-                      className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-slate-800 rounded-xl md:rounded-2xl p-3 md:p-4 shadow-sm md:shadow-md cursor-pointer hover:border-indigo-400 transition-colors group w-full"
-                    >
-                      <div className="flex items-center gap-2 md:gap-3">
-                        <img
-                          src={p.avatar_url || '/192.png'}
-                          className="w-10 h-10 md:w-12 md:h-12 rounded-lg md:rounded-xl object-cover border border-slate-100 dark:border-slate-800 shadow-sm"
-                          alt="Nurse"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2">
-                            <h4 className="font-bold text-slate-900 dark:text-white text-xs md:text-sm truncate">
-                              {p.first_name} {p.last_name}
-                            </h4>
-                            <VerificationBadge status={p.verification_status} showText={false} />
-                          </div>
-                          <p className="text-[8px] md:text-[10px] text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-widest mt-0.5">
-                            {p.qualification || 'Verified Nurse'}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="mt-2 md:mt-3 flex items-center justify-between">
-                        <div className="flex items-center gap-1 text-slate-400 text-[9px] md:text-[10px]">
-                          <MapPin className="w-2.5 h-2.5 md:w-3 md:h-3" />
-                          {p.location || 'Location not set'}
-                        </div>
-                        <span className="text-[9px] md:text-[10px] font-bold text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 md:px-2 py-0.5 rounded-md">
-                          View Profile
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </motion.div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Feature Showcase Grid Section */}
-      <section className="py-12 md:py-16 lg:py-24 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-zinc-950">
-        <div className="max-w-7xl mx-auto px-3 md:px-4 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto mb-10 md:mb-16">
-            <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold font-sans tracking-tight text-slate-900 dark:text-white">
-              Professional features designed for digital medicine
-            </h2>
-            <p className="mt-1.5 md:mt-2 text-sm md:text-base text-slate-500 dark:text-slate-400 leading-relaxed font-normal">
-              Unlike generic social networks, Nursefolio respects medical certifications, licensing states, and clinical research credentials.
+            <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">
+              Free to use · No credit card · Your data stays yours
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 lg:gap-8">
-            {/* Feature 1 */}
-            <div className="bg-white dark:bg-zinc-950 md:border md:border-slate-100 md:dark:border-slate-800 p-4 md:p-6 md:rounded-2xl md:shadow-sm md:hover:shadow-md transition border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-100">
-              <div className="w-10 h-10 md:w-12 md:h-12 rounded-lg md:rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-4 md:mb-6">
-                <ShieldCheck className="w-5 h-5 md:w-6 md:h-6" />
-              </div>
-              <h3 className="font-semibold text-slate-800 dark:text-slate-200 text-sm md:text-base mb-0.5 md:mb-1">Board Verification</h3>
-              <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
-                Add state board licenses or clinical IDs. Once verified, get a badged profile status trusted by acute care centers.
-              </p>
+          {/* Search bar */}
+          <form
+            onSubmit={handleSearchSubmit}
+            className="mt-10 md:mt-14 max-w-2xl mx-auto flex flex-col sm:flex-row gap-2"
+          >
+            <div className="flex-1 flex items-center gap-2 px-4 py-3 bg-slate-100 dark:bg-zinc-900 rounded-full focus-within:ring-2 focus-within:ring-teal-500/40 transition">
+              <Search className="w-4 h-4 text-slate-400 flex-shrink-0" />
+              <input
+                type="text"
+                placeholder="Search by specialty, county, or name"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-transparent text-sm focus:outline-none text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
+              />
             </div>
+            <button
+              type="submit"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-teal-600 active:bg-teal-700 text-white text-sm font-bold transition whitespace-nowrap min-h-[48px]"
+            >
+              Find nurses
+            </button>
+          </form>
 
-            {/* Feature 2 */}
-            <div className="bg-white dark:bg-zinc-950 md:border md:border-slate-100 md:dark:border-slate-800 p-4 md:p-6 md:rounded-2xl md:shadow-sm md:hover:shadow-md transition border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-100">
-              <div className="w-10 h-10 md:w-12 md:h-12 rounded-lg md:rounded-xl bg-cyan-50 dark:bg-cyan-950/50 text-cyan-600 dark:text-cyan-400 flex items-center justify-center mb-4 md:mb-6">
-                <Palette className="w-5 h-5 md:w-6 md:h-6" />
-              </div>
-              <h3 className="font-semibold text-slate-800 dark:text-slate-200 text-sm md:text-base mb-0.5 md:mb-1 font-sans">Multi-theme Portfolios</h3>
-              <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
-                Choose from clinical, modern, minimal, dark or academic formats to match your career pathway.
-              </p>
-            </div>
-
-            {/* Feature 3 */}
-            <div className="bg-white dark:bg-zinc-950 md:border md:border-slate-100 md:dark:border-slate-800 p-4 md:p-6 md:rounded-2xl md:shadow-sm md:hover:shadow-md transition border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-100">
-              <div className="w-10 h-10 md:w-12 md:h-12 rounded-lg md:rounded-xl bg-violet-50 dark:bg-violet-950/50 text-violet-600 dark:text-violet-400 flex items-center justify-center mb-4 md:mb-6">
-                <FileText className="w-5 h-5 md:w-6 md:h-6" />
-              </div>
-              <h3 className="font-semibold text-slate-800 dark:text-slate-200 text-sm md:text-base mb-0.5 md:mb-1">Auto-generated CV</h3>
-              <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
-                Input your credentials and download matching PDF style resumes automatically optimized for clinical review teams.
-              </p>
-            </div>
-
-            {/* Feature 4 */}
-            <div className="bg-white dark:bg-zinc-950 md:border md:border-slate-100 md:dark:border-slate-800 p-4 md:p-6 md:rounded-2xl md:shadow-sm md:hover:shadow-md transition border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-100">
-              <div className="w-10 h-10 md:w-12 md:h-12 rounded-lg md:rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-4 md:mb-6">
-                <Smartphone className="w-5 h-5 md:w-6 md:h-6" />
-              </div>
-              <h3 className="font-semibold text-slate-800 dark:text-slate-200 text-sm md:text-base mb-0.5 md:mb-1">Android Ready</h3>
-              <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
-                Optimized mobile designs that wrap smoothly into native APKs using Capacitor. Take your portfolio on medical rounds.
-              </p>
-            </div>
+          <div className="mt-4 text-center flex flex-wrap justify-center items-center gap-x-3 gap-y-1.5 text-xs text-slate-500 dark:text-slate-400">
+            <span className="font-semibold">Popular searches:</span>
+            <Link to="/explore?specialty=ICU" className="active:text-teal-600">ICU</Link>
+            <span className="text-slate-300 dark:text-zinc-700">·</span>
+            <Link to="/explore?specialty=Pediatrics" className="active:text-teal-600">Pediatrics</Link>
+            <span className="text-slate-300 dark:text-zinc-700">·</span>
+            <Link to="/explore?specialty=Emergency" className="active:text-teal-600">Emergency</Link>
+            <span className="text-slate-300 dark:text-zinc-700">·</span>
+            <Link to="/explore?specialty=Maternity" className="active:text-teal-600">Maternity</Link>
+            <span className="text-slate-300 dark:text-zinc-700">·</span>
+            <Link to="/locum" className="active:text-teal-600">Locum shifts</Link>
           </div>
         </div>
       </section>
 
-      {/* Target Roles segment */}
-      <section className="py-12 md:py-16 lg:py-20 bg-white dark:bg-zinc-950 border-t border-slate-100 dark:border-slate-800">
-        <div className="max-w-7xl mx-auto px-3 md:px-4 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 lg:gap-12 items-stretch">
+      {/* ============================================
+          PROBLEM — names the pain, honestly
+          ============================================ */}
+      <section className="py-16 md:py-24 border-t border-slate-100 dark:border-zinc-900 bg-slate-50 dark:bg-zinc-950">
+        <div className="max-w-5xl mx-auto px-4 md:px-6 lg:px-8">
+          <div className="max-w-2xl mx-auto text-center mb-12 md:mb-16">
+            <h2 className="text-2xl md:text-3xl lg:text-4xl font-display font-bold tracking-tight text-slate-900 dark:text-white">
+              Right now, nursing careers live in three places
+            </h2>
+          </div>
 
-            {/* Registered Nurses section */}
-            <div className="p-5 md:p-8 rounded-xl md:rounded-xl bg-indigo-50/20 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-800/50 flex flex-col justify-between h-full">
-              <div>
-                <HeartHandshake className="w-8 h-8 md:w-10 md:h-10 text-indigo-600 dark:text-indigo-400 mb-4 md:mb-6" />
-                <h3 className="text-xl md:text-2xl font-display font-bold text-slate-900 dark:text-white mb-1.5 md:mb-2">For Licensed Professionals</h3>
-                <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 leading-relaxed mb-4 md:mb-6">
-                  Perfect for RNs, FNPs, LPNs, and clinical nurse specialists. Aggregate hospital experiences, showcase published health studies, list active ACLS, PALS certifications, and keep recruiters updated on your availability.
-                </p>
-              </div>
-              <Link
-                id="cta-professional-btn"
-                to="/register?role=nurse"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 md:gap-2 text-xs md:text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 px-4 md:px-5 py-2.5 md:py-3 rounded-lg md:rounded-xl hover:shadow transition active:scale-[98%]"
-              >
-                <span>Professional Portfolio SignUp</span>
-                <ArrowRight className="w-3.5 h-3.5 md:w-4 md:h-4" />
-              </Link>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6">
+            <ProblemCard
+              icon={FileText}
+              title="A CV lost in WhatsApp"
+              body="You've sent it to five recruiters. Four lost it. One asked you to resend it. You don't know which version they have."
+            />
+            <ProblemCard
+              icon={Award}
+              title="Certificates in a drawer"
+              body="NCK license, BLS, ACLS, PALS, CPD points — scattered across PDFs, photos, and paper. Hard to show, easy to lose."
+            />
+            <ProblemCard
+              icon={Compass}
+              title="Invisible to recruiters"
+              body="Hospitals and locum coordinators can't find you. They ask around. Opportunities pass to whoever they already know."
+            />
+          </div>
 
-            {/* Students section */}
-            <div className="p-5 md:p-8 rounded-xl md:rounded-xl bg-indigo-50/10 dark:bg-indigo-950/10 border border-slate-200/80 dark:border-slate-800/80 flex flex-col justify-between h-full">
-              <div>
-                <Activity className="w-8 h-8 md:w-10 md:h-10 text-indigo-400 dark:text-indigo-400 mb-4 md:mb-6" />
-                <h3 className="text-xl md:text-2xl font-display font-bold text-slate-900 dark:text-white mb-1.5 md:mb-2">For Nursing Students</h3>
-                <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 leading-relaxed mb-4 md:mb-6">
-                  Start mapping your clinical hours, NCLEX preparations, clinical rotations, externships, and school grades. Earn early verification points prior to graduation to give you an upper hand in placement cycles.
-                </p>
-              </div>
-              <Link
-                id="cta-student-btn"
-                to="/register?role=student"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 md:gap-2 text-xs md:text-sm font-semibold text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 px-4 md:px-5 py-2.5 md:py-3 rounded-lg md:rounded-xl hover:shadow transition active:scale-[98%]"
-              >
-                <span>Student Portfolio SignUp</span>
-                <ArrowRight className="w-3.5 h-3.5 md:w-4 md:h-4" />
-              </Link>
-            </div>
-
+          <div className="mt-12 md:mt-16 max-w-2xl mx-auto text-center">
+            <p className="text-lg md:text-xl font-display font-bold text-slate-900 dark:text-white">
+              Nursefolio gives you <span className="text-teal-600 dark:text-teal-400">one link</span> that solves all three.
+            </p>
           </div>
         </div>
       </section>
 
-      {/* Trust & CTA Section */}
-      <section className="bg-gray-50 dark:bg-zinc-900 py-12 md:py-16 lg:py-24 relative overflow-hidden">
-        {/* Soft grid decoration */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#e5e7eb_1px,transparent_1px),linear-gradient(to_bottom,#e5e7eb_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:3rem_3rem] md:bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-40 dark:opacity-35"></div>
+      {/* ============================================
+          PRODUCT SHOWCASE — plain, looks like a screenshot
+          ============================================ */}
+      <section className="py-16 md:py-24 border-t border-slate-100 dark:border-zinc-900">
+        <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8">
 
-        <div className="relative max-w-5xl mx-auto px-3 md:px-4 text-center sm:px-6 lg:px-8 space-y-4 md:space-y-6">
-          <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight text-gray-900 dark:text-white">
-            Begin presenting your nursing career professionally today
+          <div className="max-w-2xl mx-auto text-center mb-12 md:mb-16">
+            <h2 className="text-2xl md:text-3xl lg:text-4xl font-display font-bold tracking-tight text-slate-900 dark:text-white">
+              What your Nursefolio looks like
+            </h2>
+            <p className="mt-4 text-base text-slate-500 dark:text-slate-400">
+              Everything a recruiter needs to make a decision — on a single page.
+            </p>
+          </div>
+
+          <div className="max-w-2xl mx-auto">
+            <PortfolioPreview />
+          </div>
+
+          {/* Below the preview: what's included */}
+          <div className="mt-10 grid grid-cols-2 md:grid-cols-4 gap-3 max-w-3xl mx-auto">
+            {[
+              { icon: ShieldCheck, label: 'Verified NCK ID' },
+              { icon: BookOpen, label: 'Clinical logbook' },
+              { icon: Briefcase, label: 'Work history' },
+              { icon: Clock, label: 'Shift availability' },
+            ].map(({ icon: Icon, label }) => (
+              <div
+                key={label}
+                className="flex items-center gap-2 px-3 py-2.5 rounded-2xl bg-slate-50 dark:bg-zinc-900"
+              >
+                <Icon className="w-4 h-4 text-teal-600 dark:text-teal-400 flex-shrink-0" />
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  {label}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ============================================
+          HOW IT WORKS — 3 steps, no fluff
+          ============================================ */}
+      <section className="py-16 md:py-24 border-t border-slate-100 dark:border-zinc-900 bg-slate-50 dark:bg-zinc-950">
+        <div className="max-w-5xl mx-auto px-4 md:px-6 lg:px-8">
+
+          <div className="max-w-2xl mx-auto text-center mb-12 md:mb-16">
+            <h2 className="text-2xl md:text-3xl lg:text-4xl font-display font-bold tracking-tight text-slate-900 dark:text-white">
+              You're done in about 10 minutes
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+            <StepCard
+              number="1"
+              title="Sign up with your email"
+              body="Create an account as a nurse or a student. No lengthy onboarding — you're in immediately."
+            />
+            <StepCard
+              number="2"
+              title="Add what you already have"
+              body="Work history, certifications, education, specialties. Upload or paste. Everything gets organised into sections."
+            />
+            <StepCard
+              number="3"
+              title="Share your link"
+              body="Paste it in your CV, WhatsApp bio, LinkedIn, or email signature. Recruiters see everything on one page."
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* ============================================
+          FEATURES — anchored to real nursing tasks
+          ============================================ */}
+      <section className="py-16 md:py-24 border-t border-slate-100 dark:border-zinc-900">
+        <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8">
+
+          <div className="max-w-2xl mx-auto text-center mb-12 md:mb-16">
+            <h2 className="text-2xl md:text-3xl lg:text-4xl font-display font-bold tracking-tight text-slate-900 dark:text-white">
+              What you actually get
+            </h2>
+            <p className="mt-4 text-base text-slate-500 dark:text-slate-400">
+              Every feature maps to something a nurse does every day.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <FeatureCard
+              icon={ShieldCheck}
+              title="NCK verification"
+              body="Submit your Nursing Council of Kenya ID. Once verified, your profile carries a badge recruiters trust."
+            />
+            <FeatureCard
+              icon={Stethoscope}
+              title="Clinical logbook"
+              body="Log procedures with supervisor signatures. Automatically tracks your CPD-eligible hours for NCK renewal."
+            />
+            <FeatureCard
+              icon={FileText}
+              title="Auto-built CV"
+              body="Your experience, education, and certifications become a clean PDF — updated every time you edit your profile."
+            />
+            <FeatureCard
+              icon={Briefcase}
+              title="Locum shift board"
+              body="See open shifts near you, filtered by specialty. Post your own cover requests when you need help."
+            />
+            <FeatureCard
+              icon={Palette}
+              title="Portfolio themes"
+              body="Pick how your public page looks — modern, clinical, minimal, or academic. Same content, different presentation."
+            />
+            <FeatureCard
+              icon={Users}
+              title="Peer endorsements"
+              body="Colleagues can vouch for your skills. Real names, real quotes, no anonymous reviews."
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* ============================================
+          FOR NURSES vs FOR STUDENTS
+          ============================================ */}
+      <section className="py-16 md:py-24 border-t border-slate-100 dark:border-zinc-900 bg-slate-50 dark:bg-zinc-950">
+        <div className="max-w-5xl mx-auto px-4 md:px-6 lg:px-8">
+
+          <div className="max-w-2xl mx-auto text-center mb-12 md:mb-16">
+            <h2 className="text-2xl md:text-3xl lg:text-4xl font-display font-bold tracking-tight text-slate-900 dark:text-white">
+              Made for both stages of the career
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <RoleCard
+              tone="teal"
+              icon={HeartHandshake}
+              title="Practicing nurses"
+              bullets={[
+                'Show NCK license and current certifications',
+                'List hospital experience with wards and specialties',
+                'Collect peer endorsements from colleagues',
+                'Appear in locum searches near your location',
+                'Publish research and clinical case studies',
+              ]}
+              ctaLabel="Create your portfolio"
+              ctaTo="/register?role=nurse"
+            />
+            <RoleCard
+              tone="indigo"
+              icon={Activity}
+              title="Nursing students"
+              bullets={[
+                'Log clinical hours and rotations as you go',
+                'Track completed procedures with supervisor sign-off',
+                'Store certificates from each placement',
+                'Arrive at graduation with a complete profile',
+                'Stand out in externship and graduate recruitment',
+              ]}
+              ctaLabel="Start your logbook"
+              ctaTo="/register?role=student"
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* ============================================
+          TRUST — why this is safe
+          ============================================ */}
+      <section className="py-16 md:py-24 border-t border-slate-100 dark:border-zinc-900">
+        <div className="max-w-4xl mx-auto px-4 md:px-6 lg:px-8">
+          <div className="max-w-2xl mx-auto text-center mb-12 md:mb-16">
+            <h2 className="text-2xl md:text-3xl lg:text-4xl font-display font-bold tracking-tight text-slate-900 dark:text-white">
+              You stay in control
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <TrustCard
+              icon={Lock}
+              title="Your profile, your permissions"
+              body="Mark fields as public or private. Decide exactly what recruiters see. Nothing is shared without your input."
+            />
+            <TrustCard
+              icon={ShieldCheck}
+              title="Verified against the source"
+              body="NCK IDs are cross-checked. Certifications can link to issuer registries. Nothing is taken on trust alone."
+            />
+            <TrustCard
+              icon={Users}
+              title="You can delete everything"
+              body="Full account deletion in Settings. No emails, no wait times, no data held back. Your career, your data."
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* ============================================
+          FINAL CTA
+          ============================================ */}
+      <section className="py-16 md:py-24 border-t border-slate-100 dark:border-zinc-900 bg-slate-50 dark:bg-zinc-950">
+        <div className="max-w-3xl mx-auto px-4 md:px-6 text-center">
+          <h2 className="text-2xl md:text-3xl lg:text-4xl font-display font-extrabold tracking-tight text-slate-900 dark:text-white">
+            Your career deserves its own home.
           </h2>
-          <p className="text-gray-600 dark:text-gray-400 text-sm md:text-base max-w-2xl mx-auto leading-relaxed">
-            Join other nurses and student nurse practitioners in digitizing medical CVs, earning verified trust credentials, and sharing career experiences easily.
+          <p className="mt-4 text-base text-slate-500 dark:text-slate-400 leading-relaxed max-w-xl mx-auto">
+            It takes ten minutes to set up. It stays with you for years.
+            It costs nothing to start.
           </p>
 
-          <div className="flex flex-col sm:flex-row justify-center gap-3 md:gap-4 pt-2 md:pt-4">
+          <div className="mt-8 flex flex-col sm:flex-row justify-center gap-3">
             <Link
-              id="cta-trust-signup"
               to="/register"
-              className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 font-bold px-6 md:px-8 py-3 md:py-3.5 rounded-lg md:rounded-xl text-white text-sm hover:shadow-lg transition cursor-pointer select-none text-center active:scale-[98%]"
+              className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full bg-teal-600 active:bg-teal-700 text-white text-sm font-bold transition min-h-[48px]"
             >
-              Build My Nursefolio
+              <Sparkles className="w-4 h-4" />
+              Create your portfolio
             </Link>
             <Link
-              id="cta-trust-explore"
-              to="/explore"
-              className="w-full sm:w-auto px-6 md:px-8 py-3 md:py-3.5 rounded-lg md:rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white text-sm font-semibold transition text-center active:scale-[98%]"
+              to="/about"
+              className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full bg-white dark:bg-zinc-900 text-slate-700 dark:text-slate-300 text-sm font-bold active:opacity-70 transition min-h-[48px]"
             >
-              Explore Registered Specialists
+              Learn more
             </Link>
           </div>
         </div>
       </section>
+
     </div>
   );
 }
+
+// ==========================================================
+// PORTFOLIO PREVIEW — plain, looks like a screenshot
+// ==========================================================
+const PortfolioPreview = React.memo(() => (
+  <div className="rounded-2xl bg-slate-100 dark:bg-zinc-900 p-2">
+    <div className="bg-white dark:bg-zinc-950 rounded-xl overflow-hidden">
+
+      {/* Simple header strip — no gradient, no glow */}
+      <div className="h-20 bg-slate-700 dark:bg-zinc-800" />
+
+      {/* Content */}
+      <div className="px-5 pb-6 -mt-10">
+        {/* Avatar circle */}
+        <div className="w-16 h-16 rounded-full border-4 border-white dark:border-zinc-950 bg-teal-600 flex items-center justify-center text-white font-bold text-lg">
+          AK
+        </div>
+
+        {/* Name */}
+        <div className="mt-3 flex items-center gap-1.5">
+          <h3 className="font-display font-bold text-lg text-slate-900 dark:text-white">
+            Amina K.
+          </h3>
+          <CheckCircle2 className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+          <span className="text-[10px] font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400 px-2 py-0.5 rounded-full">
+            VERIFIED
+          </span>
+        </div>
+        <p className="text-sm font-semibold text-slate-600 dark:text-slate-400 mt-0.5">
+          Registered Nurse · ICU
+        </p>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1">
+          <MapPin className="w-3 h-3" />
+          Nairobi, Kenya
+        </p>
+
+        {/* Action buttons */}
+        <div className="flex gap-2 mt-4">
+          <span className="flex-1 py-2 rounded-full bg-teal-600 text-white text-xs font-bold text-center">
+            Contact
+          </span>
+          <span className="flex-1 py-2 rounded-full bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-slate-300 text-xs font-bold text-center">
+            Download CV
+          </span>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-2 mt-5 pt-4 border-t border-slate-100 dark:border-zinc-800">
+          <div>
+            <p className="text-lg font-display font-extrabold text-slate-900 dark:text-white">8</p>
+            <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              Years exp
+            </p>
+          </div>
+          <div>
+            <p className="text-lg font-display font-extrabold text-slate-900 dark:text-white">24</p>
+            <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              Endorsements
+            </p>
+          </div>
+          <div>
+            <p className="text-lg font-display font-extrabold text-slate-900 dark:text-white">4</p>
+            <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              Certifications
+            </p>
+          </div>
+        </div>
+
+        {/* Focus areas */}
+        <div className="mt-5">
+          <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
+            Focus areas
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {['ICU', 'Cardiology', 'Emergency', 'Post-op'].map(s => (
+              <span
+                key={s}
+                className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-slate-300"
+              >
+                {s}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* Endorsement sample */}
+        <div className="mt-5">
+          <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
+            Endorsed by
+          </p>
+          <div className="bg-slate-100 dark:bg-zinc-900 rounded-2xl p-3">
+            <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+              "Exceptional clinical judgment under pressure. Mentored three cohorts of new nurses."
+            </p>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold mt-1.5">
+              — J.M., Senior RN · Kenyatta National Hospital
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+));
+PortfolioPreview.displayName = 'PortfolioPreview';
+
+// ==========================================================
+// PROBLEM CARD
+// ==========================================================
+const ProblemCard = React.memo<{
+  icon: any;
+  title: string;
+  body: string;
+}>(({ icon: Icon, title, body }) => (
+  <div className="bg-white dark:bg-zinc-950 rounded-3xl p-5 md:p-6">
+    <div className="w-10 h-10 rounded-2xl bg-rose-50 dark:bg-rose-950/40 flex items-center justify-center mb-4">
+      <Icon className="w-5 h-5 text-rose-600 dark:text-rose-400" />
+    </div>
+    <h3 className="font-bold text-slate-900 dark:text-white text-base mb-1.5">
+      {title}
+    </h3>
+    <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+      {body}
+    </p>
+  </div>
+));
+ProblemCard.displayName = 'ProblemCard';
+
+// ==========================================================
+// STEP CARD
+// ==========================================================
+const StepCard = React.memo<{
+  number: string;
+  title: string;
+  body: string;
+}>(({ number, title, body }) => (
+  <div>
+    <div className="w-10 h-10 rounded-full bg-teal-600 flex items-center justify-center mb-4">
+      <span className="font-display font-extrabold text-white text-base">{number}</span>
+    </div>
+    <h3 className="font-bold text-slate-900 dark:text-white text-lg mb-2">
+      {title}
+    </h3>
+    <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+      {body}
+    </p>
+  </div>
+));
+StepCard.displayName = 'StepCard';
+
+// ==========================================================
+// FEATURE CARD
+// ==========================================================
+const FeatureCard = React.memo<{
+  icon: any;
+  title: string;
+  body: string;
+}>(({ icon: Icon, title, body }) => (
+  <div className="bg-white dark:bg-zinc-950 rounded-3xl p-5 md:p-6">
+    <div className="w-10 h-10 rounded-2xl bg-teal-50 dark:bg-teal-950/40 flex items-center justify-center mb-4">
+      <Icon className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+    </div>
+    <h3 className="font-bold text-slate-900 dark:text-white text-base mb-1.5">
+      {title}
+    </h3>
+    <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+      {body}
+    </p>
+  </div>
+));
+FeatureCard.displayName = 'FeatureCard';
+
+// ==========================================================
+// ROLE CARD
+// ==========================================================
+const RoleCard = React.memo<{
+  tone: 'teal' | 'indigo';
+  icon: any;
+  title: string;
+  bullets: string[];
+  ctaLabel: string;
+  ctaTo: string;
+}>(({ tone, icon: Icon, title, bullets, ctaLabel, ctaTo }) => {
+  const tones = {
+    teal: {
+      iconBg: 'bg-teal-50 dark:bg-teal-950/40',
+      iconColor: 'text-teal-600 dark:text-teal-400',
+      checkColor: 'text-teal-500',
+      ctaBg: 'bg-teal-600 active:bg-teal-700 text-white',
+    },
+    indigo: {
+      iconBg: 'bg-indigo-50 dark:bg-indigo-950/40',
+      iconColor: 'text-indigo-600 dark:text-indigo-400',
+      checkColor: 'text-indigo-500',
+      ctaBg: 'bg-indigo-600 active:bg-indigo-700 text-white',
+    },
+  };
+  const t = tones[tone];
+
+  return (
+    <div className="bg-white dark:bg-zinc-950 rounded-3xl p-6 md:p-8 flex flex-col">
+      <div className={`w-11 h-11 rounded-2xl ${t.iconBg} flex items-center justify-center mb-4`}>
+        <Icon className={`w-5 h-5 ${t.iconColor}`} />
+      </div>
+      <h3 className="text-xl md:text-2xl font-display font-bold text-slate-900 dark:text-white mb-4">
+        {title}
+      </h3>
+      <ul className="space-y-2.5 mb-6 flex-1">
+        {bullets.map((b, i) => (
+          <li key={i} className="flex gap-2.5 text-sm text-slate-600 dark:text-slate-400">
+            <CheckCircle2 className={`w-4 h-4 ${t.checkColor} flex-shrink-0 mt-0.5`} />
+            <span className="leading-relaxed">{b}</span>
+          </li>
+        ))}
+      </ul>
+      <Link
+        to={ctaTo}
+        className={`inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full text-sm font-bold transition min-h-[48px] ${t.ctaBg}`}
+      >
+        {ctaLabel}
+        <ArrowRight className="w-4 h-4" />
+      </Link>
+    </div>
+  );
+});
+RoleCard.displayName = 'RoleCard';
+
+// ==========================================================
+// TRUST CARD
+// ==========================================================
+const TrustCard = React.memo<{
+  icon: any;
+  title: string;
+  body: string;
+}>(({ icon: Icon, title, body }) => (
+  <div className="bg-slate-50 dark:bg-zinc-900 rounded-3xl p-5 md:p-6">
+    <div className="w-10 h-10 rounded-2xl bg-white dark:bg-zinc-950 flex items-center justify-center mb-4">
+      <Icon className="w-5 h-5 text-slate-700 dark:text-slate-300" />
+    </div>
+    <h3 className="font-bold text-slate-900 dark:text-white text-base mb-1.5">
+      {title}
+    </h3>
+    <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+      {body}
+    </p>
+  </div>
+));
+TrustCard.displayName = 'TrustCard';

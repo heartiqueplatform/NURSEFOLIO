@@ -3,20 +3,135 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { databaseService } from '../services/databaseService';
 import { ResearchProject } from '../types';
-import { BookOpen, Calendar, Trash2, Plus, X, Check, ExternalLink } from 'lucide-react';
+import {
+  BookOpen, Calendar, Trash2, Plus, X, Check, ExternalLink, Loader2
+} from 'lucide-react';
 import { ConfirmModal } from '../components/ConfirmModal';
 
+// ==========================================================
+// SHARED CLASSES
+// ==========================================================
+const inputClass =
+  'w-full text-sm px-4 py-3 bg-slate-100 dark:bg-zinc-900 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500/40 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition';
+
+const labelClass =
+  'block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1.5';
+
+// ==========================================================
+// HELPERS
+// ==========================================================
+function formatMonth(ym: string | null | undefined): string {
+  if (!ym) return '';
+  const [year, month] = ym.split('-');
+  if (!year || !month) return ym;
+  const d = new Date(Number(year), Number(month) - 1, 1);
+  return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+}
+
+// ==========================================================
+// RESEARCH CARD
+// ==========================================================
+const ResearchCard = React.memo<{
+  project: ResearchProject;
+  onDelete: (id: string) => void;
+}>(({ project, onDelete }) => {
+  const pubLabel = useMemo(
+    () => formatMonth(project.publication_date),
+    [project.publication_date]
+  );
+
+  return (
+    <article className="bg-white dark:bg-zinc-950 p-4 border-b border-slate-100 dark:border-zinc-900">
+      <div className="flex items-start gap-3">
+        <div className="w-11 h-11 rounded-2xl bg-teal-50 dark:bg-teal-950/40 flex items-center justify-center flex-shrink-0">
+          <BookOpen className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-bold text-slate-900 dark:text-white text-base leading-tight">
+            {project.title}
+          </h3>
+          {project.journal_or_publisher && (
+            <p className="text-sm font-semibold text-teal-700 dark:text-teal-400 mt-0.5 truncate">
+              {project.journal_or_publisher}
+            </p>
+          )}
+          {pubLabel && (
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1">
+              <Calendar className="w-3 h-3 flex-shrink-0" />
+              Published {pubLabel}
+            </p>
+          )}
+          {project.co_authors && (
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              <span className="font-semibold text-slate-600 dark:text-slate-400">Co-authors: </span>
+              {project.co_authors}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {project.abstract_text && (
+        <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed mt-3 italic line-clamp-4">
+          "{project.abstract_text}"
+        </p>
+      )}
+
+      <div className="flex items-center gap-2 mt-3.5">
+        {project.project_url && (
+          <a
+            href={project.project_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 active:bg-blue-100 dark:active:bg-blue-950/50 transition"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+            Read paper
+          </a>
+        )}
+        <button
+          onClick={() => onDelete(project.id)}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 active:bg-rose-100 dark:active:bg-rose-950/50 transition ml-auto"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+          Remove
+        </button>
+      </div>
+    </article>
+  );
+});
+ResearchCard.displayName = 'ResearchCard';
+
+// ==========================================================
+// SKELETON
+// ==========================================================
+const ResearchSkeleton = React.memo(() => (
+  <div className="bg-white dark:bg-zinc-950 p-4 border-b border-slate-100 dark:border-zinc-900 animate-pulse">
+    <div className="flex items-start gap-3">
+      <div className="w-11 h-11 rounded-2xl bg-slate-200 dark:bg-zinc-800 flex-shrink-0" />
+      <div className="flex-1 space-y-2">
+        <div className="h-4 bg-slate-200 dark:bg-zinc-800 rounded w-3/4" />
+        <div className="h-3 bg-slate-200 dark:bg-zinc-800 rounded w-1/2" />
+        <div className="h-3 bg-slate-200 dark:bg-zinc-800 rounded w-1/3" />
+      </div>
+    </div>
+  </div>
+));
+ResearchSkeleton.displayName = 'ResearchSkeleton';
+
+// ==========================================================
+// MAIN
+// ==========================================================
 export default function ResearchPage() {
   const { user } = useAuth();
   const [studies, setStudies] = useState<ResearchProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  // Form State
+  // Form
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState('');
   const [journal, setJournal] = useState('');
@@ -27,268 +142,344 @@ export default function ResearchPage() {
 
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
+  const [error, setError] = useState('');
 
-  const fetchStudies = async () => {
-    if (!user) return;
+  // ----------------------------------------------------------
+  // Load
+  // ----------------------------------------------------------
+  const fetchStudies = useCallback(async () => {
+    if (!user?.id) return;
     try {
       setLoading(true);
       const data = await databaseService.getResearchProjects(user.id);
       setStudies(data);
     } catch (err) {
-      console.error(err);
+      console.error('Failed to load research:', err);
+      setError('Could not load your publications.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id]);
 
   useEffect(() => {
     fetchStudies();
-  }, [user]);
+  }, [fetchStudies]);
 
-  const handleCreateSubmit = async (e: React.FormEvent) => {
+  // ----------------------------------------------------------
+  // Form
+  // ----------------------------------------------------------
+  const resetForm = useCallback(() => {
+    setTitle('');
+    setJournal('');
+    setPubDate('');
+    setCoAuthors('');
+    setAbstractText('');
+    setProjectUrl('');
+    setError('');
+  }, []);
+
+  const toggleForm = useCallback(() => {
+    if (showForm) {
+      resetForm();
+      setShowForm(false);
+    } else {
+      setShowForm(true);
+    }
+  }, [showForm, resetForm]);
+
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+    setError('');
+
+    if (!title.trim()) {
+      setError('Please enter a publication title.');
+      return;
+    }
+    if (projectUrl.trim() && !/^https?:\/\//i.test(projectUrl.trim())) {
+      setError('URL must start with http:// or https://');
+      return;
+    }
+
     setSaving(true);
     try {
       await databaseService.saveResearchProject({
         profile_id: user.id,
-        title,
-        journal_or_publisher: journal || undefined,
+        title: title.trim(),
+        journal_or_publisher: journal.trim() || undefined,
         publication_date: pubDate || undefined,
-        co_authors: coAuthors || undefined,
-        abstract_text: abstractText || undefined,
-        project_url: projectUrl || undefined
+        co_authors: coAuthors.trim() || undefined,
+        abstract_text: abstractText.trim() || undefined,
+        project_url: projectUrl.trim() || undefined,
       });
 
-      // Clear Form state
-      setTitle('');
-      setJournal('');
-      setPubDate('');
-      setCoAuthors('');
-      setAbstractText('');
-      setProjectUrl('');
-
+      resetForm();
       setShowForm(false);
-      setMsg('Research paper compiled on profile timeline!');
+      setMsg('Publication added');
       setTimeout(() => setMsg(''), 3000);
       await fetchStudies();
     } catch (err) {
-      console.error(err);
+      console.error('Save research failed:', err);
+      setError('Could not save. Please try again.');
     } finally {
       setSaving(false);
     }
-  };
+  }, [user, title, journal, pubDate, coAuthors, abstractText, projectUrl, resetForm, fetchStudies]);
 
-  const handleDeleteItem = (id: string) => {
-    setDeleteId(id);
-  };
+  const handleDeleteRequest = useCallback((id: string) => setDeleteId(id), []);
+  const handleCancelDelete = useCallback(() => setDeleteId(null), []);
 
-  const purseDeleteConfirm = async () => {
+  const handleDeleteConfirm = useCallback(async () => {
     if (!deleteId) return;
     try {
       await databaseService.deleteResearchProject(deleteId);
-      setMsg('Research paper removed.');
+      setMsg('Publication removed');
       setTimeout(() => setMsg(''), 3000);
       await fetchStudies();
     } catch (err) {
-      console.error(err);
+      console.error('Delete research failed:', err);
+      setError('Could not remove. Please try again.');
     } finally {
       setDeleteId(null);
     }
-  };
+  }, [deleteId, fetchStudies]);
+
+  // ----------------------------------------------------------
+  // Derived
+  // ----------------------------------------------------------
+  const canSubmit = useMemo(() => title.trim().length > 0, [title]);
+  const todayMonth = useMemo(() => new Date().toISOString().slice(0, 7), []);
 
   if (!user) return null;
 
+  // ----------------------------------------------------------
+  // Render
+  // ----------------------------------------------------------
   return (
-    <div className="space-y-0 md:space-y-6 font-sans -mx-3 md:mx-0">
+    <div className="w-full min-h-screen bg-slate-50 dark:bg-zinc-950">
+      <div className="max-w-2xl mx-auto md:px-6 md:py-8 pb-24">
 
-      {/* Header - full width on mobile */}
-      <div className="bg-white dark:bg-zinc-950 md:rounded-2xl md:border md:border-slate-100 md:dark:border-slate-800 p-4 md:p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 md:gap-4 md:shadow-sm border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-100">
-        <div>
-          <h2 className="text-lg md:text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">Clinical Studies & Research Publications</h2>
-          <p className="text-[10px] md:text-xs text-slate-500 dark:text-slate-400 mt-0.5 md:mt-1">
-            Publish nursing informatics, geriatric therapies, or case reports on critical medicine.
-          </p>
+        {/* ============================================
+            HEADER
+            ============================================ */}
+        <div className="px-4 md:px-0 pt-4 md:pt-0 pb-4 md:pb-6 flex items-start gap-3">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg md:text-2xl font-display font-extrabold tracking-tight text-slate-900 dark:text-white">
+              Publications & Research
+            </h1>
+            <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+              Journal articles, case studies, and clinical research
+            </p>
+          </div>
+          <button
+            onClick={toggleForm}
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-full text-xs font-bold transition min-h-[40px] ${showForm
+              ? 'bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-slate-300 active:bg-slate-200 dark:active:bg-zinc-800'
+              : 'bg-teal-600 active:bg-teal-700 text-white'
+              }`}
+          >
+            {showForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+            <span>{showForm ? 'Cancel' : 'Add'}</span>
+          </button>
         </div>
 
-        <button
-          id="res-toggle-btn"
-          onClick={() => setShowForm(!showForm)}
-          className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2 md:py-2.5 rounded-lg md:rounded-xl text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 transition active:scale-95 cursor-pointer md:shadow-sm select-none"
-        >
-          {showForm ? <X className="w-3.5 h-3.5 md:w-4 md:h-4" /> : <Plus className="w-3.5 h-3.5 md:w-4 md:h-4" />}
-          <span>{showForm ? 'Close panel' : 'Add Publication'}</span>
-        </button>
-      </div>
+        {/* ============================================
+            MESSAGES
+            ============================================ */}
+        {msg && (
+          <div className="mx-4 md:mx-0 mb-4 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 px-4 py-3 rounded-2xl text-sm font-semibold flex items-center gap-2 animate-in fade-in duration-150">
+            <Check className="w-4 h-4 flex-shrink-0" />
+            <span>{msg}</span>
+          </div>
+        )}
 
-      {msg && (
-        <div id="res-alert" className="mx-3 md:mx-0 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 p-2.5 md:p-3.5 rounded-lg md:rounded-xl text-[10px] md:text-xs font-semibold flex items-center gap-1.5 md:gap-2">
-          <Check className="w-3.5 h-3.5 md:w-4 md:h-4" />
-          <span>{msg}</span>
-        </div>
-      )}
+        {error && !showForm && (
+          <div className="mx-4 md:mx-0 mb-4 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 px-4 py-3 rounded-2xl text-sm font-semibold">
+            {error}
+          </div>
+        )}
 
-      {showForm && (
-        <div className="mx-3 md:mx-0 bg-white dark:bg-zinc-950 md:rounded-2xl md:border md:border-teal-100 md:dark:border-teal-800 p-4 md:p-6 md:shadow-sm border-b-2 border-teal-100 dark:border-teal-800 md:border-b-2 md:border-teal-100">
-          <h3 className="font-bold text-slate-800 dark:text-slate-200 text-xs md:text-sm mb-3 md:mb-4 font-sans">Post Published Case Study</h3>
-          <form onSubmit={handleCreateSubmit} className="space-y-3 md:space-y-4 text-[11px] md:text-xs text-slate-700 dark:text-slate-300 font-medium">
+        {/* ============================================
+            FORM
+            ============================================ */}
+        {showForm && (
+          <section className="mx-4 md:mx-0 mb-6 bg-white dark:bg-zinc-950 md:rounded-2xl p-4 md:p-5 animate-in fade-in duration-200">
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white mb-4">
+              Add publication
+            </h2>
 
-            <div>
-              <label className="block text-slate-500 dark:text-slate-400 mb-1 text-[10px] md:text-xs">Study / Publication Title</label>
-              <input
-                id="res-input-title"
-                required
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Telehealth transition models in post-op cardiology wards"
-                className="w-full pl-3 pr-3 md:pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-lg md:rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs"
-              />
-            </div>
+            {error && (
+              <div className="mb-4 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 px-3.5 py-2.5 rounded-2xl text-xs font-semibold">
+                {error}
+              </div>
+            )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-slate-500 dark:text-slate-400 mb-1 text-[10px] md:text-xs">Journal name or Publisher</label>
+                <label htmlFor="res-title" className={labelClass}>
+                  Title <span className="text-rose-500">*</span>
+                </label>
                 <input
-                  id="res-input-journal"
+                  id="res-title"
                   type="text"
-                  value={journal}
-                  onChange={(e) => setJournal(e.target.value)}
-                  placeholder="e.g. Journal of Advanced Nursing Practice (JANP)"
-                  className="w-full pl-3 pr-3 md:pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-lg md:rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs"
+                  required
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g. Telehealth transition models in post-op cardiology"
+                  autoComplete="off"
+                  className={inputClass}
                 />
               </div>
 
-              <div>
-                <label className="block text-slate-500 dark:text-slate-400 mb-1 text-[10px] md:text-xs">Publication Month/Year</label>
-                <input
-                  id="res-input-date"
-                  type="month"
-                  value={pubDate}
-                  onChange={(e) => setPubDate(e.target.value)}
-                  className="w-full pl-3 pr-3 md:pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-lg md:rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="res-journal" className={labelClass}>
+                    Journal / publisher
+                  </label>
+                  <input
+                    id="res-journal"
+                    type="text"
+                    value={journal}
+                    onChange={(e) => setJournal(e.target.value)}
+                    placeholder="e.g. Journal of Advanced Nursing"
+                    autoComplete="off"
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="res-date" className={labelClass}>
+                    Published
+                  </label>
+                  <input
+                    id="res-date"
+                    type="month"
+                    value={pubDate}
+                    onChange={(e) => setPubDate(e.target.value)}
+                    max={todayMonth}
+                    className={inputClass}
+                  />
+                </div>
               </div>
-            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
               <div>
-                <label className="block text-slate-500 dark:text-slate-400 mb-1 text-[10px] md:text-xs font-sans">Co-Authors</label>
+                <label htmlFor="res-authors" className={labelClass}>
+                  Co-authors <span className="text-slate-400 dark:text-slate-500 font-normal">(optional)</span>
+                </label>
                 <input
-                  id="res-input-authors"
+                  id="res-authors"
                   type="text"
                   value={coAuthors}
                   onChange={(e) => setCoAuthors(e.target.value)}
                   placeholder="e.g. Dr. Jane Kamau, Prof. Fredrick Omondi"
-                  className="w-full pl-3 pr-3 md:pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-lg md:rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs"
+                  autoComplete="off"
+                  className={inputClass}
                 />
               </div>
 
               <div>
-                <label className="block text-slate-500 dark:text-slate-400 mb-1 text-[10px] md:text-xs">Published Study URL link</label>
+                <label htmlFor="res-url" className={labelClass}>
+                  Published URL <span className="text-slate-400 dark:text-slate-500 font-normal">(optional)</span>
+                </label>
                 <input
-                  id="res-input-url"
+                  id="res-url"
                   type="url"
                   value={projectUrl}
                   onChange={(e) => setProjectUrl(e.target.value)}
-                  placeholder="https://example.org/janp/study..."
-                  className="w-full pl-3 pr-3 md:pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-lg md:rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs"
+                  placeholder="https://doi.org/..."
+                  inputMode="url"
+                  autoComplete="url"
+                  className={inputClass}
                 />
               </div>
-            </div>
 
-            <div>
-              <label className="block text-slate-500 dark:text-slate-400 mb-1 text-[10px] md:text-xs">Study abstract / background summary</label>
-              <textarea
-                id="res-input-abstract"
-                value={abstractText}
-                onChange={(e) => setAbstractText(e.target.value)}
-                placeholder="A brief longitudinal quantitative report summarizing research findings..."
-                rows={3}
-                className="w-full pl-3 pr-3 md:pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-lg md:rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs"
-              ></textarea>
-            </div>
-
-            <button
-              id="res-save-btn"
-              type="submit"
-              disabled={saving}
-              className="w-full py-2.5 md:py-3 text-[11px] md:text-xs bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg md:rounded-xl active:scale-95 transition disabled:opacity-50"
-            >
-              Verify & Add Publication to Timeline
-            </button>
-          </form>
-        </div>
-      )}
-
-      {loading ? (
-        <div className="flex flex-col items-center justify-center py-16 md:py-20 bg-white dark:bg-zinc-950 md:rounded-2xl md:border md:border-slate-100 md:dark:border-slate-800 mx-3 md:mx-0">
-          <div className="w-6 h-6 md:w-8 md:h-8 border-3 md:border-4 border-slate-100 dark:border-slate-700 border-t-teal-600 rounded-full animate-spin mb-3"></div>
-          <p className="text-[10px] md:text-xs text-slate-400 dark:text-slate-500">Loading research publications...</p>
-        </div>
-      ) : studies.length === 0 ? (
-        <div className="mx-3 md:mx-0 bg-white dark:bg-zinc-950 md:rounded-2xl md:border md:border-slate-100 md:dark:border-slate-800 p-8 md:p-12 text-center text-slate-500 dark:text-slate-400 font-sans md:shadow-sm">
-          <BookOpen className="w-8 h-8 md:w-10 md:h-10 text-slate-300 dark:text-slate-600 mx-auto mb-3 md:mb-4" />
-          <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm md:text-base">No published studies listed</h4>
-          <p className="text-[10px] md:text-xs text-slate-500 dark:text-slate-400 mt-0.5 md:mt-1 max-w-sm mx-auto leading-relaxed">
-            Case studies, academic journals or remote consultation designs establish premium, peer leader qualifications.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-0 md:space-y-4">
-          {studies.map((proj) => (
-            <div key={proj.id} className="bg-white dark:bg-zinc-950 md:border md:border-slate-100 md:dark:border-slate-800 p-4 md:p-5 md:rounded-2xl md:shadow-sm space-y-2.5 md:space-y-3 border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-100">
-              <div className="flex items-start justify-between gap-3 md:gap-4">
-                <div className="space-y-0.5 md:space-y-1 min-w-0 flex-1">
-                  <h4 className="font-extrabold text-slate-900 dark:text-white text-sm md:text-base leading-tight">{proj.title}</h4>
-                  {proj.journal_or_publisher && (
-                    <p className="text-[10px] md:text-xs text-teal-700 dark:text-teal-400 font-bold">{proj.journal_or_publisher} ({proj.publication_date})</p>
-                  )}
-                  {proj.co_authors && (
-                    <p className="text-[9px] md:text-[10px] text-slate-500 dark:text-slate-400">Co-authors: {proj.co_authors}</p>
-                  )}
-                </div>
-
-                <button
-                  id={`res-btn-delete-${proj.id}`}
-                  onClick={() => handleDeleteItem(proj.id)}
-                  className="text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 p-1.5 md:p-2 rounded-lg md:rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/50 cursor-pointer flex-shrink-0 transition"
-                  title="Delete publication"
-                >
-                  <Trash2 className="w-4 h-4 md:w-4.5 md:h-4.5" />
-                </button>
+              <div>
+                <label htmlFor="res-abstract" className={labelClass}>
+                  Abstract <span className="text-slate-400 dark:text-slate-500 font-normal">(optional)</span>
+                </label>
+                <textarea
+                  id="res-abstract"
+                  value={abstractText}
+                  onChange={(e) => setAbstractText(e.target.value)}
+                  placeholder="A brief summary of the study and its findings..."
+                  rows={4}
+                  className={`${inputClass} resize-none`}
+                />
               </div>
 
-              {proj.abstract_text && (
-                <p className="text-[10px] md:text-xs text-slate-600 dark:text-slate-400 leading-relaxed max-w-2xl bg-slate-50/50 dark:bg-slate-800/50 p-2.5 md:p-3 rounded-lg md:rounded-lg border border-slate-100/60 dark:border-slate-700 font-medium italic">
-                  "{proj.abstract_text}"
-                </p>
-              )}
+              <div className="pt-2 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => { resetForm(); setShowForm(false); }}
+                  disabled={saving}
+                  className="flex-1 py-3 rounded-2xl bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-slate-300 text-sm font-bold active:opacity-70 transition disabled:opacity-50 min-h-[44px]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!canSubmit || saving}
+                  className="flex-[2] py-3 rounded-2xl bg-teal-600 active:bg-teal-700 text-white text-sm font-bold transition disabled:opacity-50 flex items-center justify-center gap-2 min-h-[44px]"
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Saving
+                    </>
+                  ) : (
+                    'Publish'
+                  )}
+                </button>
+              </div>
+            </form>
+          </section>
+        )}
 
-              {proj.project_url && (
-                <div className="pt-1.5 md:pt-2 flex justify-end">
-                  <a
-                    href={proj.project_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
-                  >
-                    <span>Full Published Link</span>
-                    <ExternalLink className="w-3 h-3 md:w-3.5 md:h-3.5" />
-                  </a>
-                </div>
-              )}
+        {/* ============================================
+            LIST
+            ============================================ */}
+        {loading ? (
+          <div>{[1, 2].map(i => <ResearchSkeleton key={i} />)}</div>
+        ) : studies.length === 0 ? (
+          <div className="text-center py-16 px-6">
+            <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-zinc-900 flex items-center justify-center mx-auto mb-4">
+              <BookOpen className="w-7 h-7 text-slate-400 dark:text-slate-500" />
             </div>
-          ))}
-        </div>
-      )}
+            <h3 className="font-bold text-slate-800 dark:text-slate-200 text-base">
+              No publications yet
+            </h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1.5 max-w-xs mx-auto leading-relaxed">
+              Add your journal articles, case studies, and research work to showcase your academic contributions.
+            </p>
+            <button
+              onClick={() => setShowForm(true)}
+              className="mt-5 inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-teal-600 active:bg-teal-700 text-white text-sm font-bold transition"
+            >
+              <Plus className="w-4 h-4" />
+              Add your first publication
+            </button>
+          </div>
+        ) : (
+          <div>
+            {studies.map(project => (
+              <ResearchCard
+                key={project.id}
+                project={project}
+                onDelete={handleDeleteRequest}
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
+      {/* ============================================
+          DELETE CONFIRM
+          ============================================ */}
       <ConfirmModal
         isOpen={!!deleteId}
-        title="Remove Publication"
-        message="Are you sure you want to remove this research paper publication card? This action is irreversible."
-        onConfirm={purseDeleteConfirm}
-        onCancel={() => setDeleteId(null)}
+        title="Remove publication?"
+        message="This will permanently remove this research paper from your profile. This cannot be undone."
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleCancelDelete}
       />
     </div>
   );

@@ -3,23 +3,126 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { certificatesService } from '../services/certificatesService';
 import { Certification } from '../types';
-import { Award, Calendar, Trash2, Plus, X, Check, Globe, Pencil } from 'lucide-react';
+import {
+  Award, Calendar, Trash2, Plus, X, Check, Globe, Pencil,
+  ExternalLink, Loader2
+} from 'lucide-react';
 import { ConfirmModal } from '../components/ConfirmModal';
 
+// ==========================================================
+// SHARED CLASSES
+// ==========================================================
+const inputClass =
+  'w-full text-sm px-4 py-3 bg-slate-100 dark:bg-zinc-900 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-500/40 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition';
+
+const labelClass =
+  'block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1.5';
+
+// ==========================================================
+// CERT CARD
+// ==========================================================
+const CertCard = React.memo<{
+  cert: Certification;
+  onEdit: (cert: Certification) => void;
+  onDelete: (id: string) => void;
+}>(({ cert, onEdit, onDelete }) => {
+  const issuedLabel = useMemo(() => {
+    if (!cert.issue_date) return '';
+    // issue_date is stored as YYYY-MM; render it as "Mon YYYY"
+    const [year, month] = cert.issue_date.split('-');
+    if (!year || !month) return cert.issue_date;
+    const d = new Date(Number(year), Number(month) - 1, 1);
+    return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  }, [cert.issue_date]);
+
+  return (
+    <article className="bg-white dark:bg-zinc-950 p-4 border-b border-slate-100 dark:border-zinc-900">
+      <div className="flex items-start gap-3">
+        <div className="w-11 h-11 rounded-2xl bg-teal-50 dark:bg-teal-950/40 flex items-center justify-center flex-shrink-0">
+          <Award className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-bold text-slate-900 dark:text-white text-base leading-tight truncate">
+            {cert.name}
+          </h3>
+          <p className="text-sm font-semibold text-teal-700 dark:text-teal-400 mt-0.5 truncate">
+            {cert.issuing_organization}
+          </p>
+          {issuedLabel && (
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1">
+              <Calendar className="w-3 h-3" />
+              Issued {issuedLabel}
+            </p>
+          )}
+          {cert.verification_url && (
+            <a
+              href={cert.verification_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 mt-2 text-xs font-bold text-blue-600 dark:text-blue-400 active:opacity-70"
+            >
+              <Globe className="w-3 h-3" />
+              Verify credential
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 mt-3.5">
+        <button
+          onClick={() => onEdit(cert)}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-zinc-900 active:bg-slate-200 dark:active:bg-zinc-800 transition"
+        >
+          <Pencil className="w-3.5 h-3.5" />
+          Edit
+        </button>
+        <button
+          onClick={() => onDelete(cert.id)}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 active:bg-rose-100 dark:active:bg-rose-950/50 transition ml-auto"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+          Remove
+        </button>
+      </div>
+    </article>
+  );
+});
+CertCard.displayName = 'CertCard';
+
+// ==========================================================
+// SKELETON
+// ==========================================================
+const CertSkeleton = React.memo(() => (
+  <div className="bg-white dark:bg-zinc-950 p-4 border-b border-slate-100 dark:border-zinc-900 animate-pulse">
+    <div className="flex items-start gap-3">
+      <div className="w-11 h-11 rounded-2xl bg-slate-200 dark:bg-zinc-800 flex-shrink-0" />
+      <div className="flex-1 space-y-2">
+        <div className="h-4 bg-slate-200 dark:bg-zinc-800 rounded w-2/3" />
+        <div className="h-3 bg-slate-200 dark:bg-zinc-800 rounded w-1/2" />
+        <div className="h-3 bg-slate-200 dark:bg-zinc-800 rounded w-1/3" />
+      </div>
+    </div>
+  </div>
+));
+CertSkeleton.displayName = 'CertSkeleton';
+
+// ==========================================================
+// MAIN
+// ==========================================================
 export default function CertificationsPage() {
   const { user } = useAuth();
   const [certs, setCerts] = useState<Certification[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  // --- Form State ---
+  // Form
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-
   const [name, setName] = useState('');
   const [issuingOrg, setIssuingOrg] = useState('');
   const [issueDate, setIssueDate] = useState('');
@@ -27,243 +130,323 @@ export default function CertificationsPage() {
 
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
+  const [error, setError] = useState('');
 
-  const loadCerts = async () => {
-    if (!user) return;
+  // ----------------------------------------------------------
+  // Load
+  // ----------------------------------------------------------
+  const loadCerts = useCallback(async () => {
+    if (!user?.id) return;
     try {
       setLoading(true);
       const data = await certificatesService.getCertifications(user.id);
       setCerts(data);
     } catch (err) {
-      console.error(err);
+      console.error('Failed to load certifications:', err);
+      setError('Could not load your certifications.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id]);
 
   useEffect(() => {
     loadCerts();
-  }, [user]);
+  }, [loadCerts]);
 
-  const handleEditClick = (cert: Certification) => {
-    setEditingId(cert.id);
-    setName(cert.name);
-    setIssuingOrg(cert.issuing_organization);
-    setIssueDate(cert.issue_date);
-    setVerificationUrl(cert.verification_url || '');
-    setShowForm(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const resetForm = () => {
+  // ----------------------------------------------------------
+  // Form helpers
+  // ----------------------------------------------------------
+  const resetForm = useCallback(() => {
     setEditingId(null);
     setName('');
     setIssuingOrg('');
     setIssueDate('');
     setVerificationUrl('');
     setShowForm(false);
-  };
+    setError('');
+  }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleEditClick = useCallback((cert: Certification) => {
+    setEditingId(cert.id);
+    setName(cert.name);
+    setIssuingOrg(cert.issuing_organization);
+    setIssueDate(cert.issue_date);
+    setVerificationUrl(cert.verification_url || '');
+    setShowForm(true);
+    // Smooth scroll — use rAF so the form is rendered before scroll
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  }, []);
+
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+    setError('');
+
+    if (!name.trim() || !issuingOrg.trim() || !issueDate) {
+      setError('Please fill in all required fields.');
+      return;
+    }
+
     setSaving(true);
     try {
       await certificatesService.saveCertification({
         id: editingId || undefined,
         profile_id: user.id,
-        name,
-        issuing_organization: issuingOrg,
+        name: name.trim(),
+        issuing_organization: issuingOrg.trim(),
         issue_date: issueDate,
-        verification_url: verificationUrl || undefined
+        verification_url: verificationUrl.trim() || undefined,
       });
 
-      setMsg(editingId ? 'Certification updated!' : 'Certification and license published!');
-      resetForm();
+      setMsg(editingId ? 'Certification updated' : 'Certification published');
       setTimeout(() => setMsg(''), 3000);
+      resetForm();
       await loadCerts();
     } catch (err) {
-      console.error(err);
+      console.error('Save failed:', err);
+      setError('Could not save certification. Please try again.');
     } finally {
       setSaving(false);
     }
-  };
+  }, [user, name, issuingOrg, issueDate, verificationUrl, editingId, resetForm, loadCerts]);
 
-  const handleDeleteConfirm = async () => {
+  const handleDeleteConfirm = useCallback(async () => {
     if (!deleteId) return;
     try {
       await certificatesService.deleteCertification(deleteId);
-      setMsg('Certification removed.');
+      setMsg('Certification removed');
       setTimeout(() => setMsg(''), 3000);
       await loadCerts();
     } catch (err) {
-      console.error(err);
+      console.error('Delete failed:', err);
     } finally {
       setDeleteId(null);
     }
-  };
+  }, [deleteId, loadCerts]);
+
+  const handleDeleteRequest = useCallback((id: string) => setDeleteId(id), []);
+  const handleCancelDelete = useCallback(() => setDeleteId(null), []);
+
+  const toggleForm = useCallback(() => {
+    if (showForm) resetForm();
+    else setShowForm(true);
+  }, [showForm, resetForm]);
+
+  // Derived — is the form dirty?
+  const formDirty = useMemo(() => {
+    return !!(name || issuingOrg || issueDate || verificationUrl);
+  }, [name, issuingOrg, issueDate, verificationUrl]);
 
   if (!user) return null;
 
+  // ----------------------------------------------------------
+  // Render
+  // ----------------------------------------------------------
   return (
-    <div className="space-y-0 md:space-y-6 font-sans -mx-3 md:mx-0">
+    <div className="w-full min-h-screen bg-slate-50 dark:bg-zinc-950">
+      <div className="max-w-2xl mx-auto md:px-6 md:py-8 pb-24">
 
-      {/* Header - full width on mobile */}
-      <div className="bg-white dark:bg-slate-900 md:rounded-2xl md:border md:border-slate-100 md:dark:border-slate-800 p-4 md:p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 md:gap-4 md:shadow-sm border-b border-slate-100 dark:border-slate-800 md:border-b md:border-slate-100">
-        <div>
-          <h2 className="text-lg md:text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">Focus Designations & Board Licenses</h2>
-          <p className="text-[10px] md:text-xs text-slate-500 dark:text-slate-400 mt-0.5 md:mt-1">
-            Publish credentials like ACLS, CCRN, or state licenses.
-          </p>
+        {/* ============================================
+            HEADER
+            ============================================ */}
+        <div className="px-4 md:px-0 pt-4 md:pt-0 pb-4 md:pb-6 flex items-start gap-3">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg md:text-2xl font-display font-extrabold tracking-tight text-slate-900 dark:text-white">
+              Certifications
+            </h1>
+            <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+              Board licenses, ACLS, CCRN, and specialty designations
+            </p>
+          </div>
+          <button
+            onClick={toggleForm}
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-full text-xs font-bold transition min-h-[40px] ${showForm
+              ? 'bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-slate-300 active:bg-slate-200 dark:active:bg-zinc-800'
+              : 'bg-teal-600 active:bg-teal-700 text-white'
+              }`}
+          >
+            {showForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+            <span>{showForm ? 'Cancel' : 'Add'}</span>
+          </button>
         </div>
 
-        <button
-          onClick={() => (showForm ? resetForm() : setShowForm(true))}
-          className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2 md:py-2.5 rounded-lg md:rounded-xl text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 transition active:scale-95 md:shadow-sm"
-        >
-          {showForm ? <X className="w-3.5 h-3.5 md:w-4 md:h-4" /> : <Plus className="w-3.5 h-3.5 md:w-4 md:h-4" />}
-          <span>{showForm ? 'Cancel' : 'Add Certification'}</span>
-        </button>
-      </div>
+        {/* ============================================
+            SUCCESS / ERROR MESSAGES
+            ============================================ */}
+        {msg && (
+          <div className="mx-4 md:mx-0 mb-4 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 px-4 py-3 rounded-2xl text-sm font-semibold flex items-center gap-2 animate-in fade-in duration-150">
+            <Check className="w-4 h-4 flex-shrink-0" />
+            <span>{msg}</span>
+          </div>
+        )}
 
-      {msg && (
-        <div className="mx-3 md:mx-0 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 p-2.5 md:p-3.5 rounded-lg md:rounded-xl text-[10px] md:text-xs font-semibold flex items-center gap-1.5 md:gap-2">
-          <Check className="w-3.5 h-3.5 md:w-4 md:h-4" />
-          <span>{msg}</span>
-        </div>
-      )}
+        {error && !showForm && (
+          <div className="mx-4 md:mx-0 mb-4 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 px-4 py-3 rounded-2xl text-sm font-semibold">
+            {error}
+          </div>
+        )}
 
-      {/* Form - full width on mobile */}
-      {showForm && (
-        <div className="mx-3 md:mx-0 bg-white dark:bg-slate-900 md:rounded-2xl md:border-2 md:border-teal-100 md:dark:border-teal-800 p-4 md:p-6 md:shadow-sm border-b-2 border-teal-100 dark:border-teal-800 md:border-b-2 md:border-teal-100">
-          <h2 className="font-bold text-slate-800 dark:text-slate-200 text-xs md:text-sm mb-3 md:mb-4">
-            {editingId ? 'Edit Specialty Certification' : 'Post Specialty Certification'}
-          </h2>
-          <form onSubmit={handleSubmit} className="space-y-3 md:space-y-4 text-[11px] md:text-xs text-slate-700 dark:text-slate-300 font-medium">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
+        {/* ============================================
+            FORM — flat, edge-to-edge on mobile
+            ============================================ */}
+        {showForm && (
+          <section className="mx-4 md:mx-0 mb-6 bg-white dark:bg-zinc-950 md:rounded-2xl p-4 md:p-5 animate-in fade-in duration-200">
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white mb-4">
+              {editingId ? 'Edit certification' : 'Add certification'}
+            </h2>
+
+            {error && (
+              <div className="mb-4 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 px-3.5 py-2.5 rounded-2xl text-xs font-semibold">
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-slate-500 dark:text-slate-400 mb-1 text-[10px] md:text-xs">Certification Name</label>
+                <label htmlFor="cert-name" className={labelClass}>
+                  Certification name <span className="text-rose-500">*</span>
+                </label>
                 <input
-                  required
+                  id="cert-name"
                   type="text"
+                  required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. ACLS"
-                  className="w-full pl-3 pr-3 md:pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-lg md:rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs"
+                  placeholder="e.g. ACLS, CCRN, RN License"
+                  className={inputClass}
                 />
               </div>
+
               <div>
-                <label className="block text-slate-500 dark:text-slate-400 mb-1 text-[10px] md:text-xs">Issuing Organization</label>
+                <label htmlFor="cert-org" className={labelClass}>
+                  Issuing organization <span className="text-rose-500">*</span>
+                </label>
                 <input
-                  required
+                  id="cert-org"
                   type="text"
+                  required
                   value={issuingOrg}
                   onChange={(e) => setIssuingOrg(e.target.value)}
-                  placeholder="e.g. Nursing Council"
-                  className="w-full pl-3 pr-3 md:pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-lg md:rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs"
+                  placeholder="e.g. Nursing Council of Kenya"
+                  className={inputClass}
                 />
               </div>
-            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
               <div>
-                <label className="block text-slate-500 dark:text-slate-400 mb-1 text-[10px] md:text-xs">Issue Date</label>
+                <label htmlFor="cert-date" className={labelClass}>
+                  Issue date <span className="text-rose-500">*</span>
+                </label>
                 <input
-                  required
+                  id="cert-date"
                   type="month"
+                  required
                   value={issueDate}
                   onChange={(e) => setIssueDate(e.target.value)}
-                  className="w-full pl-3 pr-3 md:pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-lg md:rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs"
+                  max={new Date().toISOString().slice(0, 7)}
+                  className={inputClass}
                 />
               </div>
+
               <div>
-                <label className="block text-slate-500 dark:text-slate-400 mb-1 text-[10px] md:text-xs">Verification URL (Optional)</label>
+                <label htmlFor="cert-url" className={labelClass}>
+                  Verification URL <span className="text-slate-400 dark:text-slate-500 font-normal">(optional)</span>
+                </label>
                 <input
+                  id="cert-url"
                   type="url"
                   value={verificationUrl}
                   onChange={(e) => setVerificationUrl(e.target.value)}
                   placeholder="https://..."
-                  className="w-full pl-3 pr-3 md:pr-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-lg md:rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs"
+                  inputMode="url"
+                  autoComplete="url"
+                  className={inputClass}
                 />
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1.5">
+                  Link to the official register or your digital certificate
+                </p>
               </div>
-            </div>
 
+              <div className="pt-2 flex gap-3">
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  disabled={saving}
+                  className="flex-1 py-3 rounded-2xl bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-slate-300 text-sm font-bold active:opacity-70 transition disabled:opacity-50 min-h-[44px]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving || !name.trim() || !issuingOrg.trim() || !issueDate}
+                  className="flex-[2] py-3 rounded-2xl bg-teal-600 active:bg-teal-700 text-white text-sm font-bold transition disabled:opacity-50 flex items-center justify-center gap-2 min-h-[44px]"
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Saving
+                    </>
+                  ) : editingId ? (
+                    'Update'
+                  ) : (
+                    'Publish'
+                  )}
+                </button>
+              </div>
+            </form>
+          </section>
+        )}
+
+        {/* ============================================
+            LIST
+            ============================================ */}
+        {loading ? (
+          <div>
+            {[1, 2, 3].map(i => <CertSkeleton key={i} />)}
+          </div>
+        ) : certs.length === 0 ? (
+          <div className="text-center py-16 px-6">
+            <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-zinc-900 flex items-center justify-center mx-auto mb-4">
+              <Award className="w-7 h-7 text-slate-400 dark:text-slate-500" />
+            </div>
+            <h3 className="font-bold text-slate-800 dark:text-slate-200 text-base">
+              No certifications yet
+            </h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1.5 max-w-xs mx-auto leading-relaxed">
+              Add your board license, ACLS, or specialty designations to build trust with recruiters.
+            </p>
             <button
-              type="submit"
-              disabled={saving}
-              className="w-full py-2.5 md:py-3 text-[11px] md:text-xs bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg md:rounded-xl transition disabled:opacity-50"
+              onClick={() => setShowForm(true)}
+              className="mt-5 inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-teal-600 active:bg-teal-700 text-white text-sm font-bold transition"
             >
-              {saving ? 'Saving...' : editingId ? 'Update Certification' : 'Add Certification'}
+              <Plus className="w-4 h-4" />
+              Add your first certification
             </button>
-          </form>
-        </div>
-      )}
+          </div>
+        ) : (
+          <div>
+            {certs.map(cert => (
+              <CertCard
+                key={cert.id}
+                cert={cert}
+                onEdit={handleEditClick}
+                onDelete={handleDeleteRequest}
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
-      {/* List - single column feed on mobile, grid on desktop */}
-      {loading ? (
-        <div className="py-16 md:py-20 text-center">
-          <div className="w-6 h-6 md:w-8 md:h-8 border-3 md:border-4 border-teal-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-          <p className="text-[10px] md:text-xs text-slate-400 dark:text-slate-500">Loading certifications...</p>
-        </div>
-      ) : certs.length === 0 ? (
-        <div className="mx-3 md:mx-0 bg-white dark:bg-slate-900 md:rounded-2xl md:border md:border-slate-100 md:dark:border-slate-800 p-8 md:p-12 text-center text-slate-500 dark:text-slate-400 md:shadow-sm">
-          <Award className="w-8 h-8 md:w-10 md:h-10 text-slate-300 dark:text-slate-600 mx-auto mb-3 md:mb-4" />
-          <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm md:text-base">No designations listed</h4>
-          <p className="text-[10px] md:text-xs text-slate-400 dark:text-slate-500 mt-1">Add your first certification above</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-0 md:gap-6">
-          {certs.map((cert) => (
-            <div key={cert.id} className="bg-white dark:bg-slate-900 md:border md:border-slate-100 md:dark:border-slate-800 p-4 md:p-5 md:rounded-2xl md:shadow-sm md:hover:shadow-md transition border-b border-slate-100 dark:border-slate-800 md:border-b md:border-slate-100 last:border-b-0 md:last:border-b">
-              <div className="flex justify-between items-start mb-3 md:mb-4">
-                <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-teal-50 dark:bg-teal-950/50 text-teal-600 dark:text-teal-400 flex items-center justify-center">
-                  <Award className="w-5 h-5 md:w-6 md:h-6" />
-                </div>
-                <div className="flex gap-0.5 md:gap-1">
-                  <button
-                    onClick={() => handleEditClick(cert)}
-                    className="text-slate-400 dark:text-slate-500 hover:text-teal-600 dark:hover:text-teal-400 p-1.5 rounded-lg hover:bg-teal-50 dark:hover:bg-teal-950/50 transition"
-                    title="Edit certification"
-                  >
-                    <Pencil className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                  </button>
-                  <button
-                    onClick={() => setDeleteId(cert.id)}
-                    className="text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/50 transition"
-                    title="Delete certification"
-                  >
-                    <Trash2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                  </button>
-                </div>
-              </div>
-
-              <h4 className="font-extrabold text-slate-900 dark:text-white text-sm md:text-base">{cert.name}</h4>
-              <p className="text-[10px] md:text-[11px] font-bold text-teal-700 dark:text-teal-400 mt-0.5">{cert.issuing_organization}</p>
-
-              <div className="mt-2.5 md:mt-3 pt-2.5 md:pt-3 border-t border-slate-50 dark:border-slate-800 text-[9px] md:text-[10px] text-slate-500 dark:text-slate-400 flex justify-between items-center flex-wrap gap-2">
-                <span>Issued: <span className="font-semibold text-slate-700 dark:text-slate-300">{cert.issue_date}</span></span>
-                {cert.verification_url && (
-                  <a
-                    href={cert.verification_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 font-medium"
-                  >
-                    <Globe className="w-3 h-3" /> Verify
-                  </a>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
+      {/* ============================================
+          DELETE CONFIRM
+          ============================================ */}
       <ConfirmModal
         isOpen={!!deleteId}
-        title="Remove Certification"
-        message="Are you sure you want to remove this? This cannot be undone."
+        title="Remove certification?"
+        message="This will permanently remove the certification from your profile. This cannot be undone."
         onConfirm={handleDeleteConfirm}
-        onCancel={() => setDeleteId(null)}
+        onCancel={handleCancelDelete}
       />
     </div>
   );

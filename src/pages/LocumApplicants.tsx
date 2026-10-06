@@ -3,15 +3,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { locumService, LocumRequest, LocumOffer, LocumUrgency } from '../services/locumService';
 import { VerificationBadge } from '../components/VerificationBadge';
 import {
-    ArrowLeft, Inbox, Users, CheckCircle2, XCircle, MessageSquare,
-    Phone, MessageCircle, MapPin, Calendar, Clock, AlertCircle,
-    ChevronRight, Loader2
+    ArrowLeft, Users, CheckCircle2, MessageSquare,
+    Phone, MessageCircle, MapPin, Calendar, Clock,
+    Loader2
 } from 'lucide-react';
 
 // ==========================================
@@ -20,17 +20,17 @@ import {
 const URGENCY_META: Record<LocumUrgency, { label: string; classes: string; dot: string }> = {
     urgent: {
         label: 'Urgent',
-        classes: 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-900',
+        classes: 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400',
         dot: 'bg-rose-500 animate-pulse'
     },
     soon: {
         label: 'Soon',
-        classes: 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-900',
+        classes: 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400',
         dot: 'bg-amber-500'
     },
     planned: {
         label: 'Planned',
-        classes: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900',
+        classes: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400',
         dot: 'bg-emerald-500'
     }
 };
@@ -69,6 +69,191 @@ const normalizeWhatsApp = (raw: string | null | undefined): string => {
 };
 
 // ==========================================
+// SKELETON
+// ==========================================
+const ApplicantSkeleton = React.memo(() => (
+    <div className="bg-white dark:bg-zinc-950 p-4 border-b border-slate-100 dark:border-zinc-900 animate-pulse">
+        <div className="flex items-start gap-3">
+            <div className="w-12 h-12 rounded-full bg-slate-200 dark:bg-zinc-800 flex-shrink-0" />
+            <div className="flex-1 space-y-2">
+                <div className="h-4 bg-slate-200 dark:bg-zinc-800 rounded w-1/2" />
+                <div className="h-3 bg-slate-200 dark:bg-zinc-800 rounded w-2/3" />
+            </div>
+        </div>
+        <div className="mt-3 h-14 bg-slate-100 dark:bg-zinc-900 rounded-2xl" />
+        <div className="mt-3 h-10 bg-slate-200 dark:bg-zinc-800 rounded-full" />
+    </div>
+));
+
+// ==========================================
+// APPLICANT CARD
+// ==========================================
+const ApplicantCard = React.memo<{
+    offer: LocumOffer;
+    isAccepted: boolean;
+    anotherAccepted: boolean;
+    isConfirming: boolean;
+    isAccepting: boolean;
+    onStartConfirm: (id: string) => void;
+    onCancelConfirm: () => void;
+    onConfirmAccept: (id: string) => void;
+}>(({
+    offer,
+    isAccepted,
+    anotherAccepted,
+    isConfirming,
+    isAccepting,
+    onStartConfirm,
+    onCancelConfirm,
+    onConfirmAccept
+}) => {
+    const isDeclined = offer.status === 'declined';
+    const isWithdrawn = offer.status === 'withdrawn';
+    const phone = offer.applicant?.phone_number || '';
+    const whatsapp = offer.applicant?.whatsapp_number || '';
+    const inactive = isDeclined || isWithdrawn;
+
+    return (
+        <article
+            className={`bg-white dark:bg-zinc-950 p-4 border-b border-slate-100 dark:border-zinc-900 ${inactive ? 'opacity-60' : ''
+                }`}
+        >
+            {/* Status ribbon for accepted */}
+            {isAccepted && (
+                <div className="mb-3 flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Accepted
+                    </span>
+                </div>
+            )}
+
+            {/* Header */}
+            <div className="flex items-start gap-3">
+                <img
+                    src={offer.applicant?.avatar_url || '/192.png'}
+                    alt={getApplicantName(offer)}
+                    loading="lazy"
+                    decoding="async"
+                    className="w-12 h-12 rounded-full object-cover bg-slate-100 dark:bg-zinc-900 flex-shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-bold text-slate-900 dark:text-white text-base truncate">
+                            {getApplicantName(offer)}
+                        </span>
+                        {offer.applicant?.verification_status === 'verified' && (
+                            <span className="w-4 h-4 flex-shrink-0">
+                                <VerificationBadge status="verified" showText={false} />
+                            </span>
+                        )}
+                        {isDeclined && (
+                            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full">
+                                Declined
+                            </span>
+                        )}
+                        {isWithdrawn && (
+                            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full">
+                                Withdrawn
+                            </span>
+                        )}
+                    </div>
+                    <p className="text-sm text-indigo-600 dark:text-indigo-400 mt-0.5 truncate">
+                        {offer.applicant?.qualification || offer.applicant?.nursing_level || 'Nurse'}
+                    </p>
+                </div>
+            </div>
+
+            {/* Message */}
+            {offer.message && (
+                <div className="mt-3 bg-slate-100 dark:bg-zinc-900 rounded-2xl p-3">
+                    <div className="flex items-start gap-2">
+                        <MessageSquare className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 flex-shrink-0 mt-0.5" />
+                        <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                            "{offer.message}"
+                        </p>
+                    </div>
+                </div>
+            )}
+
+            {/* Contact — only if accepted */}
+            {isAccepted && (phone || whatsapp) && (
+                <div className="mt-3 flex gap-2">
+                    {whatsapp && (
+                        <a
+                            href={`https://wa.me/${normalizeWhatsApp(whatsapp)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-emerald-500 active:bg-emerald-600 text-white text-sm font-bold transition min-h-[44px]"
+                        >
+                            <MessageCircle className="w-4 h-4" />
+                            WhatsApp
+                        </a>
+                    )}
+                    {phone && (
+                        <a
+                            href={`tel:${phone}`}
+                            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-indigo-600 active:bg-indigo-700 text-white text-sm font-bold transition min-h-[44px]"
+                        >
+                            <Phone className="w-4 h-4" />
+                            Call
+                        </a>
+                    )}
+                </div>
+            )}
+
+            {/* Accept / Confirm */}
+            {!isAccepted && !inactive && !anotherAccepted && (
+                <div className="mt-3">
+                    {isConfirming ? (
+                        <div className="flex gap-2">
+                            <button
+                                onClick={onCancelConfirm}
+                                disabled={isAccepting}
+                                className="flex-1 py-2.5 rounded-full bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-slate-300 text-sm font-semibold active:opacity-70 transition min-h-[44px] disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => onConfirmAccept(offer.id)}
+                                disabled={isAccepting}
+                                className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-full bg-emerald-500 active:bg-emerald-600 text-white text-sm font-bold transition min-h-[44px] disabled:opacity-50"
+                            >
+                                {isAccepting ? (
+                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                ) : (
+                                    <>
+                                        <CheckCircle2 className="w-4 h-4" />
+                                        Confirm
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    ) : (
+                        <button
+                            onClick={() => onStartConfirm(offer.id)}
+                            className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-full bg-emerald-500 active:bg-emerald-600 text-white text-sm font-bold transition min-h-[44px]"
+                        >
+                            <CheckCircle2 className="w-4 h-4" />
+                            Accept this Nurse
+                        </button>
+                    )}
+                </div>
+            )}
+
+            {/* Someone else already accepted */}
+            {anotherAccepted && !inactive && (
+                <p className="mt-3 text-xs text-slate-400 dark:text-slate-500 italic">
+                    Another nurse was accepted for this shift.
+                </p>
+            )}
+        </article>
+    );
+});
+
+ApplicantCard.displayName = 'ApplicantCard';
+
+// ==========================================
 // MAIN PAGE
 // ==========================================
 export default function LocumApplicants() {
@@ -83,15 +268,22 @@ export default function LocumApplicants() {
     const [accepting, setAccepting] = useState<string | null>(null);
     const [confirmAccept, setConfirmAccept] = useState<string | null>(null);
 
+    const handleBack = useCallback(() => {
+        navigate('/locum');
+    }, [navigate]);
+
     // ---------------------------------------------
-    // Load user, request, offers
+    // Load
     // ---------------------------------------------
     useEffect(() => {
+        let cancelled = false;
+
         const load = async () => {
             setLoading(true);
             setError('');
             try {
                 const { data: { user } } = await supabase.auth.getUser();
+                if (cancelled) return;
                 if (!user) {
                     navigate('/login');
                     return;
@@ -103,25 +295,25 @@ export default function LocumApplicants() {
                     return;
                 }
 
-                // Fetch the request
                 const { data: reqData, error: reqErr } = await supabase
                     .from('locum_requests')
                     .select(`
-            *,
-            requester:profiles!requester_id (
-              id, first_name, last_name, full_name, username,
-              avatar_url, qualification, verification_status
-            )
-          `)
+                        *,
+                        requester:profiles!requester_id (
+                            id, first_name, last_name, full_name, username,
+                            avatar_url, qualification, verification_status
+                        )
+                    `)
                     .eq('id', requestId)
                     .single();
+
+                if (cancelled) return;
 
                 if (reqErr || !reqData) {
                     setError('Request not found');
                     return;
                 }
 
-                // Verify ownership — only the requester can view applicants
                 if (reqData.requester_id !== user.id) {
                     setError('Only the requester can view applicants');
                     return;
@@ -129,30 +321,42 @@ export default function LocumApplicants() {
 
                 setRequest(reqData as LocumRequest);
 
-                // Fetch offers
                 const offerData = await locumService.getOffersForRequest(requestId);
+                if (cancelled) return;
                 setOffers(offerData);
             } catch (err) {
                 console.error('Load applicants error:', err);
-                setError('Failed to load applicants');
+                if (!cancelled) setError('Failed to load applicants');
             } finally {
-                setLoading(false);
+                if (!cancelled) setLoading(false);
             }
         };
+
         load();
+        return () => { cancelled = true; };
     }, [requestId, navigate]);
 
     // ---------------------------------------------
     // Accept
     // ---------------------------------------------
-    const handleAccept = async (offerId: string) => {
+    const handleAccept = useCallback(async (offerId: string) => {
         if (!currentUserId || !requestId) return;
         setAccepting(offerId);
         try {
             await locumService.acceptOffer(offerId, currentUserId);
-            // Refresh offers
-            const fresh = await locumService.getOffersForRequest(requestId);
-            setOffers(fresh);
+
+            // ✅ OPTIMISTIC: patch state locally instead of refetching all offers
+            setOffers(prev =>
+                prev.map(o => {
+                    if (o.id === offerId) return { ...o, status: 'accepted' as const };
+                    if (o.status === 'pending') return { ...o, status: 'declined' as const };
+                    return o;
+                })
+            );
+
+            // Update request status locally
+            setRequest(prev => (prev ? { ...prev, status: 'filled' as const } : prev));
+
             setConfirmAccept(null);
         } catch (err) {
             console.error('Accept offer error:', err);
@@ -160,42 +364,56 @@ export default function LocumApplicants() {
         } finally {
             setAccepting(null);
         }
-    };
+    }, [currentUserId, requestId]);
 
-    const handleBack = () => {
-        navigate('/locum');
-    };
+    const handleStartConfirm = useCallback((id: string) => setConfirmAccept(id), []);
+    const handleCancelConfirm = useCallback(() => setConfirmAccept(null), []);
 
     // ---------------------------------------------
-    // Loading state
+    // Derived
+    // ---------------------------------------------
+    const { acceptedOffer, pendingOffers } = useMemo(() => {
+        return {
+            acceptedOffer: offers.find(o => o.status === 'accepted'),
+            pendingOffers: offers.filter(o => o.status === 'pending')
+        };
+    }, [offers]);
+
+    const meta = request ? URGENCY_META[request.urgency] : null;
+
+    // ---------------------------------------------
+    // Loading
     // ---------------------------------------------
     if (loading) {
         return (
-            <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 flex items-center justify-center">
-                <div className="flex flex-col items-center gap-3">
-                    <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
-                    <p className="text-sm text-slate-500 dark:text-slate-400">Loading applicants...</p>
+            <div className="w-full min-h-screen bg-slate-50 dark:bg-zinc-950">
+                <div className="max-w-2xl mx-auto md:px-6 md:py-8">
+                    <div className="p-4 border-b border-slate-100 dark:border-zinc-900">
+                        <div className="h-6 bg-slate-200 dark:bg-zinc-800 rounded w-32 animate-pulse" />
+                    </div>
+                    {[1, 2, 3].map(i => <ApplicantSkeleton key={i} />)}
                 </div>
             </div>
         );
     }
 
     // ---------------------------------------------
-    // Error state
+    // Error
     // ---------------------------------------------
-    if (error || !request) {
+    if (error || !request || !meta) {
         return (
             <div className="min-h-screen bg-slate-50 dark:bg-zinc-950">
-                <div className="max-w-2xl mx-auto px-3 md:px-6 py-4 md:py-8">
+                <div className="max-w-2xl mx-auto px-4 md:px-6 py-4 md:py-8">
                     <button
                         onClick={handleBack}
-                        className="p-2 -ml-2 rounded-full text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition active:scale-95 mb-4"
+                        className="p-2 -ml-2 rounded-full text-slate-600 dark:text-slate-400 active:bg-slate-100 dark:active:bg-zinc-900 transition mb-4"
+                        aria-label="Back"
                     >
                         <ArrowLeft className="w-5 h-5" />
                     </button>
-                    <div className="bg-white dark:bg-zinc-950 border border-rose-200 dark:border-rose-900 rounded-2xl p-8 text-center">
-                        <div className="w-16 h-16 rounded-2xl bg-rose-50 dark:bg-rose-950/40 flex items-center justify-center mx-auto mb-4">
-                            <AlertCircle className="w-8 h-8 text-rose-500" />
+                    <div className="text-center py-12 px-6">
+                        <div className="w-16 h-16 rounded-full bg-rose-50 dark:bg-rose-950/40 flex items-center justify-center mx-auto mb-4">
+                            <Users className="w-8 h-8 text-rose-500" />
                         </div>
                         <h2 className="font-bold text-slate-800 dark:text-slate-200 text-lg mb-2">
                             {error || 'Something went wrong'}
@@ -205,7 +423,7 @@ export default function LocumApplicants() {
                         </p>
                         <button
                             onClick={handleBack}
-                            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold active:scale-[98%] transition"
+                            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-amber-500 active:bg-amber-600 text-white text-sm font-semibold transition"
                         >
                             <ArrowLeft className="w-4 h-4" />
                             Back to Locum
@@ -216,28 +434,24 @@ export default function LocumApplicants() {
         );
     }
 
-    const meta = URGENCY_META[request.urgency];
-    const acceptedOffer = offers.find(o => o.status === 'accepted');
-    const pendingOffers = offers.filter(o => o.status === 'pending');
-
     // ---------------------------------------------
-    // Main render
+    // Main
     // ---------------------------------------------
     return (
         <div className="w-full min-h-screen bg-slate-50 dark:bg-zinc-950 pb-24">
-            <div className="max-w-2xl mx-auto px-3 md:px-6 py-4 md:py-8">
+            <div className="max-w-2xl mx-auto md:px-6 md:py-8">
 
                 {/* Header */}
-                <div className="flex items-center gap-3 mb-5 md:mb-6">
+                <div className="flex items-center gap-3 px-4 md:px-0 py-4 md:py-0 md:mb-6 border-b border-slate-100 dark:border-zinc-900 md:border-0">
                     <button
                         onClick={handleBack}
-                        className="p-2 -ml-2 rounded-full text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition active:scale-95"
+                        className="p-2 -ml-2 rounded-full text-slate-600 dark:text-slate-400 active:bg-slate-100 dark:active:bg-zinc-900 transition"
                         aria-label="Back"
                     >
                         <ArrowLeft className="w-5 h-5" />
                     </button>
                     <div className="min-w-0 flex-1">
-                        <h1 className="text-xl md:text-2xl font-display font-extrabold tracking-tight text-slate-900 dark:text-white">
+                        <h1 className="text-lg md:text-2xl font-display font-extrabold tracking-tight text-slate-900 dark:text-white">
                             Applicants
                         </h1>
                         <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
@@ -246,20 +460,20 @@ export default function LocumApplicants() {
                     </div>
                 </div>
 
-                {/* Request recap card */}
-                <div className="bg-white dark:bg-zinc-950 rounded-2xl border border-slate-200/60 dark:border-zinc-800 p-4 md:p-5 mb-5 shadow-sm">
+                {/* Request recap — flat, edge-to-edge on mobile */}
+                <div className="bg-white dark:bg-zinc-950 px-4 py-4 border-b border-slate-100 dark:border-zinc-900 md:rounded-2xl md:border-0 md:mb-6">
                     <div className="flex items-center gap-2 flex-wrap mb-2.5">
-                        <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full border ${meta.classes}`}>
+                        <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full ${meta.classes}`}>
                             <span className={`w-1.5 h-1.5 rounded-full ${meta.dot}`} />
                             {meta.label}
                         </span>
                         {request.specialty && (
-                            <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900">
+                            <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400">
                                 {request.specialty}
                             </span>
                         )}
                         {request.status !== 'open' && (
-                            <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-zinc-700">
+                            <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-slate-400">
                                 {request.status === 'filled' ? 'Filled' : 'Cancelled'}
                             </span>
                         )}
@@ -273,7 +487,7 @@ export default function LocumApplicants() {
                         <span className="truncate">{request.facility_location}</span>
                     </p>
 
-                    <div className="mt-3 bg-slate-50 dark:bg-zinc-900 rounded-xl px-3.5 py-3 border border-slate-100 dark:border-zinc-800 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                    <div className="mt-3 bg-slate-100 dark:bg-zinc-900 rounded-2xl px-3.5 py-3 flex flex-wrap items-center gap-x-4 gap-y-1.5">
                         <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-700 dark:text-slate-300">
                             <Calendar className="w-4 h-4 text-amber-500 dark:text-amber-400" />
                             {formatShiftDate(request.shift_date)}
@@ -287,10 +501,10 @@ export default function LocumApplicants() {
                     </div>
                 </div>
 
-                {/* Status banner if already accepted */}
+                {/* Accepted banner */}
                 {acceptedOffer && (
-                    <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 rounded-2xl p-4 mb-5 flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center flex-shrink-0">
+                    <div className="bg-emerald-50 dark:bg-emerald-950/30 px-4 py-4 flex items-start gap-3 border-b border-emerald-100 dark:border-emerald-900/50 md:rounded-2xl md:border-0 md:mb-6">
+                        <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center flex-shrink-0">
                             <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -305,10 +519,10 @@ export default function LocumApplicants() {
                     </div>
                 )}
 
-                {/* Applicants list */}
+                {/* List */}
                 {offers.length === 0 ? (
-                    <div className="bg-white dark:bg-zinc-950 border border-slate-200/60 dark:border-zinc-800 rounded-2xl p-8 md:p-16 text-center shadow-sm">
-                        <div className="w-16 h-16 rounded-2xl bg-slate-50 dark:bg-zinc-900 flex items-center justify-center text-slate-400 mx-auto mb-6 border border-slate-100 dark:border-zinc-800">
+                    <div className="text-center py-16 px-6">
+                        <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-zinc-900 flex items-center justify-center text-slate-400 mx-auto mb-6">
                             <Users className="w-6 h-6" />
                         </div>
                         <h3 className="font-bold text-slate-800 dark:text-slate-200 text-lg">
@@ -319,158 +533,29 @@ export default function LocumApplicants() {
                         </p>
                         <button
                             onClick={handleBack}
-                            className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold active:scale-[98%] transition"
+                            className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-amber-500 active:bg-amber-600 text-white text-sm font-semibold transition"
                         >
                             <ArrowLeft className="w-4 h-4" />
                             Back to Locum
                         </button>
                     </div>
                 ) : (
-                    <div className="space-y-3 md:space-y-4">
-                        {offers.map(offer => {
-                            const isAccepted = offer.status === 'accepted';
-                            const isDeclined = offer.status === 'declined';
-                            const isWithdrawn = offer.status === 'withdrawn';
-                            const isConfirming = confirmAccept === offer.id;
-                            const phone = offer.applicant?.phone_number || '';
-                            const whatsapp = offer.applicant?.whatsapp_number || '';
-
-                            return (
-                                <div
-                                    key={offer.id}
-                                    className={`rounded-2xl border p-4 md:p-5 transition-all ${isAccepted
-                                        ? 'border-emerald-300 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20 shadow-sm'
-                                        : isDeclined || isWithdrawn
-                                            ? 'border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/30 opacity-60'
-                                            : 'border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950'
-                                        }`}
-                                >
-                                    {/* Header: avatar + name + status */}
-                                    <div className="flex items-start gap-3">
-                                        <img
-                                            src={offer.applicant?.avatar_url || '/192.png'}
-                                            alt={getApplicantName(offer)}
-                                            className="w-12 h-12 rounded-full object-cover border border-slate-200 dark:border-zinc-700 flex-shrink-0"
-                                        />
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-1.5 flex-wrap">
-                                                <span className="font-bold text-slate-900 dark:text-white text-base truncate">
-                                                    {getApplicantName(offer)}
-                                                </span>
-                                                {offer.applicant?.verification_status === 'verified' && (
-                                                    <CheckCircle2 className="w-4 h-4 text-indigo-500 dark:text-indigo-400 flex-shrink-0" />
-                                                )}
-                                                {isAccepted && (
-                                                    <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/60 px-2 py-0.5 rounded-full">
-                                                        Accepted
-                                                    </span>
-                                                )}
-                                                {isDeclined && (
-                                                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full">
-                                                        Declined
-                                                    </span>
-                                                )}
-                                                {isWithdrawn && (
-                                                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full">
-                                                        Withdrawn
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <p className="text-sm text-indigo-600 dark:text-indigo-400 mt-0.5 truncate">
-                                                {offer.applicant?.qualification || offer.applicant?.nursing_level || 'Nurse'}
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    {/* Message */}
-                                    {offer.message && (
-                                        <div className="mt-3 bg-slate-50 dark:bg-zinc-900 rounded-lg p-3 border border-slate-100 dark:border-zinc-800">
-                                            <div className="flex items-start gap-2">
-                                                <MessageSquare className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 flex-shrink-0 mt-0.5" />
-                                                <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
-                                                    "{offer.message}"
-                                                </p>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Contact unlock when accepted */}
-                                    {isAccepted && (phone || whatsapp) && (
-                                        <div className="mt-3 flex gap-2">
-                                            {whatsapp && (
-                                                <a
-                                                    href={`https://wa.me/${normalizeWhatsApp(whatsapp)}`}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold transition active:scale-[98%] min-h-[44px]"
-                                                >
-                                                    <MessageCircle className="w-4 h-4" />
-                                                    WhatsApp
-                                                </a>
-                                            )}
-                                            {phone && (
-                                                <a
-                                                    href={`tel:${phone}`}
-                                                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold transition active:scale-[98%] min-h-[44px]"
-                                                >
-                                                    <Phone className="w-4 h-4" />
-                                                    Call
-                                                </a>
-                                            )}
-                                        </div>
-                                    )}
-
-                                    {/* Accept / Confirm bar */}
-                                    {!isAccepted && !isDeclined && !isWithdrawn && !acceptedOffer && (
-                                        <div className="mt-3">
-                                            {isConfirming ? (
-                                                <div className="flex gap-2">
-                                                    <button
-                                                        onClick={() => setConfirmAccept(null)}
-                                                        disabled={accepting === offer.id}
-                                                        className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-slate-400 text-sm font-semibold transition active:scale-[98%] min-h-[44px]"
-                                                    >
-                                                        Cancel
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleAccept(offer.id)}
-                                                        disabled={accepting === offer.id}
-                                                        className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold transition active:scale-[98%] min-h-[44px] disabled:opacity-50"
-                                                    >
-                                                        {accepting === offer.id ? (
-                                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                        ) : (
-                                                            <>
-                                                                <CheckCircle2 className="w-4 h-4" />
-                                                                Confirm
-                                                            </>
-                                                        )}
-                                                    </button>
-                                                </div>
-                                            ) : (
-                                                <button
-                                                    onClick={() => setConfirmAccept(offer.id)}
-                                                    className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold transition active:scale-[98%] min-h-[44px] shadow-md shadow-emerald-500/20"
-                                                >
-                                                    <CheckCircle2 className="w-4 h-4" />
-                                                    Accept this Nurse
-                                                </button>
-                                            )}
-                                        </div>
-                                    )}
-
-                                    {/* If another applicant was accepted */}
-                                    {acceptedOffer && acceptedOffer.id !== offer.id && !isDeclined && !isWithdrawn && (
-                                        <p className="mt-3 text-xs text-slate-400 dark:text-slate-500 italic">
-                                            Another nurse was accepted for this shift.
-                                        </p>
-                                    )}
-                                </div>
-                            );
-                        })}
+                    <div>
+                        {offers.map(offer => (
+                            <ApplicantCard
+                                key={offer.id}
+                                offer={offer}
+                                isAccepted={offer.status === 'accepted'}
+                                anotherAccepted={!!acceptedOffer && acceptedOffer.id !== offer.id}
+                                isConfirming={confirmAccept === offer.id}
+                                isAccepting={accepting === offer.id}
+                                onStartConfirm={handleStartConfirm}
+                                onCancelConfirm={handleCancelConfirm}
+                                onConfirmAccept={handleAccept}
+                            />
+                        ))}
                     </div>
                 )}
-
             </div>
         </div>
     );
