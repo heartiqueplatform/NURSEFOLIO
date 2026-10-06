@@ -47,6 +47,8 @@ import SkillsPage from './pages/SkillsPage';
 import NurseFeed from './pages/NurseFeed';
 import StreakCandle from './components/StreakCandle';
 import VerifyProcedure from './pages/VerifyProcedure';
+import LocumPage from './pages/LocumPage';
+import PostLocumRequest from './pages/PostLocumRequest';
 
 export default function App() {
   return (
@@ -92,6 +94,8 @@ export default function App() {
                 <Route path="/dashboard/analytics" element={<AnalyticsPage />} />
                 <Route path="/explore" element={<ExploreNurses />} />
                 <Route path="/feed" element={<NurseFeed />} />
+                <Route path="/locum" element={<LocumPage />} />
+                <Route path="/locum/new" element={<PostLocumRequest />} />
                 {/* PUBLIC VERIFICATION PAGE - NO AUTH REQUIRED */}
                 <Route path="/verify/:procedureId" element={<VerifyProcedure />} />
                 {/* Admin administration dashboard */}

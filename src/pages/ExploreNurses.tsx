@@ -3,34 +3,36 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { databaseService } from '../services/databaseService';
 import { analyticsService } from '../services/analyticsService';
 import { UserProfile } from '../types';
 import { VerificationBadge } from '../components/VerificationBadge';
-import { Search, MapPin, Briefcase, Filter, Sparkles, Check, ChevronRight, Users, ThumbsUp, X, MessageSquare, Tag } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import {
+  Search, MapPin, Briefcase, Sparkles, ChevronRight, Eye, X,
+  ThumbsUp, MessageSquare, Tag, RefreshCw, Users
+} from 'lucide-react';
+import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
 import { supabase } from '../lib/supabase';
 import { EndorsementManager } from '../components/EndorsementManager';
 
-// Type for endorsement state (used for optimistic updates)
+// ==========================================
+// TYPES
+// ==========================================
 interface EndorsementState {
   [profileId: string]: {
     count: number;
     isEndorsedByCurrentUser: boolean;
-    userEndorsementMessage?: string | null;
-    userEndorsementSpecialty?: string | null;
+    topQuote?: string | null;
+    topQuoteAuthor?: string | null;
   };
 }
 
-// Types for the endorsement modal
 interface EndorsementModalData {
   profile: UserProfile;
   isOpen: boolean;
 }
 
-// Quick message templates (Facebook-style)
 const QUICK_MESSAGES = [
   "Great clinical skills",
   "Excellent teamwork",
@@ -42,71 +44,37 @@ const QUICK_MESSAGES = [
   "Wonderful mentor to new nurses"
 ];
 
-// Predefined specialty options (future-ready categories)
 const ENDORSEMENT_SPECIALTIES = [
-  "ICU",
-  "Emergency",
-  "Pediatrics",
-  "Oncology",
-  "Cardiology",
-  "Neurology",
-  "Student Helper",
-  "Mentor",
-  "Peer Support"
+  "ICU", "Emergency", "Pediatrics", "Oncology", "Cardiology",
+  "Neurology", "Student Helper", "Mentor", "Peer Support"
 ];
 
-// Skeleton Card Component - responsive dimensions
-const NurseCardSkeleton = () => {
-  return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.98 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className="bg-white dark:bg-zinc-950 md:border md:border-slate-200/60 md:dark:border-zinc-800 md:rounded-xl md:shadow-sm overflow-hidden flex flex-col justify-between border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-200/60"
-    >
-      <div className="p-4 md:p-6">
-        {/* Header Row - Avatar + Badge */}
-        <div className="flex items-start justify-between">
-          <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 animate-pulse"></div>
-          <div className="w-4 h-4 md:w-5 md:h-5 rounded-full bg-slate-200 dark:bg-slate-700 animate-pulse"></div>
-        </div>
-
-        {/* Basic Info */}
-        <div className="mt-3 md:mt-4 space-y-1.5 md:space-y-2">
-          <div className="h-4 md:h-5 bg-slate-200 dark:bg-slate-700 rounded-lg w-3/4 animate-pulse"></div>
-          <div className="h-2.5 md:h-3 bg-indigo-100 dark:bg-indigo-900/50 rounded w-1/2 animate-pulse"></div>
-        </div>
-
-        {/* Bio Snippet */}
-        <div className="mt-2 md:mt-3 space-y-1 md:space-y-1.5">
-          <div className="h-2.5 md:h-3 bg-slate-200 dark:bg-slate-700 rounded w-full animate-pulse"></div>
-          <div className="h-2.5 md:h-3 bg-slate-200 dark:bg-slate-700 rounded w-5/6 animate-pulse"></div>
-          <div className="h-2.5 md:h-3 bg-slate-200 dark:bg-slate-700 rounded w-4/6 animate-pulse"></div>
-        </div>
-
-        {/* Specialties Tags */}
-        <div className="flex flex-wrap gap-1 md:gap-1.5 mt-3 md:mt-4">
-          <div className="h-4 md:h-5 w-14 md:w-16 bg-slate-200 dark:bg-slate-700 rounded-md md:rounded-lg animate-pulse"></div>
-          <div className="h-4 md:h-5 w-16 md:w-20 bg-slate-200 dark:bg-slate-700 rounded-md md:rounded-lg animate-pulse"></div>
-          <div className="h-4 md:h-5 w-12 md:w-14 bg-slate-200 dark:bg-slate-700 rounded-md md:rounded-lg animate-pulse"></div>
+// ==========================================
+// SKELETON
+// ==========================================
+const NurseCardSkeleton = () => (
+  <div className="bg-white dark:bg-zinc-950 md:rounded-2xl md:border md:border-slate-200/60 md:dark:border-zinc-800 md:shadow-sm overflow-hidden border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-200/60 animate-pulse">
+    <div className="p-4 md:p-5">
+      <div className="flex items-start gap-3.5">
+        <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-slate-200 dark:bg-zinc-800 flex-shrink-0" />
+        <div className="flex-1 space-y-2">
+          <div className="h-4 bg-slate-200 dark:bg-zinc-800 rounded w-1/2" />
+          <div className="h-3 bg-slate-200 dark:bg-zinc-800 rounded w-2/3" />
+          <div className="h-3 bg-slate-200 dark:bg-zinc-800 rounded w-1/3" />
         </div>
       </div>
-
-      {/* Footer Block */}
-      <div className="px-4 md:px-6 py-2.5 md:py-3.5 bg-slate-50/70 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-        <div className="flex items-center gap-2 md:gap-3">
-          <div className="h-2.5 md:h-3 w-14 md:w-16 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
-          <div className="h-2.5 md:h-3 w-10 md:w-12 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
-        </div>
-        <div className="flex items-center gap-1.5 md:gap-2">
-          <div className="h-2.5 md:h-3 w-10 md:w-12 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
-          <div className="h-2.5 md:h-3 w-6 md:w-8 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
-        </div>
+      <div className="mt-4 h-16 bg-slate-100 dark:bg-zinc-900 rounded-xl" />
+      <div className="mt-4 flex items-center gap-3">
+        <div className="h-9 w-32 bg-slate-200 dark:bg-zinc-800 rounded-full" />
+        <div className="h-3 bg-slate-200 dark:bg-zinc-800 rounded w-24" />
       </div>
-    </motion.div>
-  );
-};
+    </div>
+  </div>
+);
 
-// Endorsement Modal Component
+// ==========================================
+// ENDORSEMENT MODAL
+// ==========================================
 const EndorsementModal = ({
   isOpen,
   onClose,
@@ -122,9 +90,8 @@ const EndorsementModal = ({
 }) => {
   const [selectedMessages, setSelectedMessages] = useState<string[]>([]);
   const [customMessage, setCustomMessage] = useState('');
-  const [selectedSpecialty, setSelectedSpecialty] = useState<string>('');
+  const [selectedSpecialty, setSelectedSpecialty] = useState('');
 
-  // Reset form when modal opens/closes
   useEffect(() => {
     if (isOpen) {
       setSelectedMessages([]);
@@ -135,23 +102,18 @@ const EndorsementModal = ({
 
   const handleMessageToggle = (message: string) => {
     setSelectedMessages(prev =>
-      prev.includes(message)
-        ? prev.filter(m => m !== message)
-        : [...prev, message]
+      prev.includes(message) ? prev.filter(m => m !== message) : [...prev, message]
     );
   };
 
   const getFinalMessage = (): string | null => {
     const combined = [...selectedMessages];
-    if (customMessage.trim()) {
-      combined.push(customMessage.trim());
-    }
+    if (customMessage.trim()) combined.push(customMessage.trim());
     return combined.length > 0 ? combined.join('. ') : null;
   };
 
   const handleSubmit = async () => {
-    const message = getFinalMessage();
-    await onSubmit(message, selectedSpecialty || null);
+    await onSubmit(getFinalMessage(), selectedSpecialty || null);
     onClose();
   };
 
@@ -162,24 +124,29 @@ const EndorsementModal = ({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      className="fixed inset-0 z-[9999] flex items-end md:items-center justify-center md:p-4 bg-black/60 backdrop-blur-sm"
       onClick={onClose}
     >
       <motion.div
-        initial={{ scale: 0.95, opacity: 0, y: 20 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.95, opacity: 0, y: 20 }}
-        transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        className="bg-white dark:bg-zinc-900 rounded-2xl max-w-md w-full shadow-xl overflow-hidden"
+        initial={{ y: '100%', opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: '100%', opacity: 0 }}
+        transition={{ type: 'spring', damping: 30, stiffness: 320 }}
+        className="bg-white dark:bg-zinc-950 rounded-t-3xl md:rounded-2xl max-w-md w-full shadow-2xl overflow-hidden max-h-[90vh] flex flex-col md:border md:border-slate-200/60 md:dark:border-zinc-800"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Modal Header */}
-        <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800">
+        <div className="md:hidden flex justify-center pt-3 pb-1 flex-shrink-0">
+          <div className="w-12 h-1.5 bg-slate-300 dark:bg-zinc-700 rounded-full" />
+        </div>
+
+        <div className="flex items-center justify-between px-4 md:px-5 py-3 md:py-4 border-b border-slate-100 dark:border-zinc-800/80 flex-shrink-0">
           <div className="flex items-center gap-3">
-            <ThumbsUp className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+            <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center">
+              <ThumbsUp className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+            </div>
             <div>
-              <h3 className="font-display font-bold text-slate-900 dark:text-white">
-                Endorse {profile.first_name} {profile.last_name}
+              <h3 className="font-bold text-slate-900 dark:text-white text-base">
+                Endorse {profile.first_name}
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 Share what makes them exceptional
@@ -188,19 +155,18 @@ const EndorsementModal = ({
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+            className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 transition"
+            aria-label="Close"
           >
-            <X className="w-5 h-5 text-slate-400" />
+            <X className="w-5 h-5 text-slate-400 dark:text-slate-500" />
           </button>
         </div>
 
-        {/* Modal Body */}
-        <div className="p-4 space-y-5 max-h-[60vh] overflow-y-auto">
-          {/* Quick Message Templates */}
+        <div className="px-4 md:px-5 py-4 space-y-5 overflow-y-auto flex-1">
           <div>
-            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-2 flex items-center gap-1">
-              <MessageSquare className="w-3.5 h-3.5" />
-              Quick praise (select one or more)
+            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2.5 flex items-center gap-1.5">
+              <MessageSquare className="w-4 h-4" />
+              Quick praise
             </label>
             <div className="flex flex-wrap gap-2">
               {QUICK_MESSAGES.map((msg) => (
@@ -208,10 +174,10 @@ const EndorsementModal = ({
                   key={msg}
                   type="button"
                   onClick={() => handleMessageToggle(msg)}
-                  className={`text-xs px-3 py-1.5 rounded-full transition-all duration-200 ${selectedMessages.includes(msg)
-                    ? 'bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border-indigo-300 dark:border-indigo-700'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 border border-transparent'
-                    } border`}
+                  className={`text-sm px-3.5 py-2 rounded-full transition-all duration-200 border ${selectedMessages.includes(msg)
+                    ? 'bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border-indigo-300 dark:border-indigo-700 font-semibold'
+                    : 'bg-white dark:bg-zinc-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-zinc-700 hover:border-indigo-300 dark:hover:border-indigo-700'
+                    }`}
                 >
                   {msg}
                 </button>
@@ -219,32 +185,30 @@ const EndorsementModal = ({
             </div>
           </div>
 
-          {/* Custom Message Input */}
           <div>
-            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-2">
-              Add personal note (optional)
+            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2.5">
+              Add a personal note (optional)
             </label>
             <textarea
               value={customMessage}
               onChange={(e) => setCustomMessage(e.target.value)}
               placeholder="Write something meaningful..."
-              rows={2}
-              className="w-full text-sm px-3 py-2 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200 transition resize-none"
+              rows={3}
+              className="w-full text-sm px-3.5 py-3 bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-700 focus:outline-none focus:border-indigo-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition resize-none"
             />
           </div>
 
-          {/* Specialty Selector (Optional) */}
           <div>
-            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-2 flex items-center gap-1">
-              <Tag className="w-3.5 h-3.5" />
+            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2.5 flex items-center gap-1.5">
+              <Tag className="w-4 h-4" />
               Specialty category (optional)
             </label>
             <select
               value={selectedSpecialty}
               onChange={(e) => setSelectedSpecialty(e.target.value)}
-              className="w-full text-sm px-3 py-2 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-800 text-slate-700 dark:text-slate-300 transition"
+              className="w-full text-sm px-3.5 py-3 bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-700 focus:outline-none focus:border-indigo-500 text-slate-700 dark:text-slate-300"
             >
-              <option value="">Select a specialty (optional)</option>
+              <option value="">Select a specialty</option>
               {ENDORSEMENT_SPECIALTIES.map((spec) => (
                 <option key={spec} value={spec}>{spec}</option>
               ))}
@@ -252,28 +216,27 @@ const EndorsementModal = ({
           </div>
         </div>
 
-        {/* Modal Footer */}
-        <div className="flex gap-3 p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+        <div className="flex gap-3 px-4 md:px-5 py-3 md:py-4 border-t border-slate-100 dark:border-zinc-800/80 bg-slate-50/50 dark:bg-zinc-900/50 flex-shrink-0">
           <button
             onClick={onClose}
-            className="flex-1 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+            className="flex-1 py-3 rounded-xl border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-slate-400 text-sm font-semibold hover:bg-slate-100 dark:hover:bg-zinc-800 transition active:scale-[98%] min-h-[44px]"
           >
             Cancel
           </button>
           <button
             onClick={handleSubmit}
             disabled={isUpdating}
-            className="flex-1 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition shadow-md shadow-indigo-600/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="flex-1 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition shadow-md shadow-indigo-600/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 active:scale-[98%] min-h-[44px]"
           >
             {isUpdating ? (
               <>
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Submitting...
+                Submitting
               </>
             ) : (
               <>
                 <ThumbsUp className="w-4 h-4" />
-                Submit Endorsement
+                Submit
               </>
             )}
           </button>
@@ -283,46 +246,54 @@ const EndorsementModal = ({
   );
 };
 
+// ==========================================
+// MAIN PAGE
+// ==========================================
 export default function ExploreNurses() {
   const [searchParams] = useSearchParams();
   const qSearch = searchParams.get('search') || '';
   const qSpecialty = searchParams.get('specialty') || '';
+
   const [endorsementManagerOpen, setEndorsementManagerOpen] = useState<{ isOpen: boolean; profile: UserProfile | null }>({ isOpen: false, profile: null });
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
-  const [profileViews, setProfileViews] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
-  // New state for endorsements: counts and current user's endorsement status per profile
+  const [refreshing, setRefreshing] = useState(false);
   const [endorsements, setEndorsements] = useState<EndorsementState>({});
+  const [totalProfiles, setTotalProfiles] = useState<number>(0);
 
-  // Endorsement modal state
   const [endorsementModal, setEndorsementModal] = useState<EndorsementModalData>({ profile: null as any, isOpen: false });
   const [isSubmittingEndorsement, setIsSubmittingEndorsement] = useState(false);
 
-  // Filter States
   const [searchTerm, setSearchTerm] = useState(qSearch);
   const [selectedSpecialty, setSelectedSpecialty] = useState(qSpecialty);
-  const [selectedLocation, setSelectedLocation] = useState('');
   const [onlyVerified, setOnlyVerified] = useState(false);
   const [roleFilter, setRoleFilter] = useState<'all' | 'nurse' | 'student'>('all');
 
-  // Preview Drawer/Modal State
   const [activePreview, setActivePreview] = useState<UserProfile | null>(null);
-  // Current logged-in user ID (null if not authenticated)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-  // Tooltip state for endorsement message preview
-  const [hoveredProfileId, setHoveredProfileId] = useState<string | null>(null);
-  const [tooltipData, setTooltipData] = useState<{ message: string; specialty: string } | null>(null);
+  // ==========================================
+  // SESSION-SCOPED VIEW TRACKING
+  // ==========================================
+  // Profiles the user has explicitly engaged with (viewed / endorsed)
+  // during this session. Hidden locally to prevent duplicate display
+  // without invalidating the DB batch.
+  const [sessionHidden, setSessionHidden] = useState<Set<string>>(new Set());
+
+  const sheetY = useMotionValue(0);
+  const sheetOpacity = useTransform(sheetY, [0, 200], [1, 0.4]);
+
+  // ==========================================
+  // DEV OVERRIDE FLAG
+  // ==========================================
+  // ⚠️ SET TO false BEFORE PUBLISHING TO PRODUCTION.
+  const INCLUDE_ENDORSED_DEV = false;
 
   const handleViewAllEndorsements = (profile: UserProfile) => {
     setEndorsementManagerOpen({ isOpen: true, profile });
   };
-  useEffect(() => {
-    if (!currentUserId || profiles.length === 0) return;
 
-    fetchEndorsementData(profiles.map(p => p.id));
-  }, [currentUserId, profiles]);
-  // Fetch current user on mount
+  // Auth
   useEffect(() => {
     const getCurrentUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -331,106 +302,204 @@ export default function ExploreNurses() {
     getCurrentUser();
   }, []);
 
-  // Fetch profiles and endorsement data
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
+  // Load batch
+  const loadBatch = useCallback(async (userId: string, forceFresh = false) => {
+    try {
+      if (forceFresh) setRefreshing(true);
+      else setLoading(true);
 
-        // 1. Fetch profiles
-        const data = await databaseService.getProfiles();
-        setProfiles(data);
+      let profileIds: string[] = [];
 
-        // 2. Fetch view counts
-        const { data: viewsData } = await supabase!
-          .from('profile_view_counts')
-          .select('profile_id, views_count');
-        if (viewsData) {
-          const counts: Record<string, number> = {};
-          viewsData.forEach((row) => {
-            counts[row.profile_id] = row.views_count;
-          });
-          setProfileViews(counts);
+      if (!forceFresh) {
+        const { data: cached } = await supabase
+          .from('explore_batches')
+          .select('profile_ids, expires_at')
+          .eq('user_id', userId)
+          .gt('expires_at', new Date().toISOString())
+          .order('expires_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (cached?.profile_ids && cached.profile_ids.length > 0) {
+          profileIds = cached.profile_ids;
         }
-
-        // 3. Fetch endorsement data (counts and user's endorsements)
-        await fetchEndorsementData(data.map(p => p.id));
-
-      } catch (err) {
-        console.error('Failed to load profiles:', err);
-      } finally {
-        setLoading(false);
       }
-    };
-    fetchData();
+
+      if (profileIds.length === 0) {
+        const { data: fresh, error: rpcErr } = await supabase
+          .rpc('get_explore_batch', {
+            p_user_id: userId,
+            p_limit: 20,
+            p_include_endorsed: INCLUDE_ENDORSED_DEV
+          });
+
+        if (rpcErr) throw rpcErr;
+        profileIds = (fresh || []).map((r: any) => r.profile_id);
+
+        if (profileIds.length > 0) {
+          // 1-hour TTL: batch refreshes every hour so users get
+          // fresh faces multiple times a day instead of one static batch.
+          supabase
+            .rpc('save_explore_batch', {
+              p_user_id: userId,
+              p_profile_ids: profileIds,
+              p_ttl_hours: 1
+            })
+            .then(({ error }) => {
+              if (error) console.warn('Save explore batch failed:', error);
+            });
+        }
+      }
+
+      if (profileIds.length === 0) {
+        setProfiles([]);
+        return;
+      }
+
+      const { data: profilesData, error: profilesErr } = await supabase
+        .from('profiles')
+        .select('*')
+        .in('id', profileIds);
+
+      if (profilesErr) throw profilesErr;
+
+      const ordered: UserProfile[] = profileIds
+        .map(id => profilesData?.find((p: any) => p.id === id))
+        .filter(Boolean)
+        .map((p: any) => ({
+          id: p.id,
+          username: p.username,
+          email: p.email || '',
+          first_name: p.first_name || '',
+          last_name: p.last_name || '',
+          full_name: p.full_name,
+          role: p.role || 'nurse',
+          avatar_url: p.avatar_url || '',
+          cover_url: p.cover_url || '',
+          bio: p.bio,
+          qualification: p.qualification,
+          nursing_level: p.nursing_level,
+          specialties: p.specialty ? [p.specialty] : [],
+          skills: [],
+          location: p.location,
+          years_of_experience: p.years_experience,
+          availability_status: p.availability_status || 'available',
+          verification_status: p.verification_status || 'unverified',
+          profile_theme: p.profile_theme || 'modern',
+          created_at: p.created_at,
+          views_count: p.views_count || 0,
+          downloads_count: p.downloads_count || 0,
+          search_appearances: p.search_appearances || 0,
+          onboarding_completed: p.onboarding_completed,
+          years_experience: p.years_experience,
+          specialty: p.specialty,
+          theme: p.theme,
+          verified: p.verified
+        } as UserProfile));
+
+      setProfiles(ordered);
+      await fetchEndorsementData(profileIds);
+    } catch (err) {
+      console.error('Explore batch load failed:', err);
+      setProfiles([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, []);
 
-  // Fetch endorsement counts and user's endorsements for given profile IDs
+  useEffect(() => {
+    if (!currentUserId) return;
+    loadBatch(currentUserId);
+  }, [currentUserId, loadBatch]);
+
+  useEffect(() => {
+    const fetchCount = async () => {
+      const { count } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true });
+      setTotalProfiles(count || 0);
+    };
+    fetchCount();
+  }, []);
+
+  // Endorsement data
   const fetchEndorsementData = async (profileIds: string[]) => {
     if (!profileIds.length) return;
-
     try {
-      // Fetch endorsement counts from the view (or fallback to table count)
-      const { data: countsData, error: countsError } = await supabase!
+      const { data: countsData } = await supabase!
         .from('profile_endorsement_counts')
         .select('profile_id, endorsement_count');
 
-      let countsMap: Record<string, number> = {};
-      if (!countsError && countsData) {
-        countsData.forEach((item: any) => {
-          countsMap[item.profile_id] = item.endorsement_count;
+      const countsMap: Record<string, number> = {};
+      countsData?.forEach((item: any) => { countsMap[item.profile_id] = item.endorsement_count; });
+
+      const topQuoteMap: Record<string, { message: string; author: string }> = {};
+      const { data: allWithMessages } = await supabase!
+        .from('profile_endorsements')
+        .select('profile_id, message, endorser_id, created_at')
+        .not('message', 'is', null)
+        .order('created_at', { ascending: false });
+
+      if (allWithMessages) {
+        const seen = new Set<string>();
+        const endorserIds = new Set<string>();
+        allWithMessages.forEach((row: any) => {
+          if (!seen.has(row.profile_id) && row.message && row.message.trim()) {
+            topQuoteMap[row.profile_id] = { message: row.message, author: row.endorser_id };
+            seen.add(row.profile_id);
+            if (row.endorser_id) endorserIds.add(row.endorser_id);
+          }
         });
-      } else {
-        // Fallback: manually count endorsements if view is missing
-        const { data: allEndorsements, error: fallbackError } = await supabase!
-          .from('profile_endorsements')
-          .select('profile_id');
-        if (!fallbackError && allEndorsements) {
-          countsMap = allEndorsements.reduce((acc: Record<string, number>, e: any) => {
-            acc[e.profile_id] = (acc[e.profile_id] || 0) + 1;
-            return acc;
-          }, {});
+
+        if (endorserIds.size > 0) {
+          const { data: authors } = await supabase!
+            .from('profiles')
+            .select('id, first_name')
+            .in('id', Array.from(endorserIds));
+
+          if (authors) {
+            const authorMap = new Map(authors.map((a: any) => [a.id, a.first_name]));
+            Object.keys(topQuoteMap).forEach(pid => {
+              const authorId = topQuoteMap[pid].author;
+              topQuoteMap[pid].author = authorMap.get(authorId) || 'A colleague';
+            });
+          }
         }
       }
 
-      // Fetch current user's endorsements with message and specialty (if logged in)
-      let userEndorsementsMap: Record<string, { endorsed: boolean; message?: string | null; specialty?: string | null }> = {};
+      let userEndorsementsMap: Record<string, { endorsed: boolean }> = {};
       if (currentUserId) {
-        const { data: userEndorsements, error: userEndError } = await supabase!
+        const { data: userEndorsements } = await supabase!
           .from('profile_endorsements')
-          .select('profile_id, message, specialty')
+          .select('profile_id')
           .eq('endorser_id', currentUserId);
 
-        if (!userEndError && userEndorsements) {
+        if (userEndorsements) {
           userEndorsements.forEach((end: any) => {
-            userEndorsementsMap[end.profile_id] = {
-              endorsed: true,
-              message: end.message,
-              specialty: end.specialty
-            };
+            userEndorsementsMap[end.profile_id] = { endorsed: true };
           });
         }
       }
 
-      // Build final state
       const newEndorsements: EndorsementState = {};
       profileIds.forEach(id => {
         const userEndorsement = userEndorsementsMap[id];
+        const topQuote = topQuoteMap[id];
         newEndorsements[id] = {
           count: countsMap[id] || 0,
           isEndorsedByCurrentUser: userEndorsement?.endorsed || false,
-          userEndorsementMessage: userEndorsement?.message,
-          userEndorsementSpecialty: userEndorsement?.specialty
+          topQuote: topQuote?.message || null,
+          topQuoteAuthor: topQuote?.author || null
         };
       });
       setEndorsements(newEndorsements);
-
     } catch (err) {
       console.error('Failed to fetch endorsement data:', err);
     }
   };
 
-  // Handle opening the endorsement modal
+  // Endorse
   const handleEndorseClick = (profile: UserProfile) => {
     if (!currentUserId) {
       alert('Please sign in to endorse nurses.');
@@ -439,53 +508,49 @@ export default function ExploreNurses() {
     setEndorsementModal({ profile, isOpen: true });
   };
 
-  // Handle submitting an endorsement from modal
   const handleEndorsementSubmit = async (message: string | null, specialty: string | null) => {
     if (!currentUserId || !endorsementModal.profile) return;
-
     const profile = endorsementModal.profile;
     const currentState = endorsements[profile.id];
     const currentCount = currentState?.count || 0;
 
-    // Optimistic update
     setEndorsements(prev => ({
       ...prev,
       [profile.id]: {
+        ...prev[profile.id],
         count: currentCount + 1,
-        isEndorsedByCurrentUser: true,
-        userEndorsementMessage: message,
-        userEndorsementSpecialty: specialty
+        isEndorsedByCurrentUser: true
       }
     }));
 
     setIsSubmittingEndorsement(true);
-
     try {
-      // Insert new endorsement with message and specialty
       const { error: insertError } = await supabase!
         .from('profile_endorsements')
         .upsert({
           endorser_id: currentUserId,
           profile_id: profile.id,
           specialty,
-          message,
+          message
         }, { onConflict: 'endorser_id,profile_id' });
 
       if (insertError) throw insertError;
 
-      // After successful DB operation, refresh counts to ensure consistency
-      await fetchEndorsementData(profiles.map(p => p.id));
+      // Hide this profile for the rest of the session
+      setSessionHidden(prev => new Set(prev).add(profile.id));
 
+      // Remove locally — server-side batch invalidation happens
+      // naturally on next load (we don't force a refresh here)
+      setProfiles(prev => prev.filter(p => p.id !== profile.id));
+      await fetchEndorsementData(profiles.map(p => p.id).filter(id => id !== profile.id));
     } catch (err) {
       console.error('Endorsement submission failed:', err);
-      // Revert optimistic update on error
       setEndorsements(prev => ({
         ...prev,
         [profile.id]: {
+          ...prev[profile.id],
           count: currentCount,
-          isEndorsedByCurrentUser: false,
-          userEndorsementMessage: undefined,
-          userEndorsementSpecialty: undefined
+          isEndorsedByCurrentUser: false
         }
       }));
       alert('Failed to submit endorsement. Please try again.');
@@ -495,100 +560,27 @@ export default function ExploreNurses() {
     }
   };
 
-  // Handle undo endorsement
-  const handleUndoEndorse = async (profile: UserProfile) => {
+  // Shuffle — force a fresh batch + clear session-hidden
+  const handleShuffle = async () => {
     if (!currentUserId) return;
-
-    const currentState = endorsements[profile.id];
-    const currentCount = currentState?.count || 0;
-
-    // Optimistic update
-    setEndorsements(prev => ({
-      ...prev,
-      [profile.id]: {
-        count: Math.max(0, currentCount - 1),
-        isEndorsedByCurrentUser: false,
-        userEndorsementMessage: undefined,
-        userEndorsementSpecialty: undefined
-      }
-    }));
-
-    try {
-      const { error: deleteError } = await supabase!
-        .from('profile_endorsements')
-        .delete()
-        .eq('endorser_id', currentUserId)
-        .eq('profile_id', profile.id);
-
-      if (deleteError) throw deleteError;
-
-      // After successful DB operation, refresh counts
-      await fetchEndorsementData([profile.id]);
-
-    } catch (err) {
-      console.error('Undo endorsement failed:', err);
-      // Revert optimistic update on error
-      setEndorsements(prev => ({
-        ...prev,
-        [profile.id]: {
-          count: currentCount,
-          isEndorsedByCurrentUser: true,
-          userEndorsementMessage: currentState?.userEndorsementMessage,
-          userEndorsementSpecialty: currentState?.userEndorsementSpecialty
-        }
-      }));
-      alert('Failed to undo endorsement. Please try again.');
-    }
+    // Clear session-hidden so the new batch has full choice of profiles
+    setSessionHidden(new Set());
+    // Invalidate cached batch so RPC picks fresh profiles
+    await supabase.from('explore_batches').delete().eq('user_id', currentUserId);
+    await loadBatch(currentUserId, true);
   };
 
-  // Fetch endorsement message preview when hovering over count
-  const handleCountHover = async (profileId: string) => {
-    if (hoveredProfileId === profileId) return;
-
-    setHoveredProfileId(profileId);
-
-    // Fetch latest endorsement message for this profile (from any user, for preview)
-    try {
-      const { data, error } = await supabase!
-        .from('profile_endorsements')
-        .select('message, specialty')
-        .eq('profile_id', profileId)
-        .not('message', 'is', null)
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      if (!error && data && data.length > 0 && data[0].message) {
-        setTooltipData({
-          message: data[0].message,
-          specialty: data[0].specialty || ''
-        });
-      } else {
-        setTooltipData(null);
-      }
-    } catch (err) {
-      console.error('Failed to fetch endorsement preview:', err);
-      setTooltipData(null);
-    }
-  };
-
-  // Sync state with query parameters if they change
   useEffect(() => {
     if (qSearch) setSearchTerm(qSearch);
     if (qSpecialty) setSelectedSpecialty(qSpecialty);
   }, [qSearch, qSpecialty]);
 
-  // Aggregate current specialties for quick dropdown
-  const allSpecialties = Array.from(
-    new Set(profiles.flatMap((p) => p.specialties || []))
-  );
+  const allSpecialties = Array.from(new Set(profiles.flatMap(p => p.specialties || [])));
 
-  // Aggregate locations for quick dropdown
-  const allLocations = Array.from(
-    new Set(profiles.map((p) => p.location).filter(Boolean) as string[])
-  );
-
-  // Filtered profiles selector logic
   const filteredProfiles = profiles.filter((p) => {
+    // Skip profiles hidden this session (viewed or endorsed)
+    if (sessionHidden.has(p.id)) return false;
+
     const matchesSearch =
       searchTerm === '' ||
       `${p.first_name} ${p.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -597,289 +589,262 @@ export default function ExploreNurses() {
 
     const matchesSpecialty =
       selectedSpecialty === '' ||
-      (p.specialties || []).some(
-        (s) => s.toLowerCase() === selectedSpecialty.toLowerCase()
-      );
-
-    const matchesLocation =
-      selectedLocation === '' ||
-      (p.location || '').toLowerCase() === selectedLocation.toLowerCase();
+      (p.specialties || []).some(s => s.toLowerCase() === selectedSpecialty.toLowerCase());
 
     const matchesVerification = !onlyVerified || p.verification_status === 'verified';
-
     const matchesRole = roleFilter === 'all' || p.role === roleFilter;
 
-    return matchesSearch && matchesSpecialty && matchesLocation && matchesVerification && matchesRole;
+    return matchesSearch && matchesSpecialty && matchesVerification && matchesRole;
   });
 
   return (
-    <div className="w-full py-0 md:py-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="w-full min-h-screen bg-slate-50 dark:bg-zinc-950">
+      <div className="max-w-2xl mx-auto px-3 md:px-6 py-4 md:py-8">
 
-        {/* Page title header - compact on mobile */}
-        <div className="flex flex-col mt-2 md:mt-2 md:flex-row md:items-end justify-between gap-2 md:gap-2 mb-4 md:mb-8 px-3 md:px-0">
-          <div>
-            <span className="text-[10px] md:text-xs bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-400 font-bold px-2 md:px-3 py-0.5 md:py-1 rounded-full uppercase tracking-wider font-mono">
-              Nurse Registry
-            </span>
-            <h1 className="text-xl md:text-2xl lg:text-3xl font-display font-extrabold tracking-tight text-slate-900 dark:text-white mt-1.5 md:mt-2">
-              Discover Certified Clinicians
-            </h1>
-            <p className="text-slate-500 dark:text-slate-400 text-xs md:text-sm mt-0.5 md:mt-1">
-              Verify licenses, specialties, and connect with peer leaders.
-            </p>
-          </div>
-          <div className="hidden sm:block text-xs text-slate-400 dark:text-slate-500 font-semibold bg-white dark:bg-zinc-950 md:border md:border-slate-200/60 md:dark:border-zinc-800 rounded-lg md:rounded-xl px-3 md:px-3.5 py-1 md:py-1.5 md:shadow-xs">
-            Showing <span className="text-indigo-600 dark:text-indigo-400 font-extrabold">{filteredProfiles.length}</span> of {profiles.length}
-          </div>
+        {/* Page Header */}
+        <div className="mb-5 md:mb-8">
+          <span className="inline-block text-xs bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-400 font-bold px-2.5 py-1 rounded-full uppercase tracking-wider font-mono">
+            Nurse Registry
+          </span>
+          <h1 className="text-2xl md:text-3xl lg:text-4xl font-display font-extrabold tracking-tight text-slate-900 dark:text-white mt-2">
+            Discover Certified Clinicians
+          </h1>
+          <p className="text-slate-500 dark:text-slate-400 text-sm md:text-base mt-1">
+            A personalized mix of nurses you haven't met yet.
+          </p>
         </div>
 
-        {/* Filter Toolbar Area - full width on mobile */}
-        <div className="bg-white dark:bg-zinc-950 md:rounded-xl md:border md:border-slate-200/60 md:dark:border-zinc-800 p-3 md:p-6 md:shadow-sm mb-0 md:mb-8 space-y-3 md:space-y-4 border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-200/60">
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 items-center">
-
-            {/* Search Input bar */}
-            <div className="md:col-span-4 relative">
-              <div className="absolute inset-y-0 left-2.5 md:left-3 flex items-center text-slate-400 dark:text-slate-500">
-                <Search className="w-3.5 h-3.5 md:w-4 md:h-4" />
+        {/* Filters */}
+        <div className="bg-white dark:bg-zinc-950 rounded-2xl border border-slate-200/60 dark:border-zinc-800 p-4 md:p-5 shadow-sm mb-4 md:mb-6 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+            <div className="md:col-span-5 relative">
+              <div className="absolute inset-y-0 left-3 flex items-center text-slate-400 dark:text-slate-500 pointer-events-none">
+                <Search className="w-4 h-4" />
               </div>
               <input
                 id="search-input-field"
                 type="text"
-                placeholder="Search by name, tags, keys..."
+                placeholder="Search this batch..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full text-xs md:text-sm pl-8 md:pl-10 pr-3 md:pr-4 py-2 bg-slate-50/60 dark:bg-slate-800/60 rounded-lg md:rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-200 transition"
+                className="w-full text-sm pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-700 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition"
               />
             </div>
 
-            {/* Specialty filter dropdown */}
-            <div className="md:col-span-3">
+            <div className="md:col-span-4">
               <select
                 id="specialty-dropdown-filter"
                 value={selectedSpecialty}
                 onChange={(e) => setSelectedSpecialty(e.target.value)}
-                className="w-full text-xs md:text-sm px-2.5 md:px-3 py-2 bg-slate-50/60 dark:bg-slate-800/60 rounded-lg md:rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-800 text-slate-700 dark:text-slate-300 transition"
+                className="w-full text-sm px-3 py-2.5 bg-slate-50 dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-700 focus:outline-none focus:border-indigo-500 text-slate-700 dark:text-slate-300 transition"
               >
                 <option value="">All Specialties</option>
-                {allSpecialties.map((s) => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
+                {allSpecialties.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
 
-            {/* Location filter dropdown */}
             <div className="md:col-span-3">
-              <select
-                id="location-dropdown-filter"
-                value={selectedLocation}
-                onChange={(e) => setSelectedLocation(e.target.value)}
-                className="w-full text-xs md:text-sm px-2.5 md:px-3 py-2 bg-slate-50/60 dark:bg-slate-800/60 rounded-lg md:rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-800 text-slate-700 dark:text-slate-300 transition"
-              >
-                <option value="">All Locations</option>
-                {allLocations.map((l) => (
-                  <option key={l} value={l}>{l}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Role select list */}
-            <div className="md:col-span-2">
               <select
                 id="role-dropdown-filter"
                 value={roleFilter}
                 onChange={(e) => setRoleFilter(e.target.value as any)}
-                className="w-full text-xs md:text-sm px-2.5 md:px-3 py-2 bg-slate-50/60 dark:bg-slate-800/60 rounded-lg md:rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-800 text-slate-700 dark:text-slate-300 transition font-semibold text-indigo-700 dark:text-indigo-400"
+                className="w-full text-sm px-3 py-2.5 bg-slate-50 dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-700 focus:outline-none focus:border-indigo-500 text-slate-700 dark:text-slate-300 transition font-semibold"
               >
                 <option value="all">Everyone</option>
-                <option value="nurse">Professionals Only</option>
-                <option value="student">Graduate Students</option>
+                <option value="nurse">Professionals</option>
+                <option value="student">Students</option>
               </select>
             </div>
           </div>
 
-          <div className="pt-2 md:pt-2 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 md:gap-4">
-            {/* Checkbox verified */}
-            <label className="inline-flex items-center gap-1.5 md:gap-2 cursor-pointer select-none">
+          <div className="pt-3 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap items-center justify-between gap-3">
+            <label className="inline-flex items-center gap-2 cursor-pointer select-none">
               <input
                 id="only-verified-cb"
                 type="checkbox"
                 checked={onlyVerified}
                 onChange={(e) => setOnlyVerified(e.target.checked)}
-                className="w-4 h-4 md:w-4.5 md:h-4.5 text-indigo-600 rounded border-slate-300 dark:border-slate-600 focus:ring-indigo-500 focus:ring-offset-0 dark:bg-slate-800"
+                className="w-4 h-4 text-indigo-600 rounded border-slate-300 dark:border-zinc-600 focus:ring-indigo-500 dark:bg-zinc-800"
               />
-              <span className="text-[10px] md:text-xs text-slate-600 dark:text-slate-400 font-semibold flex items-center gap-1">
-                <Sparkles className="w-3 h-3 md:w-3.5 md:h-3.5 text-indigo-600 dark:text-indigo-400" />
-                Only show verified profiles
+              <span className="text-sm text-slate-600 dark:text-slate-400 font-semibold flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                Only verified
               </span>
             </label>
 
-            {/* Clear filters Button */}
-            <button
-              id="clear-filters-btn"
-              onClick={() => {
-                setSearchTerm('');
-                setSelectedSpecialty('');
-                setSelectedLocation('');
-                setOnlyVerified(false);
-                setRoleFilter('all');
-              }}
-              className="text-[10px] md:text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition cursor-pointer"
-            >
-              Reset All Filters
-            </button>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-slate-400 dark:text-slate-500 font-semibold hidden sm:inline">
+                <span className="text-indigo-600 dark:text-indigo-400 font-extrabold">{filteredProfiles.length}</span> shown · {totalProfiles} total
+              </span>
+              <button
+                onClick={handleShuffle}
+                disabled={refreshing}
+                className="inline-flex items-center gap-1.5 text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition disabled:opacity-50 active:scale-[97%]"
+              >
+                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                <span>{refreshing ? 'Shuffling' : 'Shuffle'}</span>
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Nurses List Container - feed on mobile, grid on desktop */}
+        {/* Feed */}
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-0 md:gap-6 -mx-3 md:mx-0">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <NurseCardSkeleton key={i} />
-            ))}
+          <div className="space-y-3 md:space-y-4">
+            {[1, 2, 3, 4].map((i) => <NurseCardSkeleton key={i} />)}
           </div>
         ) : filteredProfiles.length === 0 ? (
-          <div className="md:bg-white md:dark:bg-zinc-950 md:border md:border-slate-200/60 md:dark:border-zinc-800 md:rounded-2xl p-8 md:p-16 text-center max-w-lg mx-auto md:shadow-sm">
-            <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-500 mx-auto mb-4 md:mb-6 border border-slate-100 dark:border-slate-700">
-              <Search className="w-5 h-5 md:w-6 md:h-6 text-slate-400 dark:text-slate-500" />
+          <div className="bg-white dark:bg-zinc-950 border border-slate-200/60 dark:border-zinc-800 rounded-2xl p-8 md:p-16 text-center shadow-sm">
+            <div className="w-16 h-16 rounded-2xl bg-slate-50 dark:bg-zinc-900 flex items-center justify-center text-slate-400 mx-auto mb-6 border border-slate-100 dark:border-zinc-800">
+              <Users className="w-6 h-6" />
             </div>
-            <h3 className="font-bold text-slate-800 dark:text-slate-200 text-base md:text-lg">No Results Found</h3>
-            <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 mt-1.5 md:mt-2 leading-relaxed">
-              We couldn't find any nurse or nursing student matching those exact constraints. Try broadening your keywords.
+            <h3 className="font-bold text-slate-800 dark:text-slate-200 text-lg">
+              {searchTerm || selectedSpecialty || onlyVerified ? 'No matches in this batch' : 'You\'ve seen everyone'}
+            </h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 leading-relaxed max-w-sm mx-auto">
+              {searchTerm || selectedSpecialty || onlyVerified
+                ? 'Try resetting your filters, or shuffle to see a new batch.'
+                : 'You\'ve viewed or endorsed everyone in this batch. Shuffle to discover more.'}
             </p>
             <button
-              id="zero-state-reset-btn"
-              onClick={() => {
-                setSearchTerm('');
-                setSelectedSpecialty('');
-                setSelectedLocation('');
-                setOnlyVerified(false);
-                setRoleFilter('all');
-              }}
-              className="mt-4 md:mt-6 px-3 md:px-4 py-2 rounded-lg md:rounded-xl text-teal-700 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/50 hover:bg-teal-100 dark:hover:bg-teal-900/50 text-xs font-semibold cursor-pointer"
+              onClick={handleShuffle}
+              disabled={refreshing}
+              className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold active:scale-[98%] transition disabled:opacity-50"
             >
-              Reset Filters
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+              {refreshing ? 'Shuffling' : 'Shuffle Batch'}
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-0 md:gap-6 -mx-3 md:mx-0">
+          <div className="space-y-3 md:space-y-4">
             {filteredProfiles.map((p) => {
-              const endorsementData = endorsements[p.id] || {
+              const ed = endorsements[p.id] || {
                 count: 0,
                 isEndorsedByCurrentUser: false,
-                userEndorsementMessage: undefined,
-                userEndorsementSpecialty: undefined
+                topQuote: null,
+                topQuoteAuthor: null
               };
+
               return (
                 <motion.div
                   layout
-                  initial={{ opacity: 0, scale: 0.98 }}
-                  animate={{ opacity: 1, scale: 1 }}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.25 }}
                   key={p.id}
-                  className="bg-white dark:bg-zinc-950 md:border md:border-slate-200/60 md:dark:border-zinc-800 md:rounded-xl md:shadow-sm md:hover:shadow-md transition duration-300 overflow-hidden flex flex-col justify-between group border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-200/60"
+                  className="bg-white dark:bg-zinc-950 md:rounded-2xl md:border md:border-slate-200/60 md:dark:border-zinc-800 md:shadow-sm md:hover:border-indigo-200 dark:md:hover:border-indigo-900 transition-all overflow-hidden border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-200/60"
                 >
-                  <div className="p-4 md:p-6">
-                    {/* Header Row */}
-                    <div className="flex items-start justify-between">
+                  <div className="p-4 md:p-5">
+                    <Link to={`/nurse/${p.username}`} className="flex items-start gap-3.5 group/header">
                       <img
                         src={p.avatar_url || '/192.png'}
-                        alt={p.username}
-                        className="w-12 h-12 md:w-14 md:h-14 object-cover rounded-xl md:rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm"
+                        alt={`${p.first_name} ${p.last_name}`}
+                        className="w-12 h-12 md:w-14 md:h-14 object-cover rounded-full border-2 border-white dark:border-zinc-800 shadow-md flex-shrink-0 group-hover/header:scale-[1.03] transition-transform"
                       />
-                      <VerificationBadge status={p.verification_status} showText={false} />
-                      <span className="flex items-center gap-0.5 md:gap-1">
-                        <Users className="w-3 h-3 md:w-3.5 md:h-3.5 text-slate-400 dark:text-slate-500" />
-                        {profileViews[p.id] || 0} views
-                      </span>
-                    </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <h4 className="font-bold text-slate-900 dark:text-white text-base leading-tight truncate group-hover/header:text-indigo-600 dark:group-hover/header:text-indigo-400 transition-colors">
+                            {p.first_name} {p.last_name}
+                          </h4>
+                          <VerificationBadge status={p.verification_status} showText={false} />
+                        </div>
+                        <p className="text-sm text-indigo-600 dark:text-indigo-400 font-semibold mt-0.5 truncate">
+                          {p.qualification || p.nursing_level || 'Nursing Colleague'}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-slate-500 dark:text-slate-400 font-medium">
+                          {p.location && (
+                            <span className="flex items-center gap-1 truncate">
+                              <MapPin className="w-3 h-3 flex-shrink-0" />
+                              <span className="truncate">{p.location}</span>
+                            </span>
+                          )}
+                          {p.years_of_experience ? (
+                            <span className="flex items-center gap-1">
+                              <Briefcase className="w-3 h-3 flex-shrink-0" />
+                              {p.years_of_experience} yrs
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                    </Link>
 
-                    {/* Basic Info */}
-                    <div className="mt-3 md:mt-4">
-                      <h4 className="font-sans font-bold text-slate-900 dark:text-white text-sm md:text-base leading-snug group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                        {p.first_name} {p.last_name}
-                      </h4>
-                      <p className="text-[10px] md:text-xs text-indigo-600 dark:text-indigo-400 font-bold mt-0.5 md:mt-1 font-mono uppercase tracking-tight">
-                        {p.qualification || p.nursing_level || 'Nursing Colleague'}
-                      </p>
-                    </div>
-
-                    {/* Bio Snippet */}
-                    <p className="text-[11px] md:text-xs text-slate-500 dark:text-slate-400 mt-2 md:mt-3 leading-relaxed line-clamp-3 font-medium">
-                      {p.bio || 'Professional nurse portfolio of this qualified healthcare team associate.'}
-                    </p>
-
-                    {/* Specialties List */}
-                    <div className="flex flex-wrap gap-1 md:gap-1.5 mt-3 md:mt-4">
-                      {(p.specialties || []).slice(0, 3).map((spec) => (
-                        <span key={spec} className="text-[9px] md:text-[10px] bg-slate-50/60 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-bold px-2 md:px-2.5 py-0.5 rounded-md md:rounded-lg">
-                          {spec}
-                        </span>
-                      ))}
-                      {(p.specialties || []).length > 3 && (
-                        <span className="text-[9px] md:text-[10px] bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-400 px-2 md:px-2.5 py-0.5 rounded-md md:rounded-lg font-bold font-mono">
-                          +{(p.specialties || []).length - 3}
-                        </span>
+                    <div className="mt-3.5">
+                      {ed.topQuote ? (
+                        <div className="bg-slate-50 dark:bg-zinc-900 rounded-xl p-3.5 border border-slate-100 dark:border-zinc-800">
+                          <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed italic">
+                            "{ed.topQuote}"
+                          </p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-2">
+                            — {ed.topQuoteAuthor}
+                            {ed.count > 1 && (
+                              <span className="text-slate-400 dark:text-slate-500 font-normal">
+                                {' '}and {ed.count - 1} {ed.count - 1 === 1 ? 'other' : 'others'}
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="bg-slate-50/60 dark:bg-zinc-900/60 rounded-xl p-3.5 border border-dashed border-slate-200 dark:border-zinc-800">
+                          <p className="text-sm text-slate-500 dark:text-slate-400 italic">
+                            No endorsements yet — be the first to vouch for {p.first_name}.
+                          </p>
+                        </div>
                       )}
                     </div>
-                  </div>
 
-                  {/* Info Footer Block */}
-                  <div className="px-4 md:px-6 py-2.5 md:py-3.5 bg-slate-50/70 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between text-slate-500 dark:text-slate-400 text-[10px] md:text-[11px] font-semibold gap-2">
-                    <div className="flex items-center gap-2 md:gap-3">
-                      <span className="flex items-center gap-0.5 md:gap-1">
-                        <MapPin className="w-3 h-3 md:w-3.5 md:h-3.5 text-slate-400 dark:text-slate-500" />
-                        {p.location || 'Location not set'}
-                      </span>
-                      <span className="flex items-center gap-0.5 md:gap-1">
-                        <Briefcase className="w-3 h-3 md:w-3.5 md:h-3.5 text-slate-400 dark:text-slate-500" />
-                        {p.years_of_experience || 0} yrs
-                      </span>
-                    </div>
+                    {(p.specialties && p.specialties.length > 0) && (
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-3 font-medium">
+                        {p.specialties.slice(0, 4).join(' · ')}
+                        {p.specialties.length > 4 && (
+                          <span className="text-slate-400 dark:text-slate-500"> · +{p.specialties.length - 4}</span>
+                        )}
+                      </p>
+                    )}
 
-                    <div className="flex items-center gap-1.5 md:gap-2 text-xs font-bold">
-                      {/* Endorsement Button with Tooltip on Count */}
-                      {/* Endorsement Button - Compact version */}
-                      {/* Endorsement Button - Click to open manager when already endorsed */}
+                    <div className="flex items-center justify-between gap-3 mt-4 pt-3 border-t border-slate-100 dark:border-zinc-800/80">
                       <button
                         onClick={() => {
-                          if (endorsementData.isEndorsedByCurrentUser) {
+                          if (ed.isEndorsedByCurrentUser) {
                             handleViewAllEndorsements(p);
                           } else {
                             handleEndorseClick(p);
                           }
                         }}
-                        className={`flex items-center gap-1 px-2 py-0.5 rounded-md transition-all duration-200 text-[10px] md:text-xs font-semibold ${endorsementData.isEndorsedByCurrentUser
-                          ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/60'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 dark:hover:text-indigo-400'
+                        className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full transition-all duration-200 font-semibold text-sm active:scale-[97%] ${ed.isEndorsedByCurrentUser
+                          ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 border border-emerald-200 dark:border-emerald-900'
+                          : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-600/20'
                           }`}
                       >
-                        <ThumbsUp className={`w-3 h-3 ${endorsementData.isEndorsedByCurrentUser ? 'fill-current' : ''}`} />
-                        <span>{endorsementData.isEndorsedByCurrentUser ? 'Endorsed' : 'Endorse'}</span>
-                        <span className="ml-0.5 text-[10px] font-mono opacity-80">({endorsementData.count})</span>
+                        <ThumbsUp className={`w-4 h-4 ${ed.isEndorsedByCurrentUser ? 'fill-current' : ''}`} />
+                        <span>{ed.isEndorsedByCurrentUser ? 'Endorsed' : 'Endorse'}</span>
+                        {ed.count > 0 && <span className="opacity-80">· {ed.count}</span>}
                       </button>
-                      <button
-                        id={`explore-preview-${p.username}`}
-                        onClick={async () => {
-                          if (!currentUserId || currentUserId === p.id) return;
 
-                          setActivePreview(p);
-                          await analyticsService.recordProfileView(p.id);
-                        }}
-                        disabled={currentUserId === p.id}
-                        className={`text-indigo-600 dark:text-indigo-400 hover:underline text-[10px] md:text-xs ${currentUserId === p.id ? 'opacity-40 cursor-not-allowed pointer-events-none' : 'cursor-pointer'
-                          }`}
-                      >
-                        Preview
-                      </button>
-                      <span className="text-slate-200 dark:text-slate-700">|</span>
-                      <Link
-                        id={`explore-view-${p.username}`}
-                        to={`/nurse/${p.username}`}
-                        className="text-slate-700 dark:text-slate-300 hover:text-indigo-700 dark:hover:text-indigo-400 font-bold flex items-center gap-0.5 text-[10px] md:text-xs"
-                      >
-                        Hub
-                        <ChevronRight className="w-3 h-3 md:w-3.5 md:h-3.5" />
-                      </Link>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => {
+                            if (!currentUserId || currentUserId === p.id) return;
+                            setActivePreview(p);
+                            setSessionHidden(prev => new Set(prev).add(p.id));
+                            analyticsService.recordProfileView(p.id);
+                          }}
+                          disabled={currentUserId === p.id}
+                          className="p-2 rounded-full text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                          aria-label="Quick look"
+                          title="Quick look"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+
+                        <Link
+                          to={`/nurse/${p.username}`}
+                          onClick={() => setSessionHidden(prev => new Set(prev).add(p.id))}
+                          className="inline-flex items-center gap-1 px-3 py-2 rounded-full text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition"
+                        >
+                          <span>Profile</span>
+                          <ChevronRight className="w-4 h-4" />
+                        </Link>
+                      </div>
                     </div>
                   </div>
                 </motion.div>
@@ -890,140 +855,139 @@ export default function ExploreNurses() {
 
       </div>
 
-      {/* Profile quick preview Drawer/Modal - bottom sheet on mobile */}
-      {/* Profile quick preview Drawer/Modal - bottom sheet on mobile - PERFORMANCE OPTIMIZED */}
-      <AnimatePresence mode="wait">
+      {/* QUICK-LOOK BOTTOM SHEET */}
+      <AnimatePresence>
         {activePreview && (
           <div className="fixed inset-0 z-[9999] flex items-end md:items-center justify-center md:p-4">
-            {/* Backdrop filter - optimized with will-change */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 0.5 }}
               exit={{ opacity: 0 }}
-              onClick={() => setActivePreview(null)}
-              className="absolute inset-0 bg-slate-900/60 dark:bg-zinc-950/90 backdrop-blur-sm will-change-opacity"
+              onClick={() => { setActivePreview(null); sheetY.set(0); }}
+              className="absolute inset-0 bg-slate-900/60 dark:bg-zinc-950/90 backdrop-blur-sm"
               transition={{ duration: 0.2 }}
             />
 
-            {/* Panel - optimized animations and reduced re-renders */}
             <motion.div
-              initial={{ opacity: 0, y: "100%" }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: "100%" }}
-              transition={{
-                type: "tween",
-                duration: 0.25,
-                ease: [0.32, 0.72, 0, 1]
+              drag="y"
+              dragConstraints={{ top: 0, bottom: 0 }}
+              dragElastic={{ top: 0, bottom: 0.6 }}
+              style={{ y: sheetY, opacity: sheetOpacity }}
+              onDragEnd={(_, info) => {
+                if (info.offset.y > 120 || info.velocity.y > 500) {
+                  setActivePreview(null);
+                  sheetY.set(0);
+                } else {
+                  sheetY.set(0);
+                }
               }}
-              className="bg-white dark:bg-zinc-950 md:rounded-[32px] rounded-t-[32px] overflow-hidden w-full md:max-w-sm relative shadow-2xl md:border md:border-slate-200/60 md:dark:border-zinc-800 max-h-[90vh] overflow-y-auto will-change-transform"
-              style={{ touchAction: 'pan-y' }}
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'tween', duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
+              className="bg-white dark:bg-zinc-950 md:rounded-3xl rounded-t-3xl overflow-hidden w-full md:max-w-md relative shadow-2xl md:border md:border-slate-200/60 md:dark:border-zinc-800 max-h-[92vh] overflow-y-auto"
             >
-              {/* Colored header cover block */}
-              <div className="h-20 md:h-24 bg-gradient-to-r from-indigo-700 via-indigo-600 to-indigo-800 p-4 relative transform-gpu">
-                {/* Drag handle for mobile */}
-                <div className="md:hidden flex justify-center mb-2">
-                  <div className="w-8 h-1 bg-white/30 rounded-full" />
+              <div className="sticky top-0 z-10 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-sm pt-3 pb-1 md:hidden">
+                <div className="flex justify-center">
+                  <div className="w-12 h-1.5 bg-slate-300 dark:bg-zinc-700 rounded-full" />
                 </div>
+              </div>
+
+              <div className="h-20 md:h-24 bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-700 relative">
                 <button
-                  onClick={() => setActivePreview(null)}
-                  className="absolute top-4 right-4 bg-white/20 active:bg-white/30 text-white rounded-full p-2 transition-colors cursor-pointer shadow-lg backdrop-blur-sm"
-                  aria-label="Close preview"
+                  onClick={() => { setActivePreview(null); sheetY.set(0); }}
+                  className="absolute top-3 right-3 bg-white/20 hover:bg-white/30 text-white rounded-full p-2 transition-colors shadow-lg backdrop-blur-sm active:scale-95"
+                  aria-label="Close"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <div className="p-4 md:p-6 relative pt-8 md:pt-10">
-                {/* Avatar - optimized with lazy loading */}
-                <div className="absolute -top-8 md:-top-10 left-4 md:left-6">
+              <div className="px-5 md:px-6 pb-6 relative">
+                <div className="absolute -top-10 left-5 md:left-6">
                   <img
                     src={activePreview.avatar_url || '/192.png'}
                     alt={`${activePreview.first_name} ${activePreview.last_name}`}
-                    className="w-16 h-16 md:w-20 md:h-20 object-cover rounded-xl md:rounded-2xl border-3 md:border-4 border-white dark:border-slate-900 shadow-md bg-white dark:bg-zinc-950 transform-gpu"
-                    loading="eager"
-                    width={80}
-                    height={80}
+                    className="w-20 h-20 object-cover rounded-full border-4 border-white dark:border-zinc-950 shadow-lg bg-white dark:bg-zinc-950"
                   />
                 </div>
 
-                {/* Info block - memoized content */}
-                <div className="space-y-3 md:space-y-4">
+                <div className="pt-12 space-y-5">
                   <div>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <h3 className="text-lg md:text-xl font-display font-extrabold text-slate-900 dark:text-white">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-xl font-bold text-slate-900 dark:text-white">
                         {activePreview.first_name} {activePreview.last_name}
                       </h3>
                       <VerificationBadge status={activePreview.verification_status} showText={false} />
                     </div>
-                    <p className="text-xs md:text-sm font-semibold text-indigo-600 dark:text-indigo-400 mt-0.5 md:mt-1">
+                    <p className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 mt-0.5">
                       {activePreview.qualification || activePreview.nursing_level || 'Nursing Student'}
                     </p>
                   </div>
 
-                  {/* Bio with line clamp for performance */}
-                  <p className="text-[11px] md:text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-semibold line-clamp-4">
-                    {activePreview.bio || 'Excellent clinically active Nursefolio candidate profiles.'}
-                  </p>
+                  {activePreview.bio && (
+                    <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-4">
+                      {activePreview.bio}
+                    </p>
+                  )}
 
-                  {/* Stats grid - using CSS Grid for better layout performance */}
-                  <div className="grid grid-cols-2 gap-2 md:gap-3 text-xs border-y border-slate-100 dark:border-slate-800 py-2.5 md:py-3 mt-3 md:mt-4">
+                  <div className="grid grid-cols-2 gap-3 border-y border-slate-100 dark:border-zinc-800 py-3">
                     <div>
-                      <span className="block text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider text-[8px] md:text-[9px] font-mono">
-                        Location
-                      </span>
-                      <span className="block text-slate-700 dark:text-slate-300 font-semibold mt-0.5 text-[10px] md:text-xs truncate">
+                      <span className="block text-xs text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">Location</span>
+                      <span className="block text-sm text-slate-700 dark:text-slate-300 font-semibold mt-0.5 truncate">
                         {activePreview.location || 'Not specified'}
                       </span>
                     </div>
                     <div>
-                      <span className="block text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider text-[8px] md:text-[9px] font-mono">
-                        Role
-                      </span>
-                      <span className="block text-indigo-600 dark:text-indigo-400 font-bold mt-0.5 capitalize text-[10px] md:text-xs">
+                      <span className="block text-xs text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">Role</span>
+                      <span className="block text-sm text-indigo-600 dark:text-indigo-400 font-bold mt-0.5 capitalize">
                         {activePreview.role}
                       </span>
                     </div>
                   </div>
 
-                  {/* Specialties - limited to 5 items for performance */}
-                  {(activePreview.specialties?.length > 0) && (
+                  {activePreview.specialties?.length > 0 && (
                     <div>
-                      <span className="block text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider font-mono mb-1 md:mb-1.5">
+                      <span className="block text-xs text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider mb-2">
                         Focus Areas
                       </span>
-                      <div className="flex flex-wrap gap-1 md:gap-1.5">
-                        {activePreview.specialties.slice(0, 5).map((spec) => (
+                      <div className="flex flex-wrap gap-1.5">
+                        {activePreview.specialties.slice(0, 6).map((spec) => (
                           <span
                             key={spec}
-                            className="text-[9px] md:text-[10px] bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 text-slate-700 dark:text-slate-400 px-2 md:px-2.5 py-0.5 md:py-1 rounded-md md:rounded-lg font-bold whitespace-nowrap"
+                            className="text-xs bg-slate-50 dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 text-slate-700 dark:text-slate-400 px-2.5 py-1 rounded-lg font-semibold"
                           >
                             {spec}
                           </span>
                         ))}
-                        {activePreview.specialties.length > 5 && (
-                          <span className="text-[9px] md:text-[10px] bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 px-2 md:px-2.5 py-0.5 md:py-1 rounded-md md:rounded-lg font-bold">
-                            +{activePreview.specialties.length - 5}
-                          </span>
-                        )}
                       </div>
                     </div>
                   )}
 
-                  {/* Action Buttons - optimized touch targets */}
-                  <div className="pt-3 md:pt-4 flex gap-2 md:gap-3">
+                  {endorsements[activePreview.id]?.topQuote && (
+                    <div className="bg-indigo-50/60 dark:bg-indigo-950/30 rounded-xl p-3.5 border border-indigo-100 dark:border-indigo-900/50">
+                      <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed italic">
+                        "{endorsements[activePreview.id].topQuote}"
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-1.5">
+                        — {endorsements[activePreview.id].topQuoteAuthor}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="flex gap-3 pt-2">
                     <button
-                      onClick={() => setActivePreview(null)}
-                      className="flex-1 py-3 md:py-3 rounded-lg md:rounded-xl border-2 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs md:text-sm font-extrabold active:bg-slate-100 dark:active:bg-slate-800 transition-colors cursor-pointer shadow-sm min-h-[44px]"
-                      aria-label="Dismiss preview"
+                      onClick={() => { setActivePreview(null); sheetY.set(0); }}
+                      className="flex-1 py-3 rounded-xl border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-slate-300 text-sm font-bold active:bg-slate-100 dark:active:bg-zinc-800 transition min-h-[48px]"
                     >
-                      Dismiss
+                      Close
                     </button>
                     <Link
                       to={`/nurse/${activePreview.username}`}
-                      onClick={() => setActivePreview(null)}
-                      className="flex-1 py-3 md:py-3 rounded-lg md:rounded-xl text-center text-white bg-indigo-600 active:bg-indigo-700 text-xs md:text-sm font-extrabold transition-colors shadow-md shadow-indigo-600/20 cursor-pointer min-h-[44px] flex items-center justify-center"
+                      onClick={() => { setActivePreview(null); sheetY.set(0); }}
+                      className="flex-1 py-3 rounded-xl text-center text-white bg-indigo-600 hover:bg-indigo-700 text-sm font-bold transition shadow-md shadow-indigo-600/20 min-h-[48px] flex items-center justify-center active:scale-[98%]"
                     >
-                      Visit Full Profile
+                      View Full Profile
                     </Link>
                   </div>
                 </div>
@@ -1032,6 +996,7 @@ export default function ExploreNurses() {
           </div>
         )}
       </AnimatePresence>
+
       {/* Endorsement Manager Modal */}
       <AnimatePresence>
         {endorsementManagerOpen.isOpen && endorsementManagerOpen.profile && (
@@ -1041,13 +1006,11 @@ export default function ExploreNurses() {
             profileId={endorsementManagerOpen.profile.id}
             profileName={`${endorsementManagerOpen.profile.first_name} ${endorsementManagerOpen.profile.last_name}`}
             currentUserId={currentUserId || ''}
-            onEndorsementChange={() => {
-              // Refresh endorsement data for all profiles
-              fetchEndorsementData(profiles.map(p => p.id));
-            }}
+            onEndorsementChange={() => fetchEndorsementData(profiles.map(p => p.id))}
           />
         )}
       </AnimatePresence>
+
       {/* Endorsement Modal */}
       <AnimatePresence>
         {endorsementModal.isOpen && endorsementModal.profile && (

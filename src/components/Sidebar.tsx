@@ -75,6 +75,7 @@ export const Sidebar: React.FC = () => {
     },
     { id: 'overview', name: 'Overview', path: '/dashboard', icon: Home },
     { id: 'explore', name: 'Explore Registry', path: '/explore', icon: Compass },
+    { id: 'locum', name: 'Locum & Cover', path: '/locum', icon: Briefcase },
     { id: 'edit-profile', name: 'Edit Profile', path: '/dashboard/edit-profile', icon: UserPlus },
     { id: 'skills', name: 'Skills/Logbook', path: '/dashboard/skills', icon: Award },
     {

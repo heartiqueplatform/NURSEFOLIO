@@ -10,7 +10,7 @@ import {
   Activity, Search, ShieldCheck, FileText,
   Palette, Smartphone, ArrowRight, HeartHandshake,
   Sun, Moon, MapPin, Briefcase, ChevronRight,
-  Sparkles, LogIn, LayoutDashboard // ← ADD THESE
+  Sparkles, LogIn, LayoutDashboard
 } from 'lucide-react';
 
 // --- IMPORTS FOR REAL DATA ---
@@ -18,11 +18,14 @@ import { databaseService } from '../services/databaseService';
 import { UserProfile } from '../types';
 import { VerificationBadge } from '../components/VerificationBadge';
 import { useThemeMode } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
+import PageLoader from '../components/PageLoader';
 
 export default function LandingPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
   const { themeMode, toggleThemeMode } = useThemeMode();
+  const { user, loading: authLoading } = useAuth();
 
   // --- REAL DATA STATES ---
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -32,6 +35,13 @@ export default function LandingPage() {
     e.preventDefault();
     navigate('/register');
   };
+
+  // Kick logged-in users off the marketing page and into the dashboard
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [authLoading, user, navigate]);
 
   useEffect(() => {
     const loadNurses = async () => {
@@ -66,11 +76,18 @@ export default function LandingPage() {
     }
   };
 
+  // Hold the screen with the same loader as ProtectedRoute while auth resolves
+  // and while the redirect effect fires — prevents a flash of the marketing page.
+  if (authLoading) {
+    return <PageLoader />;
+  }
+
+  if (user) {
+    return <PageLoader />;
+  }
+
   return (
     <div className="bg-white dark:bg-zinc-950 mt-16 overflow-hidden">
-
-      {/* Theme Toggle Button - Fixed Position */}
-
 
       {/* Hero Section */}
       <div className="relative pt-6 md:pt-10 pb-16 md:pb-24 lg:pt-16 lg:pb-32 dark:bg-zinc-950">
@@ -137,21 +154,17 @@ export default function LandingPage() {
                     type="submit"
                     className="group relative w-full sm:w-auto inline-flex items-center justify-center gap-2 overflow-hidden bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-700 hover:via-indigo-600 hover:to-purple-700 text-white text-sm font-semibold px-4 md:px-5 py-2 md:py-2.5 rounded-lg md:rounded-xl shadow-lg shadow-indigo-500/25 hover:shadow-xl hover:shadow-indigo-500/40 transition-all duration-300 active:scale-[97%] cursor-pointer whitespace-nowrap"
                   >
-                    {/* Animated shimmer effect */}
                     <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></span>
 
-                    {/* Search icon with animation */}
                     <Search className="w-4 h-4 md:w-5 md:h-5 group-hover:scale-110 transition-transform duration-300" />
 
                     <span>Find Nurses</span>
 
-                    {/* ArrowRight icon with animation */}
                     <ArrowRight className="w-4 h-4 md:w-5 md:h-5 group-hover:translate-x-1 transition-transform duration-300" />
 
-                    {/* Pulse ring */}
                     <span className="absolute inset-0 rounded-lg md:rounded-xl ring-2 ring-indigo-400/50 group-hover:ring-indigo-300/70 ring-offset-2 ring-offset-transparent transition-all duration-300"></span>
                   </button>
-                  {/* FANCY GO TO PORTAL BUTTON - UPDATED WITH LUCIDE ICONS */}
+                  {/* FANCY GO TO PORTAL BUTTON */}
                   <motion.div
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -162,18 +175,14 @@ export default function LandingPage() {
                       onClick={() => navigate('/dashboard')}
                       className="group relative w-full sm:w-auto inline-flex items-center justify-center gap-1.5 md:gap-2 overflow-hidden bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-600 hover:via-teal-600 hover:to-cyan-600 text-white text-sm font-semibold px-4 md:px-5 py-2 md:py-2.5 rounded-lg md:rounded-xl shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/40 transition-all duration-300 active:scale-[97%] cursor-pointer whitespace-nowrap"
                     >
-                      {/* Animated shimmer effect */}
                       <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></span>
 
-                      {/* Sparkles icon from Lucide */}
                       <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-yellow-300 group-hover:rotate-12 transition-transform duration-300" />
 
                       <span>Go to Portal</span>
 
-                      {/* ArrowRight icon with animation */}
                       <ArrowRight className="w-4 h-4 md:w-5 md:h-5 group-hover:translate-x-1 transition-transform duration-300" />
 
-                      {/* Pulse ring */}
                       <span className="absolute inset-0 rounded-lg md:rounded-xl ring-2 ring-emerald-400/50 group-hover:ring-emerald-300/70 ring-offset-2 ring-offset-transparent transition-all duration-300"></span>
                     </button>
                   </motion.div>
@@ -325,7 +334,7 @@ export default function LandingPage() {
               <Link
                 id="cta-professional-btn"
                 to="/register?role=nurse"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 md:gap-2 text-xs md:text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 px-4 md:px-5 py-2.5 md:py-3 rounded-lg md:rounded-xl hover:shadow transition"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 md:gap-2 text-xs md:text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 px-4 md:px-5 py-2.5 md:py-3 rounded-lg md:rounded-xl hover:shadow transition active:scale-[98%]"
               >
                 <span>Professional Portfolio SignUp</span>
                 <ArrowRight className="w-3.5 h-3.5 md:w-4 md:h-4" />
@@ -344,7 +353,7 @@ export default function LandingPage() {
               <Link
                 id="cta-student-btn"
                 to="/register?role=student"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 md:gap-2 text-xs md:text-sm font-semibold text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 px-4 md:px-5 py-2.5 md:py-3 rounded-lg md:rounded-xl hover:shadow transition"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 md:gap-2 text-xs md:text-sm font-semibold text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 px-4 md:px-5 py-2.5 md:py-3 rounded-lg md:rounded-xl hover:shadow transition active:scale-[98%]"
               >
                 <span>Student Portfolio SignUp</span>
                 <ArrowRight className="w-3.5 h-3.5 md:w-4 md:h-4" />
@@ -372,14 +381,14 @@ export default function LandingPage() {
             <Link
               id="cta-trust-signup"
               to="/register"
-              className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 font-bold px-6 md:px-8 py-3 md:py-3.5 rounded-lg md:rounded-xl text-white text-sm hover:shadow-lg transition cursor-pointer select-none text-center"
+              className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 font-bold px-6 md:px-8 py-3 md:py-3.5 rounded-lg md:rounded-xl text-white text-sm hover:shadow-lg transition cursor-pointer select-none text-center active:scale-[98%]"
             >
               Build My Nursefolio
             </Link>
             <Link
               id="cta-trust-explore"
               to="/explore"
-              className="w-full sm:w-auto px-6 md:px-8 py-3 md:py-3.5 rounded-lg md:rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white text-sm font-semibold transition text-center"
+              className="w-full sm:w-auto px-6 md:px-8 py-3 md:py-3.5 rounded-lg md:rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white text-sm font-semibold transition text-center active:scale-[98%]"
             >
               Explore Registered Specialists
             </Link>

@@ -10,13 +10,13 @@ import { Activity, Menu, X, User, LogOut, CheckSquare, Sun, Moon, Heart, Refresh
 import { useThemeMode } from '../contexts/ThemeContext';
 
 export const Navbar: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user, loading, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { themeMode, toggleThemeMode } = useThemeMode();
 
-  // ── NEW: goodbye overlay state ──
+  // Goodbye overlay state (still used by mobile menu "sign out" flow when needed)
   const [showGoodbyeModal, setShowGoodbyeModal] = useState(false);
 
   const isActive = (path: string) => location.pathname === path;
@@ -25,25 +25,28 @@ export const Navbar: React.FC = () => {
     await logout();
     navigate('/');
   };
+
   const handleRefresh = () => {
     window.location.reload();
   };
-  // ── NEW: open overlay instead of signing out directly ──
+
+  // Opens the goodbye overlay (kept for internal usage; not exposed in desktop nav)
   const handleExitClick = () => {
     setMobileOpen(false);
     setShowGoodbyeModal(true);
   };
 
   const navLinks = [
-    { name: 'Discover Nurses', path: '/explore' },
-    { name: 'Verification Info', path: '/verification-info' },
+    { name: 'Explore', path: '/explore' },
+    { name: 'Locum', path: '/locum' },
+    { name: 'Verification', path: '/verification-info' },
     { name: 'Pricing', path: '/pricing' },
     { name: 'About', path: '/about' },
   ];
 
   return (
     <>
-      {/* ── NEW: Goodbye Overlay Modal ── */}
+      {/* Goodbye Overlay Modal */}
       {showGoodbyeModal && (
         <div
           className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm"
@@ -61,56 +64,45 @@ export const Navbar: React.FC = () => {
             </div>
 
             <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-1">
-              Goodbye, {user?.first_name} 👋
+              Goodbye, {user?.first_name || 'Nurse'} 👋
             </h2>
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-1 leading-relaxed">
-              We'll miss you around here. 💙
+              We'll miss you around here.
             </p>
             <p className="text-xs text-slate-400 dark:text-slate-500 mb-6 leading-relaxed italic">
               "Every nurse you meet carries a little piece of their patients with them. Thank you for the care you give every day."
             </p>
 
-            {/* Emotion dots */}
-            <div className="flex justify-center gap-2 mb-6 text-xl">
-              <span title="Safe travels">🌸</span>
-              <span title="You're amazing">✨</span>
-              <span title="Come back soon">🏥</span>
-              <span title="We care">💛</span>
-            </div>
-
             <div className="flex flex-col gap-2">
               <button
                 onClick={handleSignOut}
-                className="w-full py-3 rounded-xl bg-rose-500 hover:bg-rose-600 text-white text-sm font-semibold transition-all shadow-md shadow-rose-200 dark:shadow-rose-950/40"
+                className="w-full py-3 rounded-xl bg-rose-500 hover:bg-rose-600 text-white text-sm font-semibold transition-all shadow-md shadow-rose-200 dark:shadow-rose-950/40 active:scale-[98%]"
               >
                 Yes, sign me out
               </button>
               <button
                 onClick={() => setShowGoodbyeModal(false)}
-                className="w-full py-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-sm font-semibold transition-all"
+                className="w-full py-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-sm font-semibold transition-all active:scale-[98%]"
               >
-                Actually, I'll stay 🙂
+                Actually, I'll stay
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── ORIGINAL NAVBAR — fully preserved ── */}
-      {/* MAMA'S CHANGE: Changed 'sticky' to 'fixed top-0 left-0 right-0' and ensured w-full and high z-index */}
+      {/* Navbar */}
       <nav className="fixed top-0 left-0 right-0 w-full z-[60] bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md border-b border-slate-100/80 dark:border-slate-800/80">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             {/* Logo */}
             <div className="flex items-center">
               <Link id="nav-logo" to="/" className="flex items-center gap-2 group">
-                {/* This replaces the blue box with your actual PNG icon */}
                 <img
                   src="/192.png"
                   alt="Nursefolio Logo"
                   className="w-9 h-9 rounded-xl object-cover group-hover:scale-105 transition-transform shadow-md shadow-indigo-600/10"
                 />
-
                 <span className="font-display font-bold text-xl tracking-tight text-slate-900 dark:text-white">
                   Nurse<span className="text-indigo-600">folio</span>
                 </span>
@@ -134,8 +126,8 @@ export const Navbar: React.FC = () => {
               ))}
             </div>
 
-            {/* Auth Controls */}
-            <div className="hidden md:flex items-center gap-4 flex-shrink-0"> {/* Added flex-shrink-0 here */}
+            {/* Auth Controls (Desktop) */}
+            <div className="hidden md:flex items-center gap-4 flex-shrink-0">
 
               {/* Refresh Button */}
               <button
@@ -157,14 +149,18 @@ export const Navbar: React.FC = () => {
                 {themeMode === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </button>
 
-              {user ? (
+              {loading ? (
+                // Skeleton while auth resolves — prevents flash of "Sign In" for logged-in users
+                <div className="flex items-center gap-3">
+                  <div className="w-28 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
+                </div>
+              ) : user ? (
                 <div className="flex items-center gap-3">
                   <Link
                     id="nav-btn-dashboard"
                     to="/dashboard"
-                    className="flex items-center gap-3 pl-2 pr-4 py-1.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-500 hover:bg-white dark:hover:bg-slate-700 transition-all group shadow-sm"
+                    className="flex items-center gap-3 pl-2 pr-4 py-1.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-500 hover:bg-white dark:hover:bg-slate-700 transition-all group shadow-sm active:scale-[98%]"
                   >
-                    {/* AVATAR OR INITIALS */}
                     {user.avatar_url ? (
                       <img
                         src={user.avatar_url}
@@ -190,21 +186,16 @@ export const Navbar: React.FC = () => {
                     <Link
                       id="nav-btn-admin"
                       to="/admin"
-                      className="inline-flex items-center gap-2 text-sm font-semibold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100/80 dark:hover:bg-rose-900/50 px-4 py-2 rounded-xl transition-all"
+                      className="inline-flex items-center gap-2 text-sm font-semibold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100/80 dark:hover:bg-rose-900/50 px-4 py-2 rounded-xl transition-all active:scale-[98%]"
                     >
                       <CheckSquare className="w-4 h-4" />
                       <span>Admin Panel</span>
                     </Link>
                   )}
-                  {/* ── CHANGED: onClick now opens overlay ── */}
-                  <button
-                    id="nav-btn-logout"
-                    onClick={handleExitClick}
-                    className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-all cursor-pointer"
-                    title="Sign Out"
-                  >
-                    <LogOut className="w-5 h-5" />
-                  </button>
+                  {/*
+                    Sign Out button intentionally removed from the desktop nav.
+                    Users can sign out from Dashboard → Settings.
+                  */}
                 </div>
               ) : (
                 <div className="flex items-center gap-3">
@@ -218,7 +209,7 @@ export const Navbar: React.FC = () => {
                   <Link
                     id="nav-btn-register"
                     to="/register"
-                    className="inline-flex items-center justify-center px-4 py-2 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 hover:shadow-md hover:shadow-indigo-600/10 transition-all select-none"
+                    className="inline-flex items-center justify-center px-4 py-2 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 hover:shadow-md hover:shadow-indigo-600/10 transition-all select-none active:scale-[98%]"
                   >
                     Create Nursefolio
                   </Link>
@@ -226,7 +217,7 @@ export const Navbar: React.FC = () => {
               )}
             </div>
 
-            {/* Mobile Hamburguer */}
+            {/* Mobile Controls */}
             <div className="flex md:hidden items-center gap-2">
               <button
                 id="mobile-btn-refresh"
@@ -235,7 +226,6 @@ export const Navbar: React.FC = () => {
               >
                 <RefreshCw className="w-5 h-5 active:rotate-180 transition-transform duration-500" />
               </button>
-              {/* Mobile Theme Toggle */}
               <button
                 id="mobile-btn-theme"
                 onClick={toggleThemeMode}
@@ -275,13 +265,18 @@ export const Navbar: React.FC = () => {
                 </Link>
               ))}
               <div className="pt-4 border-t border-slate-100 dark:border-slate-800 px-3 flex flex-col gap-2">
-                {user ? (
+                {loading ? (
+                  <>
+                    <div className="w-full h-11 rounded-xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
+                    <div className="w-full h-11 rounded-xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
+                  </>
+                ) : user ? (
                   <>
                     <Link
                       id="mobile-btn-dashboard"
                       to="/dashboard"
                       onClick={() => setMobileOpen(false)}
-                      className="flex items-center justify-center gap-2 w-full py-2.5 text-center text-sm font-semibold text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 rounded-xl"
+                      className="flex items-center justify-center gap-2 w-full py-2.5 text-center text-sm font-semibold text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 rounded-xl active:scale-[98%] transition-transform"
                     >
                       <User className="w-4 h-4" />
                       <span>Go to My Portal</span>
@@ -291,20 +286,16 @@ export const Navbar: React.FC = () => {
                         id="mobile-btn-admin"
                         to="/admin"
                         onClick={() => setMobileOpen(false)}
-                        className="flex items-center justify-center gap-2 w-full py-2.5 text-center text-sm font-semibold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/50 rounded-xl"
+                        className="flex items-center justify-center gap-2 w-full py-2.5 text-center text-sm font-semibold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/50 rounded-xl active:scale-[98%] transition-transform"
                       >
                         <CheckSquare className="w-4 h-4" />
                         <span>Admin Panel</span>
                       </Link>
                     )}
-                    {/* ── CHANGED: onClick now opens overlay, closes mobile menu first ── */}
-                    <button
-                      id="mobile-btn-logout"
-                      onClick={handleExitClick}
-                      className="w-full py-2.5 text-center text-sm font-semibold text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 rounded-xl cursor-pointer"
-                    >
-                      Log Out
-                    </button>
+                    {/*
+                      Sign Out button intentionally removed from mobile menu.
+                      Users can sign out from Dashboard → Settings.
+                    */}
                   </>
                 ) : (
                   <>
@@ -312,7 +303,7 @@ export const Navbar: React.FC = () => {
                       id="mobile-btn-login"
                       to="/login"
                       onClick={() => setMobileOpen(false)}
-                      className="w-full py-2.5 text-center text-sm font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 rounded-xl"
+                      className="w-full py-2.5 text-center text-sm font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 rounded-xl active:scale-[98%] transition-transform"
                     >
                       Sign In
                     </Link>
@@ -320,7 +311,7 @@ export const Navbar: React.FC = () => {
                       id="mobile-btn-register"
                       to="/register"
                       onClick={() => setMobileOpen(false)}
-                      className="w-full py-2.5 text-center text-sm font-semibold text-white bg-indigo-600 rounded-xl"
+                      className="w-full py-2.5 text-center text-sm font-semibold text-white bg-indigo-600 rounded-xl active:scale-[98%] transition-transform"
                     >
                       Create Portfolio
                     </Link>
@@ -332,7 +323,7 @@ export const Navbar: React.FC = () => {
         )}
       </nav>
 
-      {/* ── NEW: goodbye overlay animations ── */}
+      {/* Goodbye overlay animations */}
       <style>{`
         @keyframes goodbye-pop {
           0%   { opacity: 0; transform: scale(0.88) translateY(12px); }

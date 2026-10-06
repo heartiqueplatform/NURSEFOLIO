@@ -17,7 +17,7 @@ export const DashboardLayout: React.FC<{ children?: React.ReactNode }> = ({ chil
   const navigate = useNavigate();
   const { themeMode, toggleThemeMode } = useThemeMode();
 
-  // ── NEW: goodbye overlay state ──
+  // Goodbye overlay state — reserved for future use (e.g. sign-out from Settings)
   const [showGoodbyeModal, setShowGoodbyeModal] = useState(false);
 
   const handleSignOut = async () => {
@@ -25,14 +25,13 @@ export const DashboardLayout: React.FC<{ children?: React.ReactNode }> = ({ chil
     navigate('/');
   };
 
-  // ── NEW: open overlay instead of signing out directly ──
   const handleExitClick = () => {
     setShowGoodbyeModal(true);
   };
 
   return (
     <>
-      {/* ── NEW: Goodbye Overlay Modal ── */}
+      {/* Goodbye Overlay Modal */}
       {showGoodbyeModal && (
         <div
           className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm"
@@ -47,58 +46,55 @@ export const DashboardLayout: React.FC<{ children?: React.ReactNode }> = ({ chil
                 <Heart className="w-8 h-8 text-rose-500 fill-rose-400" />
               </div>
             </div>
+
             <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-1">
-              Goodbye, {user?.first_name} 👋
+              Goodbye, {user?.first_name || 'Nurse'}
             </h2>
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-1 leading-relaxed">
-              We'll miss you around here. 💙
+              We'll miss you around here.
             </p>
-            {/* ADD THIS NEW PART BELOW */}
-            <div className="mt-2 mb-4 p-2 bg-orange-50 dark:bg-orange-950/30 rounded-xl border border-orange-100 dark:border-orange-900/50">
-              <p className="text-[11px] text-orange-700 dark:text-orange-400 font-medium flex items-center justify-center gap-1">
-                🕯️ Keep your flame alive! Come back within 3 days to maintain your streak.
+
+            {/* Streak reminder — genuine retention mechanic, no gimmick */}
+            <div className="mt-3 mb-4 p-3 bg-amber-50 dark:bg-amber-950/30 rounded-xl border border-amber-100 dark:border-amber-900/50">
+              <p className="text-[11px] text-amber-800 dark:text-amber-400 font-medium leading-relaxed">
+                Your daily streak is still active. Come back within 3 days to keep it going.
               </p>
             </div>
+
             <p className="text-xs text-slate-400 dark:text-slate-500 mb-6 leading-relaxed italic">
               "Every nurse you meet carries a little piece of their patients with them. Thank you for the care you give every day."
             </p>
-            <div className="flex justify-center gap-2 mb-6 text-xl">
-              <span title="Safe travels">🌸</span>
-              <span title="You're amazing">✨</span>
-              <span title="Come back soon">🏥</span>
-              <span title="We care">💛</span>
-            </div>
+
             <div className="flex flex-col gap-2">
               <button
                 onClick={handleSignOut}
-                className="w-full py-3 rounded-xl bg-rose-500 hover:bg-rose-600 text-white text-sm font-semibold transition-all shadow-md shadow-rose-200 dark:shadow-rose-950/40"
+                className="w-full py-3 rounded-xl bg-rose-500 hover:bg-rose-600 text-white text-sm font-semibold transition-all shadow-md shadow-rose-200 dark:shadow-rose-950/40 active:scale-[98%]"
               >
                 Yes, sign me out
               </button>
               <button
                 onClick={() => setShowGoodbyeModal(false)}
-                className="w-full py-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-sm font-semibold transition-all"
+                className="w-full py-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-sm font-semibold transition-all active:scale-[98%]"
               >
-                Actually, I'll stay 🙂
+                Stay signed in
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── ORIGINAL LAYOUT — fully preserved ── */}
-      {/* MAMA'S CHANGE: Changed min-h-screen to h-screen and added overflow-hidden to lock the page */}
+      {/* Main Layout Shell — locks viewport height so only the content area scrolls */}
       <div className="h-screen flex overflow-hidden bg-slate-50 dark:bg-zinc-950 font-sans text-slate-950 dark:text-slate-50">
         {/* Onboarding Interactive Tour */}
         <OnboardingTour />
 
-        {/* Sidebar for Desktop - This is now sticky because the parent is h-screen */}
+        {/* Sidebar for Desktop */}
         <Sidebar />
 
         {/* Main Panel Content Area */}
         <div className="flex-1 flex flex-col min-w-0">
 
-          {/* Top bar - MAMA'S CHANGE: Added flex-shrink-0 to ensure header never squishes */}
+          {/* Top Bar */}
           <header className="h-16 bg-white dark:bg-zinc-950 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 lg:px-8 flex-shrink-0 z-10">
             <div className="flex items-center gap-2.5 lg:hidden">
               <img
@@ -118,35 +114,26 @@ export const DashboardLayout: React.FC<{ children?: React.ReactNode }> = ({ chil
               </span>
             </div>
 
-            {/* Quick Stats or Actions */}
+            {/* Header Actions */}
             <div className="flex items-center gap-3">
-
               {user && (
-                <>
-                  <Link
-                    id="dashboard-header-btn-view"
-                    to={`/nurse/${user.username}`}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded-xl transition-all border border-indigo-100/40 dark:border-indigo-800"
-                  >
-                    <span>Preview Portfolio</span>
-                    <ArrowUpRight className="w-3.5 h-3.5" />
-                  </Link>
-                  {/* ── CHANGED: onClick now opens overlay ── */}
-                  <button
-                    id="dashboard-header-btn-logout"
-                    onClick={handleExitClick}
-                    className="lg:hidden p-2 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-slate-300 transition cursor-pointer"
-                    title="Log Out"
-                  >
-                    <LogOut className="w-5 h-5 animate-pulse" />
-                  </button>
-                </>
+                <Link
+                  id="dashboard-header-btn-view"
+                  to={`/nurse/${user.username}`}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded-xl transition-all border border-indigo-100/40 dark:border-indigo-800 active:scale-[98%]"
+                >
+                  <span>Preview Portfolio</span>
+                  <ArrowUpRight className="w-3.5 h-3.5" />
+                </Link>
               )}
+              {/*
+                Sign Out button intentionally removed from the header on all viewports.
+                Logout lives only in Dashboard → Settings, to reduce daily visual clutter.
+              */}
             </div>
           </header>
 
-          {/* Dynamic content scroll frame */}
-          {/* MAMA'S CHANGE: This area is now the ONLY thing that scrolls on the whole page */}
+          {/* Dynamic content scroll frame — the only scrollable region on this page */}
           <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 custom-scrollbar">
             <div className="max-w-5xl mx-auto w-full pb-20 lg:pb-0">
               {children || <Outlet />}
@@ -157,7 +144,7 @@ export const DashboardLayout: React.FC<{ children?: React.ReactNode }> = ({ chil
         {/* Bottom Floating Navigation for Mobile/Tablet */}
         <MobileNav />
 
-        {/* Mama's Styling Tip for the internal scrollbar */}
+        {/* Internal scrollbar styling + goodbye overlay animations */}
         <style>{`
           .custom-scrollbar::-webkit-scrollbar {
             width: 6px;
@@ -173,7 +160,6 @@ export const DashboardLayout: React.FC<{ children?: React.ReactNode }> = ({ chil
             background: #1e293b;
           }
 
-          /* ── NEW: goodbye overlay animations ── */
           @keyframes goodbye-pop {
             0%   { opacity: 0; transform: scale(0.88) translateY(12px); }
             70%  { transform: scale(1.03) translateY(-2px); }

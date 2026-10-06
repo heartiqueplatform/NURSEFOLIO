@@ -9,34 +9,15 @@ import { supabase } from '../lib/supabase';
 import { UserProfile } from '../types';
 import { EndorsementManager } from '../components/EndorsementManager';
 import {
-    Heart,
-    Share2,
-    ThumbsUp,
-    Send,
-    Loader2,
-    MessageCircle,
-    Clock,
-    Award,
-    CheckCircle2,
-    Copy,
-    Check,
-    X,
-    Eye,
-    Sparkles,
-    TrendingUp,
-    Users,
-    Lightbulb,
-    Smile,
-    Target,
-    Zap,
-    Coffee,
-    Briefcase,
-    HeartHandshake,
-    GraduationCap,
-    FileText
+    Heart, Share2, ThumbsUp, Send, Loader2, MessageCircle,
+    Clock, CheckCircle2, X, Eye, Sparkles, TrendingUp, Users,
+    Lightbulb, Smile, Target, Coffee, HeartHandshake,
+    GraduationCap, Link2
 } from 'lucide-react';
 
-// Types
+// ==========================================================
+// TYPES
+// ==========================================================
 interface NursePost {
     id: string;
     user_id: string;
@@ -65,7 +46,9 @@ interface LikeState {
     };
 }
 
-// Prefilled prompt templates for Kenyan nurses
+// ==========================================================
+// PROMPT TEMPLATES
+// ==========================================================
 const PROMPT_TEMPLATES = [
     {
         id: 'career',
@@ -73,7 +56,7 @@ const PROMPT_TEMPLATES = [
         icon: TrendingUp,
         prompts: [
             'Today I learned a new skill in the ICU...',
-            'Just completed my critical care certification! 🎉',
+            'Just completed my critical care certification!',
             'Applying for a leadership position taught me...',
             'My 5-year career goal as a nurse is...',
             'The best career advice I received was...'
@@ -84,7 +67,7 @@ const PROMPT_TEMPLATES = [
         title: 'Shift Experience',
         icon: Clock,
         prompts: [
-            'Today\'s shift was challenging because...',
+            "Today's shift was challenging because...",
             'A patient taught me that...',
             'The most rewarding moment today was...',
             'Handling an emergency taught me...',
@@ -99,7 +82,7 @@ const PROMPT_TEMPLATES = [
             'I feel proud when...',
             'Burnout is real, today I coped by...',
             'What keeps me going is...',
-            'I\'m grateful for...',
+            "I'm grateful for...",
             'A small win today: ...'
         ]
     },
@@ -117,7 +100,7 @@ const PROMPT_TEMPLATES = [
     },
     {
         id: 'kenya',
-        title: '🇰🇪 Kenya Nursing',
+        title: 'Kenya Nursing',
         icon: Users,
         prompts: [
             'As a Kenyan nurse, I face...',
@@ -153,7 +136,9 @@ const PROMPT_TEMPLATES = [
     }
 ];
 
-// Helper: Format relative time
+// ==========================================================
+// HELPERS
+// ==========================================================
 const getRelativeTime = (timestamp: string): string => {
     const now = new Date();
     const postDate = new Date(timestamp);
@@ -163,35 +148,49 @@ const getRelativeTime = (timestamp: string): string => {
     const diffDays = Math.floor(diffMs / 86400000);
 
     if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
+    if (diffMins < 60) return `${diffMins}m`;
+    if (diffHours < 24) return `${diffHours}h`;
+    if (diffDays < 7) return `${diffDays}d`;
     return postDate.toLocaleDateString();
 };
 
-// Skeleton Loader Component
+const getAuthorDisplayName = (author: NursePost['author']): string => {
+    if (!author) return 'Anonymous Nurse';
+    if (author.full_name && author.full_name !== 'null') return author.full_name;
+    if (author.first_name && author.first_name !== 'null') {
+        return `${author.first_name} ${author.last_name !== 'null' ? author.last_name : ''}`.trim();
+    }
+    if (author.username && author.username !== 'null') return author.username;
+    return 'Healthcare Professional';
+};
+
+// ==========================================================
+// SKELETON
+// ==========================================================
 const PostSkeleton = () => (
-    <div className="bg-white dark:bg-zinc-950 md:rounded-xl md:border md:border-slate-200/60 md:dark:border-zinc-800 p-3 md:p-4 animate-pulse border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-200/60">
-        <div className="flex items-start gap-2 md:gap-3">
-            <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-slate-200 dark:bg-slate-800"></div>
-            <div className="flex-1 space-y-1.5 md:space-y-2">
-                <div className="h-3.5 md:h-4 bg-slate-200 dark:bg-slate-800 rounded w-1/3"></div>
-                <div className="h-2.5 md:h-3 bg-slate-200 dark:bg-slate-800 rounded w-1/4"></div>
-                <div className="space-y-1 mt-1.5 md:mt-2">
-                    <div className="h-2.5 md:h-3 bg-slate-200 dark:bg-slate-800 rounded w-full"></div>
-                    <div className="h-2.5 md:h-3 bg-slate-200 dark:bg-slate-800 rounded w-5/6"></div>
+    <div className="bg-white dark:bg-zinc-950 md:rounded-2xl md:border md:border-slate-200/60 md:dark:border-zinc-800 p-4 md:p-5 animate-pulse border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-200/60">
+        <div className="flex items-start gap-3">
+            <div className="w-10 h-10 md:w-11 md:h-11 rounded-full bg-slate-200 dark:bg-zinc-800 flex-shrink-0" />
+            <div className="flex-1 space-y-2">
+                <div className="h-4 bg-slate-200 dark:bg-zinc-800 rounded w-1/3" />
+                <div className="h-3 bg-slate-200 dark:bg-zinc-800 rounded w-1/4" />
+                <div className="space-y-1.5 mt-3">
+                    <div className="h-3 bg-slate-200 dark:bg-zinc-800 rounded w-full" />
+                    <div className="h-3 bg-slate-200 dark:bg-zinc-800 rounded w-5/6" />
+                    <div className="h-3 bg-slate-200 dark:bg-zinc-800 rounded w-2/3" />
                 </div>
-                <div className="flex gap-3 md:gap-4 mt-2 md:mt-3">
-                    <div className="h-7 md:h-8 bg-slate-200 dark:bg-slate-800 rounded-lg w-14 md:w-16"></div>
-                    <div className="h-7 md:h-8 bg-slate-200 dark:bg-slate-800 rounded-lg w-14 md:w-16"></div>
-                    <div className="h-7 md:h-8 bg-slate-200 dark:bg-slate-800 rounded-lg w-16 md:w-20"></div>
+                <div className="flex gap-3 mt-4">
+                    <div className="h-8 bg-slate-200 dark:bg-zinc-800 rounded-lg w-16" />
+                    <div className="h-8 bg-slate-200 dark:bg-zinc-800 rounded-lg w-16" />
                 </div>
             </div>
         </div>
     </div>
 );
 
-// Post Card Component
+// ==========================================================
+// POST CARD
+// ==========================================================
 const PostCard: React.FC<{
     post: NursePost;
     currentUserId: string;
@@ -206,113 +205,117 @@ const PostCard: React.FC<{
     };
 
     const isOwnPost = currentUserId === post.user_id;
-    const [showShareTooltip, setShowShareTooltip] = useState(false);
+    const [shareFeedback, setShareFeedback] = useState<string | null>(null);
 
-    const handleCopyLink = async () => {
-        const shareUrl = `${window.location.origin}/feed?postId=${post.id}`;
-        await navigator.clipboard.writeText(shareUrl);
-        setShowShareTooltip(true);
-        setTimeout(() => setShowShareTooltip(false), 2000);
-    };
+    const handleShareTap = async () => {
+        // Prefer native share sheet (mobile)
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: 'Nursefolio Post',
+                    text: `"${post.content.slice(0, 100)}${post.content.length > 100 ? '...' : ''}"`,
+                    url: `${window.location.origin}/feed?postId=${post.id}`
+                });
+                onShare(post.id, post.content);
+                return;
+            } catch {
+                // user cancelled — fall through to copy
+            }
+        }
 
-    const handleWhatsAppShare = () => {
-        const text = encodeURIComponent(`Check out this post from ${post.author?.first_name} on Nursefolio: "${post.content.slice(0, 100)}..."`);
-        const url = encodeURIComponent(`${window.location.origin}/feed?postId=${post.id}`);
-        window.open(`https://wa.me/?text=${text}%20${url}`, '_blank');
+        // Fallback: copy link
+        try {
+            await navigator.clipboard.writeText(`${window.location.origin}/feed?postId=${post.id}`);
+            setShareFeedback('Link copied');
+            setTimeout(() => setShareFeedback(null), 2000);
+            onShare(post.id, post.content);
+        } catch {
+            setShareFeedback('Could not share');
+            setTimeout(() => setShareFeedback(null), 2000);
+        }
     };
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-            className="bg-white dark:bg-zinc-950 md:rounded-xl md:border md:border-slate-200/60 md:dark:border-zinc-800 md:hover:shadow-md transition-all duration-200 overflow-hidden border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-200/60"
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 0.25 }}
+            className="bg-white dark:bg-zinc-950 md:rounded-2xl md:border md:border-slate-200/60 md:dark:border-zinc-800 md:hover:border-indigo-200 dark:md:hover:border-indigo-900 md:hover:shadow-sm transition-all duration-200 overflow-hidden border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-200/60"
         >
-            <div className="p-3 md:p-4">
-                {/* Author Info */}
-                <div className="flex items-start justify-between mb-2 md:mb-3">
-                    <div className="flex items-start gap-2 md:gap-3">
-                        <img
-                            src={post.author?.avatar_url || '/192.png'}
-                            alt={post.author?.first_name}
-                            className="w-8 h-8 md:w-10 md:h-10 rounded-full object-cover border border-slate-200 dark:border-zinc-700"
-                        />
-                        <div>
-                            <div className="flex items-center gap-1 md:gap-1.5 flex-wrap">
-                                <h3 className="font-bold text-slate-900 dark:text-white text-xs md:text-sm">
-                                    {(() => {
-                                        const p = post.author;
-                                        if (!p) return 'Anonymous Nurse';
-                                        if (p.full_name && p.full_name !== 'null') return p.full_name;
-                                        if (p.first_name && p.first_name !== 'null') {
-                                            return `${p.first_name} ${p.last_name !== 'null' ? p.last_name : ''}`.trim();
-                                        }
-                                        if (p.username && p.username !== 'null') return p.username;
-                                        return 'Healthcare Professional';
-                                    })()}
-                                </h3>
-                                {post.author?.verification_status === 'verified' && (
-                                    <CheckCircle2 className="w-3 h-3 md:w-3.5 md:h-3.5 text-indigo-500 dark:text-indigo-400" />
-                                )}
-                            </div>
-                            <div className="flex items-center gap-1.5 md:gap-2 mt-0.5">
-                                <p className="text-[9px] md:text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
-                                    {post.author?.qualification || 'Registered Nurse'}
-                                </p>
-                                <span className="text-[9px] md:text-[10px] text-slate-400 dark:text-slate-500">•</span>
-                                <div className="flex items-center gap-0.5 md:gap-1">
-                                    <Clock className="w-2.5 h-2.5 md:w-3 md:h-3 text-slate-400 dark:text-slate-500" />
-                                    <span className="text-[9px] md:text-[10px] text-slate-500 dark:text-slate-400">
-                                        {getRelativeTime(post.created_at)}
-                                    </span>
-                                </div>
-                            </div>
+            <div className="p-4 md:p-5">
+                {/* Author Row */}
+                <div className="flex items-start gap-3 mb-3">
+                    <img
+                        src={post.author?.avatar_url || '/192.png'}
+                        alt={getAuthorDisplayName(post.author)}
+                        className="w-10 h-10 md:w-11 md:h-11 rounded-full object-cover border border-slate-200 dark:border-zinc-700 flex-shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                            <h3 className="font-bold text-slate-900 dark:text-white text-sm truncate">
+                                {getAuthorDisplayName(post.author)}
+                            </h3>
+                            {post.author?.verification_status === 'verified' && (
+                                <CheckCircle2 className="w-4 h-4 text-indigo-500 dark:text-indigo-400 flex-shrink-0" />
+                            )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5 text-xs">
+                            <span className="text-indigo-600 dark:text-indigo-400 font-semibold truncate">
+                                {post.author?.qualification || 'Registered Nurse'}
+                            </span>
+                            <span className="text-slate-300 dark:text-zinc-700">·</span>
+                            <span className="text-slate-500 dark:text-slate-400 flex-shrink-0">
+                                {getRelativeTime(post.created_at)}
+                            </span>
                         </div>
                     </div>
                 </div>
 
                 {/* Content */}
-                <p className="text-xs md:text-sm text-slate-700 dark:text-slate-300 leading-relaxed mb-3 md:mb-4 whitespace-pre-wrap">
+                <p className="text-[15px] text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap mb-4">
                     {post.content}
                 </p>
 
-                {/* Action Buttons */}
-                <div className="flex items-center gap-2 md:gap-4 pt-2 border-t border-slate-100 dark:border-zinc-800">
+                {/* Actions */}
+                <div className="flex items-center gap-1 pt-3 border-t border-slate-100 dark:border-zinc-800/80">
+                    {/* Like */}
                     <button
                         onClick={() => onLike(post.id)}
-                        className={`flex items-center gap-1 md:gap-1.5 px-1.5 md:px-2 py-1 rounded-lg transition-all duration-200 text-[10px] md:text-xs font-semibold ${currentLikeState.isLiked
-                            ? 'text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20'
-                            : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                        className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all duration-200 text-sm font-semibold active:scale-[97%] ${currentLikeState.isLiked
+                            ? 'text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20'
+                            : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-800'
                             }`}
                     >
-                        <Heart className={`w-3.5 h-3.5 md:w-4 md:h-4 ${currentLikeState.isLiked ? 'fill-current' : ''}`} />
+                        <Heart className={`w-4 h-4 ${currentLikeState.isLiked ? 'fill-current' : ''}`} />
                         <span>{currentLikeState.count}</span>
                     </button>
 
+                    {/* Share */}
                     <div className="relative">
                         <button
-                            onClick={() => onShare(post.id, post.content)}
-                            className="flex items-center gap-1 md:gap-1.5 px-1.5 md:px-2 py-1 rounded-lg transition-all duration-200 text-[10px] md:text-xs font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                            onClick={handleShareTap}
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all duration-200 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-800 active:scale-[97%]"
                         >
-                            <Share2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                            <Share2 className="w-4 h-4" />
                             <span>{post.share_count || 0}</span>
                         </button>
-
-                        {showShareTooltip && (
-                            <div className="absolute bottom-full left-0 mb-2 bg-slate-800 dark:bg-slate-700 text-white text-[10px] md:text-xs rounded-lg px-2 md:px-3 py-1 md:py-1.5 whitespace-nowrap z-10">
-                                Link copied!
+                        {shareFeedback && (
+                            <div className="absolute bottom-full left-0 mb-2 bg-slate-900 dark:bg-zinc-800 text-white text-xs rounded-lg px-3 py-1.5 whitespace-nowrap shadow-lg z-10">
+                                {shareFeedback}
                             </div>
                         )}
                     </div>
 
+                    {/* Endorse (hide on own post) */}
                     {!isOwnPost && post.author && (
                         <button
                             onClick={() => onEndorse(post.author)}
-                            className="flex items-center gap-1 md:gap-1.5 px-1.5 md:px-2 py-1 rounded-lg transition-all duration-200 text-[10px] md:text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all duration-200 text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 active:scale-[97%] ml-auto"
                         >
-                            <ThumbsUp className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                            <span>Endorse ({post.author.endorsement_count || 0})</span>
+                            <ThumbsUp className="w-4 h-4" />
+                            <span className="hidden sm:inline">Endorse</span>
+                            <span>{post.author.endorsement_count || 0}</span>
                         </button>
                     )}
                 </div>
@@ -321,7 +324,9 @@ const PostCard: React.FC<{
     );
 };
 
-// Enhanced Post Composer Modal Component
+// ==========================================================
+// POST COMPOSER MODAL
+// ==========================================================
 const PostComposerModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
@@ -329,11 +334,9 @@ const PostComposerModal: React.FC<{
     submitting: boolean;
 }> = ({ isOpen, onClose, onSubmit, submitting }) => {
     const [content, setContent] = useState('');
-    const [showPreview, setShowPreview] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-    // Auto-focus when modal opens
     useEffect(() => {
         if (isOpen && textareaRef.current) {
             setTimeout(() => textareaRef.current?.focus(), 100);
@@ -344,25 +347,17 @@ const PostComposerModal: React.FC<{
         if (!content.trim()) return;
         await onSubmit(content);
         setContent('');
-        setShowPreview(false);
         setSelectedCategory(null);
         onClose();
     };
 
     const handlePromptClick = (prompt: string) => {
-        setContent(prev => {
-            const newContent = prev ? `${prev} ${prompt}` : prompt;
-            return newContent;
-        });
-        if (textareaRef.current) {
-            textareaRef.current.focus();
-        }
+        setContent(prev => (prev ? `${prev} ${prompt}` : prompt));
+        textareaRef.current?.focus();
     };
 
     const handleClose = () => {
-        if (!onClose) return;
         setContent('');
-        setShowPreview(false);
         setSelectedCategory(null);
         onClose();
     };
@@ -374,76 +369,67 @@ const PostComposerModal: React.FC<{
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+            className="fixed inset-0 z-[9999] flex items-end md:items-center justify-center md:p-4 bg-black/60 backdrop-blur-sm"
             onClick={handleClose}
         >
             <motion.div
-                initial={{ scale: 0.95, opacity: 0, y: 20 }}
-                animate={{ scale: 1, opacity: 1, y: 0 }}
-                exit={{ scale: 0.95, opacity: 0, y: 20 }}
-                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
+                drag="y"
+                dragConstraints={{ top: 0, bottom: 0 }}
+                dragElastic={{ top: 0, bottom: 0.5 }}
+                onDragEnd={(_, info) => {
+                    if (info.offset.y > 120 || info.velocity.y > 500) handleClose();
+                }}
+                initial={{ y: '100%', opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: '100%', opacity: 0 }}
+                transition={{ type: 'tween', duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
+                className="bg-white dark:bg-zinc-950 rounded-t-3xl md:rounded-2xl shadow-2xl w-full md:max-w-2xl max-h-[92vh] md:max-h-[90vh] overflow-hidden flex flex-col md:border md:border-slate-200/60 md:dark:border-zinc-800"
                 onClick={(e) => e.stopPropagation()}
             >
-                {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-zinc-800">
-                    <div className="flex items-center gap-2">
-                        <Sparkles className="w-5 h-5 text-indigo-500" />
-                        <h2 className="text-lg font-bold text-slate-900 dark:text-white">Share Your Thought</h2>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => setShowPreview(!showPreview)}
-                            className={`p-2 rounded-lg transition ${showPreview
-                                ? 'bg-indigo-100 dark:bg-indigo-950/50 text-indigo-600'
-                                : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-800'
-                                }`}
-                        >
-                            <Eye className="w-4 h-4" />
-                        </button>
-                        <button
-                            onClick={handleClose}
-                            className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-800 transition"
-                        >
-                            <X className="w-4 h-4" />
-                        </button>
-                    </div>
+                {/* Drag handle (mobile) */}
+                <div className="md:hidden flex justify-center pt-3 pb-1 flex-shrink-0">
+                    <div className="w-12 h-1.5 bg-slate-300 dark:bg-zinc-700 rounded-full" />
                 </div>
 
-                {/* Content Area */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                    {showPreview ? (
-                        <div className="space-y-2">
-                            <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">Preview</label>
-                            <div className="bg-slate-50 dark:bg-zinc-800 rounded-xl p-4 border border-slate-200 dark:border-zinc-700">
-                                <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
-                                    {content || 'Your post will appear here...'}
-                                </p>
-                            </div>
-                        </div>
-                    ) : (
-                        <>
-                            <textarea
-                                ref={textareaRef}
-                                value={content}
-                                onChange={(e) => setContent(e.target.value)}
-                                placeholder="What's on your mind today? Share your nursing journey, experiences, or encouragement for fellow nurses..."
-                                rows={6}
-                                className="w-full text-sm px-4 py-3 bg-slate-50 dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:bg-white dark:focus:bg-zinc-800 text-slate-800 dark:text-slate-200 transition resize-none"
-                            />
+                {/* Header */}
+                <div className="flex items-center justify-between px-4 md:px-5 py-3 md:py-4 border-b border-slate-100 dark:border-zinc-800/80 flex-shrink-0">
+                    <div className="flex items-center gap-2">
+                        <Sparkles className="w-5 h-5 text-indigo-500" />
+                        <h2 className="text-base md:text-lg font-bold text-slate-900 dark:text-white">
+                            Share Your Thought
+                        </h2>
+                    </div>
+                    <button
+                        onClick={handleClose}
+                        className="p-2 rounded-lg text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-800 transition"
+                        aria-label="Close"
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
 
-                            {/* Character counter */}
-                            <div className="text-right text-xs text-slate-400">
-                                {content.length} characters
-                            </div>
-                        </>
-                    )}
+                {/* Body */}
+                <div className="flex-1 overflow-y-auto px-4 md:px-5 py-4 space-y-4">
+                    <textarea
+                        ref={textareaRef}
+                        value={content}
+                        onChange={(e) => setContent(e.target.value)}
+                        placeholder="What's on your mind today? Share your nursing journey, experiences, or encouragement..."
+                        rows={5}
+                        className="w-full text-[15px] px-4 py-3 bg-slate-50 dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-700 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition resize-none"
+                    />
 
-                    {/* Prompt Categories */}
+                    <div className="text-right text-xs text-slate-400 dark:text-slate-500">
+                        {content.length} characters
+                    </div>
+
+                    {/* Prompt library */}
                     <div className="space-y-3">
                         <div className="flex items-center gap-2">
                             <Lightbulb className="w-4 h-4 text-amber-500" />
-                            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Get Inspired</span>
+                            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                                Get Inspired
+                            </span>
                         </div>
 
                         <div className="flex flex-wrap gap-2">
@@ -451,7 +437,7 @@ const PostComposerModal: React.FC<{
                                 <button
                                     key={cat.id}
                                     onClick={() => setSelectedCategory(selectedCategory === cat.id ? null : cat.id)}
-                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition ${selectedCategory === cat.id
+                                    className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold transition ${selectedCategory === cat.id
                                         ? 'bg-indigo-100 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300'
                                         : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-zinc-700'
                                         }`}
@@ -462,7 +448,6 @@ const PostComposerModal: React.FC<{
                             ))}
                         </div>
 
-                        {/* Prompts for selected category */}
                         <AnimatePresence mode="wait">
                             {selectedCategory && (
                                 <motion.div
@@ -471,16 +456,16 @@ const PostComposerModal: React.FC<{
                                     exit={{ opacity: 0, height: 0 }}
                                     className="overflow-hidden"
                                 >
-                                    <div className="bg-slate-50 dark:bg-zinc-800/50 rounded-xl p-3 space-y-2">
+                                    <div className="bg-slate-50 dark:bg-zinc-900 rounded-xl p-3 space-y-2">
                                         <p className="text-xs text-slate-500 dark:text-slate-400">
-                                            Click any prompt to add to your post:
+                                            Tap any prompt to add to your post
                                         </p>
                                         <div className="flex flex-wrap gap-2">
                                             {PROMPT_TEMPLATES.find(c => c.id === selectedCategory)?.prompts.map((prompt, idx) => (
                                                 <button
                                                     key={idx}
                                                     onClick={() => handlePromptClick(prompt)}
-                                                    className="text-left px-3 py-1.5 bg-white dark:bg-zinc-800 rounded-lg text-xs text-slate-700 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 hover:text-indigo-600 dark:hover:text-indigo-400 transition border border-slate-200 dark:border-zinc-700"
+                                                    className="text-left px-3 py-2 bg-white dark:bg-zinc-800 rounded-lg text-xs text-slate-700 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 hover:text-indigo-600 dark:hover:text-indigo-400 transition border border-slate-200 dark:border-zinc-700"
                                                 >
                                                     {prompt}
                                                 </button>
@@ -494,22 +479,22 @@ const PostComposerModal: React.FC<{
                 </div>
 
                 {/* Footer */}
-                <div className="flex items-center justify-end gap-3 p-4 border-t border-slate-200 dark:border-zinc-800">
+                <div className="flex items-center justify-end gap-3 px-4 md:px-5 py-3 md:py-4 border-t border-slate-100 dark:border-zinc-800/80 flex-shrink-0">
                     <button
                         onClick={handleClose}
-                        className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg transition"
+                        className="px-4 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-xl transition"
                     >
                         Cancel
                     </button>
                     <button
                         onClick={handleSubmit}
                         disabled={!content.trim() || submitting}
-                        className="flex items-center gap-2 px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed active:scale-[98%] min-h-[44px]"
                     >
                         {submitting ? (
                             <>
                                 <Loader2 className="w-4 h-4 animate-spin" />
-                                Posting...
+                                Posting
                             </>
                         ) : (
                             <>
@@ -524,7 +509,9 @@ const PostComposerModal: React.FC<{
     );
 };
 
-// Main Component
+// ==========================================================
+// MAIN FEED COMPONENT
+// ==========================================================
 export default function NurseFeed() {
     const [posts, setPosts] = useState<NursePost[]>([]);
     const [likeState, setLikeState] = useState<LikeState>({});
@@ -537,9 +524,15 @@ export default function NurseFeed() {
         profile: UserProfile | null;
     }>({ isOpen: false, profile: null });
 
+    // Track which post IDs have been view-recorded in this session
+    // so we don't double-record on re-renders.
+    const recordedViewIds = useRef<Set<string>>(new Set());
+
     const feedEndRef = useRef<HTMLDivElement>(null);
 
-    // Get current user on mount
+    // ---------------------------------------------
+    // Auth
+    // ---------------------------------------------
     useEffect(() => {
         const getCurrentUser = async () => {
             const { data: { user } } = await supabase.auth.getUser();
@@ -548,13 +541,85 @@ export default function NurseFeed() {
         getCurrentUser();
     }, []);
 
-    // Fetch posts with author info and like status
-    const fetchPosts = useCallback(async () => {
-        if (!currentUserId) return;
+    // ---------------------------------------------
+    // Record views — batch insert
+    // ---------------------------------------------
+    const recordViews = useCallback(async (postIds: string[], userId: string) => {
+        // Filter out anything already recorded this session
+        const newIds = postIds.filter(id => !recordedViewIds.current.has(id));
+        if (newIds.length === 0) return;
+
+        // Mark as recorded immediately (prevents double-fire)
+        newIds.forEach(id => recordedViewIds.current.add(id));
 
         try {
-            setLoading(true);
+            await supabase.from('post_views').insert(
+                newIds.map(post_id => ({
+                    post_id,
+                    user_id: userId,
+                    view_type: 'shown'
+                }))
+            );
+        } catch (err) {
+            console.warn('Failed to record views:', err);
+            // Don't roll back the recordedViewIds set — recording again would be worse
+        }
+    }, []);
 
+    // ---------------------------------------------
+    // Load feed — batch cache → RPC → posts
+    // ---------------------------------------------
+    const loadFeed = useCallback(async (userId: string) => {
+        setLoading(true);
+        try {
+            let postIds: string[] = [];
+
+            // 1. Check for a fresh cached batch
+            const { data: existingBatch } = await supabase
+                .from('feed_batches')
+                .select('post_ids, expires_at')
+                .eq('user_id', userId)
+                .gt('expires_at', new Date().toISOString())
+                .order('expires_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+            if (existingBatch?.post_ids && existingBatch.post_ids.length > 0) {
+                postIds = existingBatch.post_ids;
+            } else {
+                // 2. Generate a fresh batch via RPC
+                const { data: fresh, error: rpcErr } = await supabase
+                    .rpc('get_feed_batch', {
+                        p_user_id: userId,
+                        p_limit: 20,
+                        p_view_window_days: 7
+                    });
+
+                if (rpcErr) throw rpcErr;
+
+                postIds = (fresh || []).map((row: any) => row.post_id);
+
+                // 3. Persist the batch for 4 hours (fire-and-forget)
+                if (postIds.length > 0) {
+                    supabase
+                        .rpc('save_feed_batch', {
+                            p_user_id: userId,
+                            p_post_ids: postIds,
+                            p_ttl_hours: 4
+                        })
+                        .then(({ error }) => {
+                            if (error) console.warn('Could not save feed batch:', error);
+                        });
+                }
+            }
+
+            if (postIds.length === 0) {
+                setPosts([]);
+                setLoading(false);
+                return;
+            }
+
+            // 4. Fetch full post rows for those IDs
             const { data: postsData, error: postsError } = await supabase
                 .from('nurse_posts')
                 .select(`
@@ -570,97 +635,88 @@ export default function NurseFeed() {
             verification_status
           )
         `)
-                .order('created_at', { ascending: false });
+                .in('id', postIds);
 
             if (postsError) throw postsError;
 
-            const { data: likesData, error: likesError } = await supabase
-                .from('post_likes')
-                .select('post_id, user_id');
-
-            if (likesError) throw likesError;
-
-            const { data: sharesData, error: sharesError } = await supabase
-                .from('post_shares')
-                .select('post_id');
-
-            if (sharesError) throw sharesError;
-
-            const { data: endorsementsData, error: endorsementsError } = await supabase
-                .from('profile_endorsements')
-                .select('profile_id');
-
-            if (endorsementsError) throw endorsementsError;
-
-            const endorsementCountsMap = new Map<string, number>();
-            endorsementsData?.forEach(endorsement => {
-                endorsementCountsMap.set(
-                    endorsement.profile_id,
-                    (endorsementCountsMap.get(endorsement.profile_id) || 0) + 1
-                );
-            });
+            // 5. Fetch likes + shares + endorsement counts for these posts only
+            const [{ data: likesData }, { data: sharesData }, { data: endorsementsData }] = await Promise.all([
+                supabase.from('post_likes').select('post_id, user_id').in('post_id', postIds),
+                supabase.from('post_shares').select('post_id').in('post_id', postIds),
+                supabase.from('profile_endorsements').select('profile_id')
+            ]);
 
             const likesMap = new Map<string, number>();
             const sharesMap = new Map<string, number>();
             const userLikesSet = new Set<string>();
 
-            likesData?.forEach(like => {
-                likesMap.set(like.post_id, (likesMap.get(like.post_id) || 0) + 1);
-                if (like.user_id === currentUserId) {
-                    userLikesSet.add(like.post_id);
-                }
+            likesData?.forEach(l => {
+                likesMap.set(l.post_id, (likesMap.get(l.post_id) || 0) + 1);
+                if (l.user_id === userId) userLikesSet.add(l.post_id);
             });
 
-            sharesData?.forEach(share => {
-                sharesMap.set(share.post_id, (sharesMap.get(share.post_id) || 0) + 1);
+            sharesData?.forEach(s => {
+                sharesMap.set(s.post_id, (sharesMap.get(s.post_id) || 0) + 1);
             });
 
-            const enrichedPosts: NursePost[] = (postsData || []).map(post => ({
-                ...post,
-                author: {
-                    ...post.author,
-                    endorsement_count: endorsementCountsMap.get(post.user_id) || 0
-                },
-                like_count: likesMap.get(post.id) || 0,
-                share_count: sharesMap.get(post.id) || 0,
-                is_liked_by_user: userLikesSet.has(post.id)
-            }));
-            setPosts(enrichedPosts);
+            const endorsementCountsMap = new Map<string, number>();
+            endorsementsData?.forEach(e => {
+                endorsementCountsMap.set(e.profile_id, (endorsementCountsMap.get(e.profile_id) || 0) + 1);
+            });
 
+            // 6. Preserve the batch order (important — batch is pre-shuffled)
+            const orderedPosts = postIds
+                .map(id => postsData?.find(p => p.id === id))
+                .filter(Boolean)
+                .map((post: any) => ({
+                    ...post,
+                    author: {
+                        ...post.author,
+                        endorsement_count: endorsementCountsMap.get(post.user_id) || 0
+                    },
+                    like_count: likesMap.get(post.id) || 0,
+                    share_count: sharesMap.get(post.id) || 0,
+                    is_liked_by_user: userLikesSet.has(post.id)
+                }));
+
+            setPosts(orderedPosts);
+
+            // 7. Seed like state
             const newLikeState: LikeState = {};
-            enrichedPosts.forEach(post => {
-                newLikeState[post.id] = {
-                    count: post.like_count,
-                    isLiked: post.is_liked_by_user
-                };
+            orderedPosts.forEach(p => {
+                newLikeState[p.id] = { count: p.like_count, isLiked: p.is_liked_by_user };
             });
             setLikeState(newLikeState);
 
+            // 8. Record views (fire and forget)
+            recordViews(postIds, userId);
         } catch (err) {
-            console.error('Error fetching posts:', err);
+            console.error('Error loading feed:', err);
+            setPosts([]);
         } finally {
             setLoading(false);
         }
-    }, [currentUserId]);
+    }, [recordViews]);
 
     useEffect(() => {
-        if (currentUserId) {
-            fetchPosts();
-        }
-    }, [currentUserId, fetchPosts]);
+        if (currentUserId) loadFeed(currentUserId);
+    }, [currentUserId, loadFeed]);
 
-    // Handle creating a new post
+    // ---------------------------------------------
+    // Create post
+    // ---------------------------------------------
     const handleCreatePost = async (content: string) => {
         if (!currentUserId || !content.trim()) return;
+        setSubmitting(true);
 
-        // Fetch your own profile to get your name
+        // Optimistic insert
+        const tempId = `temp-${Date.now()}`;
         const { data: myProfile } = await supabase
             .from('profiles')
-            .select('full_name, first_name, last_name, username, avatar_url')
+            .select('full_name, first_name, last_name, username, avatar_url, qualification, verification_status')
             .eq('id', currentUserId)
             .single();
 
-        const tempId = `temp-${Date.now()}`;
         const tempPost: NursePost = {
             id: tempId,
             user_id: currentUserId,
@@ -668,12 +724,13 @@ export default function NurseFeed() {
             created_at: new Date().toISOString(),
             author: {
                 id: currentUserId,
-                first_name: myProfile?.first_name || myProfile?.full_name || 'You',
+                first_name: myProfile?.first_name || 'You',
                 last_name: myProfile?.last_name || '',
+                full_name: myProfile?.full_name,
                 username: myProfile?.username || '',
                 avatar_url: myProfile?.avatar_url || null,
-                qualification: null,
-                verification_status: 'unverified'
+                qualification: myProfile?.qualification || null,
+                verification_status: myProfile?.verification_status || 'unverified'
             },
             like_count: 0,
             share_count: 0,
@@ -681,70 +738,49 @@ export default function NurseFeed() {
         };
 
         setPosts(prev => [tempPost, ...prev]);
-        setSubmitting(true);
 
         try {
             const { data, error } = await supabase
                 .from('nurse_posts')
-                .insert({
-                    user_id: currentUserId,
-                    content: content.trim()
-                })
+                .insert({ user_id: currentUserId, content: content.trim() })
                 .select()
                 .single();
 
             if (error) throw error;
 
-            const { data: authorData } = await supabase
-                .from('profiles')
-                .select('id, first_name, last_name, username, avatar_url, qualification, verification_status')
-                .eq('id', currentUserId)
-                .single();
-
             setPosts(prev =>
-                prev.map(post =>
-                    post.id === tempId
-                        ? { ...data, author: authorData, like_count: 0, share_count: 0, is_liked_by_user: false }
-                        : post
-                )
+                prev.map(p => (p.id === tempId ? { ...tempPost, id: data.id, created_at: data.created_at } : p))
             );
 
             window.scrollTo({ top: 0, behavior: 'smooth' });
-
         } catch (err) {
             console.error('Error creating post:', err);
-            setPosts(prev => prev.filter(post => post.id !== tempId));
+            setPosts(prev => prev.filter(p => p.id !== tempId));
             alert('Failed to create post. Please try again.');
         } finally {
             setSubmitting(false);
         }
     };
 
-    // Handle like/unlike with optimistic update
+    // ---------------------------------------------
+    // Like / Unlike
+    // ---------------------------------------------
     const handleLike = async (postId: string) => {
         if (!currentUserId) return;
+        const current = likeState[postId];
+        const newIsLiked = !current?.isLiked;
+        const newCount = Math.max(0, (current?.count || 0) + (newIsLiked ? 1 : -1));
 
-        const currentState = likeState[postId];
-        const newIsLiked = !currentState?.isLiked;
-        const newCount = (currentState?.count || 0) + (newIsLiked ? 1 : -1);
-
+        // Optimistic update
         setLikeState(prev => ({
             ...prev,
-            [postId]: {
-                count: Math.max(0, newCount),
-                isLiked: newIsLiked
-            }
+            [postId]: { count: newCount, isLiked: newIsLiked }
         }));
-
         setPosts(prev =>
-            prev.map(post =>
-                post.id === postId
-                    ? {
-                        ...post,
-                        like_count: Math.max(0, newCount),
-                        is_liked_by_user: newIsLiked
-                    }
-                    : post
+            prev.map(p =>
+                p.id === postId
+                    ? { ...p, like_count: newCount, is_liked_by_user: newIsLiked }
+                    : p
             )
         );
 
@@ -753,7 +789,6 @@ export default function NurseFeed() {
                 const { error } = await supabase
                     .from('post_likes')
                     .insert({ post_id: postId, user_id: currentUserId });
-
                 if (error) throw error;
             } else {
                 const { error } = await supabase
@@ -761,91 +796,51 @@ export default function NurseFeed() {
                     .delete()
                     .eq('post_id', postId)
                     .eq('user_id', currentUserId);
-
                 if (error) throw error;
             }
         } catch (err) {
-            console.error('Error toggling like:', err);
+            console.error('Like toggle failed:', err);
+            // Roll back
             setLikeState(prev => ({
                 ...prev,
-                [postId]: currentState || { count: 0, isLiked: false }
+                [postId]: current || { count: 0, isLiked: false }
             }));
             setPosts(prev =>
-                prev.map(post =>
-                    post.id === postId
-                        ? {
-                            ...post,
-                            like_count: currentState?.count || 0,
-                            is_liked_by_user: currentState?.isLiked || false
-                        }
-                        : post
+                prev.map(p =>
+                    p.id === postId
+                        ? { ...p, like_count: current?.count || 0, is_liked_by_user: current?.isLiked || false }
+                        : p
                 )
             );
         }
     };
 
-    // Handle share
-    const handleShare = async (postId: string, content: string) => {
-        if (!currentUserId) {
-            alert('Please sign in to share posts.');
-            return;
-        }
-
-        const shareUrl = `${window.location.origin}/feed?postId=${postId}`;
-        const shareText = `Check out this post from a nurse on Nursefolio: "${content.slice(0, 100)}..."`;
-
-        if (navigator.share) {
-            try {
-                await navigator.share({
-                    title: 'Nursefolio Post',
-                    text: shareText,
-                    url: shareUrl
-                });
-
-                await supabase
-                    .from('post_shares')
-                    .insert({
-                        post_id: postId,
-                        user_id: currentUserId,
-                        platform: 'native'
-                    });
-
-                setPosts(prev =>
-                    prev.map(post =>
-                        post.id === postId
-                            ? { ...post, share_count: (post.share_count || 0) + 1 }
-                            : post
-                    )
-                );
-            } catch (err) {
-                console.log('Share cancelled or failed');
-            }
-        } else {
-            await navigator.clipboard.writeText(shareUrl);
-            alert('Link copied to clipboard!');
-
-            await supabase
-                .from('post_shares')
-                .insert({
-                    post_id: postId,
-                    user_id: currentUserId,
-                    platform: 'copy'
-                });
-
+    // ---------------------------------------------
+    // Share
+    // ---------------------------------------------
+    const handleShare = async (postId: string, _content: string) => {
+        if (!currentUserId) return;
+        try {
+            await supabase.from('post_shares').insert({
+                post_id: postId,
+                user_id: currentUserId,
+                platform: navigator.share ? 'native' : 'copy'
+            });
             setPosts(prev =>
-                prev.map(post =>
-                    post.id === postId
-                        ? { ...post, share_count: (post.share_count || 0) + 1 }
-                        : post
+                prev.map(p =>
+                    p.id === postId ? { ...p, share_count: (p.share_count || 0) + 1 } : p
                 )
             );
+        } catch (err) {
+            console.warn('Share tracking failed:', err);
         }
     };
 
-    // Handle opening endorsement modal
+    // ---------------------------------------------
+    // Endorse
+    // ---------------------------------------------
     const handleEndorse = (author: NursePost['author']) => {
         if (!author) return;
-
         const profile: UserProfile = {
             id: author.id,
             first_name: author.first_name,
@@ -862,56 +857,73 @@ export default function NurseFeed() {
             years_of_experience: null,
             nursing_level: null
         };
-
         setEndorsementModal({ isOpen: true, profile });
     };
 
+    // ---------------------------------------------
+    // Pull-to-refresh — clears batch and regenerates
+    // ---------------------------------------------
+    const handleRefresh = async () => {
+        if (!currentUserId) return;
+        // Clear the current batch so a fresh one is generated
+        await supabase.from('feed_batches').delete().eq('user_id', currentUserId);
+        recordedViewIds.current.clear();
+        loadFeed(currentUserId);
+    };
+
+    // ---------------------------------------------
+    // Render
+    // ---------------------------------------------
     return (
         <div className="min-h-screen bg-white dark:bg-zinc-950">
             <div className="max-w-2xl mx-auto px-0 md:px-4 py-4 md:py-8">
                 {/* Header */}
                 <div className="mb-4 md:mb-6 px-4 md:px-0">
-                    <h1 className="text-xl md:text-2xl lg:text-3xl text-center font-display font-bold text-slate-900 dark:text-white">
+                    <h1 className="text-2xl md:text-3xl text-center font-display font-extrabold text-slate-900 dark:text-white tracking-tight">
                         Nurse Daily Pulse
                     </h1>
-                    <p className="text-xs md:text-sm text-slate-500 text-center dark:text-slate-400 mt-0.5 md:mt-1">
-                        Share what you learned, experienced, or observed in the ward today
+                    <p className="text-sm text-slate-500 dark:text-slate-400 text-center mt-1">
+                        A personalized feed of what nurses are sharing today
                     </p>
                 </div>
 
-                {/* Post Composer Button - Opens Modal */}
-                <div className="bg-white dark:bg-zinc-950 md:rounded-xl md:border md:border-slate-200/60 md:dark:border-zinc-800 p-3 md:p-4 mb-0 md:mb-6 md:shadow-sm border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-200/60">
+                {/* Composer Trigger */}
+                <div className="bg-white dark:bg-zinc-950 md:rounded-2xl md:border md:border-slate-200/60 md:dark:border-zinc-800 p-3 md:p-4 mb-0 md:mb-6 md:shadow-sm border-b border-slate-100 dark:border-zinc-800 md:border-b md:border-slate-200/60">
                     <button
                         onClick={() => setIsComposerOpen(true)}
-                        className="w-full flex items-center gap-2 px-4 py-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 text-left text-slate-400 dark:text-slate-500 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                        className="w-full flex items-center gap-3 px-4 py-3 bg-slate-50 dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-700 text-left text-slate-500 dark:text-slate-400 text-sm hover:bg-slate-100 dark:hover:bg-zinc-800 transition active:scale-[99%]"
                     >
-                        <Sparkles className="w-4 h-4" />
+                        <Sparkles className="w-4 h-4 text-indigo-500" />
                         <span>Share your nursing journey today...</span>
                     </button>
                 </div>
 
-                {/* Feed List */}
+                {/* Feed */}
                 {loading ? (
                     <div className="space-y-0 md:space-y-4">
-                        {[1, 2, 3].map(i => (
-                            <PostSkeleton key={i} />
-                        ))}
+                        {[1, 2, 3].map(i => <PostSkeleton key={i} />)}
                     </div>
                 ) : posts.length === 0 ? (
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="text-center py-12 md:py-16 mx-3 md:mx-0 bg-white dark:bg-zinc-950 md:rounded-xl md:border md:border-slate-200/60 md:dark:border-zinc-800"
+                        className="text-center py-12 md:py-16 mx-3 md:mx-0 bg-white dark:bg-zinc-950 md:rounded-2xl md:border md:border-slate-200/60 md:dark:border-zinc-800"
                     >
-                        <div className="w-16 h-16 md:w-20 md:h-20 mx-auto bg-indigo-50 dark:bg-indigo-950/30 rounded-full flex items-center justify-center mb-3 md:mb-4">
+                        <div className="w-16 h-16 md:w-20 md:h-20 mx-auto bg-indigo-50 dark:bg-indigo-950/30 rounded-full flex items-center justify-center mb-4">
                             <MessageCircle className="w-8 h-8 md:w-10 md:h-10 text-indigo-500 dark:text-indigo-400" />
                         </div>
-                        <h3 className="font-display font-bold text-slate-800 dark:text-slate-200 text-base md:text-lg">
-                            No posts yet
+                        <h3 className="font-display font-bold text-slate-800 dark:text-slate-200 text-lg">
+                            You're all caught up
                         </h3>
-                        <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 mt-1.5 md:mt-2 max-w-sm mx-auto">
-                            Be the first nurse to share what you learned today in the ward!
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 max-w-sm mx-auto px-4">
+                            You've seen everything fresh for now. Share something to start the next wave, or check back later.
                         </p>
+                        <button
+                            onClick={handleRefresh}
+                            className="mt-5 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition active:scale-[98%]"
+                        >
+                            Refresh Feed
+                        </button>
                     </motion.div>
                 ) : (
                     <AnimatePresence>
@@ -933,7 +945,7 @@ export default function NurseFeed() {
                 )}
             </div>
 
-            {/* Post Composer Modal */}
+            {/* Composer Modal */}
             <PostComposerModal
                 isOpen={isComposerOpen}
                 onClose={() => setIsComposerOpen(false)}
@@ -941,25 +953,26 @@ export default function NurseFeed() {
                 submitting={submitting}
             />
 
-            {/* Endorsement Modal */}
+            {/* Endorsement Manager */}
             <AnimatePresence>
                 {endorsementModal.isOpen && endorsementModal.profile && currentUserId && (
                     <EndorsementManager
                         isOpen={endorsementModal.isOpen}
                         onClose={() => setEndorsementModal({ isOpen: false, profile: null })}
                         profileId={endorsementModal.profile.id}
-                        profileName={
-                            endorsementModal.profile.full_name &&
-                                endorsementModal.profile.full_name !== 'null'
-                                ? endorsementModal.profile.full_name
-                                : endorsementModal.profile.first_name &&
-                                    endorsementModal.profile.first_name !== 'null'
-                                    ? `${endorsementModal.profile.first_name} ${endorsementModal.profile.last_name || ''}`.trim()
-                                    : (endorsementModal.profile.username || 'Nurse')
-                        }
+                        profileName={getAuthorDisplayName({
+                            id: endorsementModal.profile.id,
+                            first_name: endorsementModal.profile.first_name || '',
+                            last_name: endorsementModal.profile.last_name || '',
+                            full_name: endorsementModal.profile.full_name,
+                            username: endorsementModal.profile.username || '',
+                            avatar_url: endorsementModal.profile.avatar_url,
+                            qualification: endorsementModal.profile.qualification,
+                            verification_status: endorsementModal.profile.verification_status
+                        })}
                         currentUserId={currentUserId}
                         onEndorsementChange={() => {
-                            fetchPosts();
+                            if (currentUserId) loadFeed(currentUserId);
                         }}
                     />
                 )}

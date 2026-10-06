@@ -28,6 +28,7 @@ export const databaseService = {
     }
     return profilesService.getProfiles();
   },
+
   // GET NURSE SKILLS
   async getNurseSkills(userId: string) {
     try {
@@ -47,58 +48,57 @@ export const databaseService = {
       return [];
     }
   },
-  // REPLACE your getProfileByUsername method in databaseService.ts with this:
 
+  // Get profile by username (for public portfolio pages)
   async getProfileByUsername(username: string): Promise<UserProfile | null> {
     if (!isSupabaseConfigured) {
       console.warn('Supabase not configured. Please supply VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY variables.');
       return null;
     }
 
-    // Query only the columns that ACTUALLY exist in your profiles table
     const { data, error } = await supabase!
       .from('profiles')
       .select(`
-      id,
-      username,
-      email,
-      first_name,
-      last_name,
-      role,
-      avatar_url,
-      cover_url,
-      bio,
-      qualification,
-      nursing_level,
-      specialty,
-      location,
-      years_experience,
-      availability_status,
-      verification_status,
-      profile_theme,
-      created_at,
-      views_count,
-      downloads_count,
-      search_appearances,
-      onboarding_completed,
-      health_insurance_type,
-      insurance_number,
-      vaccinations,
-      last_vaccination_date,
-      nursing_council_id,
-      license_expiry_date,
-      emergency_contact_name,
-      emergency_contact_phone,
-      blood_type,
-      languages_spoken,
-      available_for_relocation,
-      preferred_shift,
-      certifications,
-      theme,
-      verified,
-      updated_at,
-      username_updated_at
-    `)
+        id,
+        username,
+        email,
+        first_name,
+        last_name,
+        role,
+        avatar_url,
+        cover_url,
+        bio,
+        qualification,
+        nursing_level,
+        specialty,
+        location,
+        years_experience,
+        availability_status,
+        verification_status,
+        profile_theme,
+        created_at,
+        views_count,
+        downloads_count,
+        search_appearances,
+        onboarding_completed,
+        health_insurance_type,
+        insurance_number,
+        vaccinations,
+        last_vaccination_date,
+        nursing_council_id,
+        license_expiry_date,
+        emergency_contact_name,
+        emergency_contact_phone,
+        blood_type,
+        languages_spoken,
+        available_for_relocation,
+        preferred_shift,
+        certifications,
+        theme,
+        verified,
+        updated_at,
+        username_updated_at
+      `)
       .eq('username', username)
       .maybeSingle();
 
@@ -112,7 +112,6 @@ export const databaseService = {
       return null;
     }
 
-    // Map the response to match UserProfile type
     return {
       id: data.id,
       username: data.username,
@@ -125,20 +124,19 @@ export const databaseService = {
       bio: data.bio,
       qualification: data.qualification,
       nursing_level: data.nursing_level,
-      specialties: data.specialty ? [data.specialty] : [], // Convert single specialty to array for compatibility
-      skills: [], // No skills column in your table
+      specialties: data.specialty ? [data.specialty] : [],
+      skills: [],
       location: data.location,
       years_of_experience: data.years_experience,
       availability_status: data.availability_status || 'available',
       verification_status: data.verification_status || 'unverified',
       profile_theme: data.profile_theme || 'modern',
-      cv_url: null, // CVs are in uploaded_documents table, not profiles
+      cv_url: null,
       created_at: data.created_at,
       views_count: data.views_count || 0,
       downloads_count: data.downloads_count || 0,
       search_appearances: data.search_appearances || 0,
       onboarding_completed: data.onboarding_completed,
-      // New fields from your table:
       health_insurance_type: data.health_insurance_type,
       insurance_number: data.insurance_number,
       vaccinations: data.vaccinations,
@@ -152,7 +150,6 @@ export const databaseService = {
       available_for_relocation: data.available_for_relocation,
       preferred_shift: data.preferred_shift,
       certifications: data.certifications,
-      // Additional fields for compatibility:
       years_experience: data.years_experience,
       specialty: data.specialty,
       theme: data.theme,
@@ -161,44 +158,54 @@ export const databaseService = {
       username_updated_at: data.username_updated_at
     };
   },
+
+  // Update profile — FIXED: only sends fields that are actually provided
   async updateProfile(id: string, updates: Partial<UserProfile>): Promise<UserProfile> {
     if (!isSupabaseConfigured) {
       throw new Error('Supabase is not configured. Setup environment keys to use live updates.');
     }
 
-    // Direct update to Supabase instead of going through profilesService
+    // Build a payload with ONLY the fields that were explicitly provided.
+    // Without this filter, any field listed as `undefined` would be written as NULL.
+    const payload: Record<string, any> = { updated_at: new Date().toISOString() };
+
+    const fieldMap: Record<string, any> = {
+      username: updates.username,
+      first_name: updates.first_name,
+      last_name: updates.last_name,
+      email: updates.email,
+      qualification: updates.qualification,
+      nursing_level: updates.nursing_level,
+      bio: updates.bio,
+      location: updates.location,
+      years_experience: updates.years_experience,
+      specialty: updates.specialty,
+      avatar_url: updates.avatar_url,
+      cover_url: updates.cover_url,
+      health_insurance_type: updates.health_insurance_type,
+      insurance_number: updates.insurance_number,
+      vaccinations: updates.vaccinations,
+      last_vaccination_date: updates.last_vaccination_date,
+      nursing_council_id: updates.nursing_council_id,
+      license_expiry_date: updates.license_expiry_date,
+      emergency_contact_name: updates.emergency_contact_name,
+      emergency_contact_phone: updates.emergency_contact_phone,
+      blood_type: updates.blood_type,
+      languages_spoken: updates.languages_spoken,
+      available_for_relocation: updates.available_for_relocation,
+      preferred_shift: updates.preferred_shift,
+      certifications: updates.certifications,
+      onboarding_completed: updates.onboarding_completed,
+      username_updated_at: updates.username_updated_at,
+    };
+
+    for (const [key, value] of Object.entries(fieldMap)) {
+      if (value !== undefined) payload[key] = value;
+    }
+
     const { data, error } = await supabase!
       .from('profiles')
-      .update({
-        username: updates.username,
-        first_name: updates.first_name,
-        last_name: updates.last_name,
-        email: updates.email,
-        qualification: updates.qualification,
-        nursing_level: updates.nursing_level,
-        bio: updates.bio,
-        location: updates.location,
-        years_experience: updates.years_experience,
-        specialty: updates.specialty,
-        avatar_url: updates.avatar_url,
-        cover_url: updates.cover_url,
-        health_insurance_type: updates.health_insurance_type,
-        insurance_number: updates.insurance_number,
-        vaccinations: updates.vaccinations,
-        last_vaccination_date: updates.last_vaccination_date,
-        nursing_council_id: updates.nursing_council_id,
-        license_expiry_date: updates.license_expiry_date,
-        emergency_contact_name: updates.emergency_contact_name,
-        emergency_contact_phone: updates.emergency_contact_phone,
-        blood_type: updates.blood_type,
-        languages_spoken: updates.languages_spoken,
-        available_for_relocation: updates.available_for_relocation,
-        preferred_shift: updates.preferred_shift,
-        certifications: updates.certifications,
-        onboarding_completed: updates.onboarding_completed,
-        updated_at: new Date().toISOString(),
-        username_updated_at: updates.username_updated_at
-      })
+      .update(payload)
       .eq('id', id)
       .select()
       .single();
@@ -241,28 +248,27 @@ export const databaseService = {
     }
   },
 
-  // FIND THIS AROUND LINE 98 AND REPLACE IT:
   async getPublicCV(userId: string): Promise<{ file_url: string; is_locked: boolean } | null> {
     if (!isSupabaseConfigured) return null;
 
     const { data, error } = await supabase!
       .from('uploaded_documents')
-      .select('file_url, is_locked') // <--- Added is_locked here!
+      .select('file_url, is_locked')
       .eq('user_id', userId)
       .eq('document_type', 'cv')
       .order('created_at', { ascending: false })
       .limit(1)
-      .maybeSingle()
+      .maybeSingle();
 
     if (error) {
       console.warn("No CV found in the vault for this user.");
       return null;
     }
 
-    // Now returning the whole object instead of just the string
     return data ? { file_url: data.file_url, is_locked: data.is_locked } : null;
   },
-  // Add this to your databaseService object
+
+  // Toggle the lock status of the user's CV
   async toggleCvLock(userId: string, newLockStatus: boolean) {
     if (!isSupabaseConfigured) return;
 
@@ -276,64 +282,59 @@ export const databaseService = {
     return true;
   },
 
-  // NEW METHODS FOR AVATAR AND COVER IMAGES
+  // Update avatar image
   async updateAvatar(userId: string, file: File): Promise<string> {
     if (!isSupabaseConfigured) {
       throw new Error('Supabase storage not configured.');
     }
 
-    // Upload the image to storage
     const fileExt = file.name.split('.').pop();
     const filePath = `${userId}/avatar-${Date.now()}.${fileExt}`;
 
     const { error: uploadError } = await supabase!.storage
-      .from('profiles') // Make sure this bucket exists in Supabase
+      .from('profiles')
       .upload(filePath, file, { upsert: true });
 
     if (uploadError) throw uploadError;
 
-    // Get public URL
     const { data: urlData } = supabase!.storage
       .from('profiles')
       .getPublicUrl(filePath);
 
     const avatarUrl = urlData.publicUrl;
 
-    // Update profile with new avatar_url
     await profilesService.updateProfile(userId, { avatar_url: avatarUrl });
 
     return avatarUrl;
   },
 
+  // Update cover image
   async updateCover(userId: string, file: File): Promise<string> {
     if (!isSupabaseConfigured) {
       throw new Error('Supabase storage not configured.');
     }
 
-    // Upload the image to storage
     const fileExt = file.name.split('.').pop();
     const filePath = `${userId}/cover-${Date.now()}.${fileExt}`;
 
     const { error: uploadError } = await supabase!.storage
-      .from('profiles') // Use same 'profiles' bucket or create 'covers' bucket
+      .from('profiles')
       .upload(filePath, file, { upsert: true });
 
     if (uploadError) throw uploadError;
 
-    // Get public URL
     const { data: urlData } = supabase!.storage
       .from('profiles')
       .getPublicUrl(filePath);
 
     const coverUrl = urlData.publicUrl;
 
-    // Update profile with new cover_url
     await profilesService.updateProfile(userId, { cover_url: coverUrl });
 
     return coverUrl;
   },
 
-  // Helper method to get storage URLs
+  // Helper to get a public storage URL
   async getImageUrl(bucket: string, path: string): Promise<string | null> {
     if (!isSupabaseConfigured) return null;
 
@@ -344,13 +345,13 @@ export const databaseService = {
     return data.publicUrl;
   },
 
-  // Existing upload function remains
+  // Generic file upload
   async uploadFile(bucket: string, path: string, file: File): Promise<string> {
     if (!isSupabaseConfigured) {
       throw new Error('Supabase storage not configured.');
     }
 
-    const { data, error } = await supabase!.storage
+    const { error } = await supabase!.storage
       .from(bucket)
       .upload(path, file, { upsert: true });
     if (error) throw error;
@@ -376,7 +377,7 @@ export const databaseService = {
     return publicUrl;
   },
 
-  // Delete file function
+  // Delete a stored file
   async deleteFile(bucket: string, path: string): Promise<void> {
     if (!isSupabaseConfigured) {
       throw new Error('Supabase storage not configured.');
@@ -419,7 +420,7 @@ export const databaseService = {
     return data || [];
   },
 
-  // Existing uploadImage method (keeping for backward compatibility)
+  // Backwards-compatible upload helper
   async uploadImage(userId: string, file: File, bucketType: 'avatar' | 'cover') {
     if (bucketType === 'avatar') {
       return this.updateAvatar(userId, file);
@@ -535,6 +536,7 @@ export const databaseService = {
     });
   },
 
+  // Submit a new verification request — FIXED: license details now persisted in admin_note
   async submitVerificationRequest(req: Omit<VerificationRequest, 'id' | 'status' | 'submitted_at'>): Promise<VerificationRequest> {
     if (!isSupabaseConfigured) {
       throw new Error('Supabase client not configured.');
@@ -545,7 +547,9 @@ export const databaseService = {
       license_url: req.license_document_url || null,
       student_id_url: req.student_id_url || null,
       status: 'pending',
-      admin_note: ''
+      // Persist license metadata so the admin can review it. Until dedicated
+      // columns are added to verification_requests, we store a structured note.
+      admin_note: `Type: ${req.license_type || 'N/A'} | Number: ${req.license_number || 'N/A'} | State: ${req.state_country || 'N/A'}`
     };
 
     const { data, error } = await supabase!
@@ -555,7 +559,7 @@ export const databaseService = {
       .single();
     if (error) throw error;
 
-    // Update profile status to unverified initially till reviewed
+    // Reset verified flag on the profile until the admin approves
     await supabase!.from('profiles').update({ verified: false }).eq('id', req.profile_id);
 
     return {
@@ -566,13 +570,13 @@ export const databaseService = {
       status: data.status as any || 'pending',
       submitted_at: data.created_at || new Date().toISOString(),
       review_notes: data.admin_note || '',
-      license_number: '',
-      license_type: 'NCK License',
-      state_country: 'Kenya'
+      license_number: req.license_number || '',
+      license_type: req.license_type || 'NCK License',
+      state_country: req.state_country || 'Kenya'
     };
   },
-  // Add to databaseService.ts
-  // Get endorsements for a profile
+
+  // Endorsements
   async getProfileEndorsements(profileId: string): Promise<any[]> {
     if (!isSupabaseConfigured) return [];
 
@@ -590,7 +594,6 @@ export const databaseService = {
     return data || [];
   },
 
-  // Get profile by ID (for endorser info)
   async getProfileById(profileId: string): Promise<any> {
     if (!isSupabaseConfigured) return null;
 
@@ -608,7 +611,6 @@ export const databaseService = {
     return data;
   },
 
-  // Create a new endorsement
   async createEndorsement(
     endorserId: string,
     profileId: string,
@@ -636,7 +638,6 @@ export const databaseService = {
     return data;
   },
 
-  // Delete an endorsement
   async deleteEndorsement(endorsementId: string): Promise<void> {
     if (!isSupabaseConfigured) return;
 
@@ -650,6 +651,8 @@ export const databaseService = {
       throw error;
     }
   },
+
+  // Admin review of verification request
   async reviewVerificationRequest(reqId: string, status: VerificationStatus, note?: string): Promise<VerificationRequest> {
     if (!isSupabaseConfigured) {
       throw new Error('Supabase client not configured.');
@@ -663,7 +666,6 @@ export const databaseService = {
       .single();
     if (error) throw error;
 
-    // Update corresponding user profile verified status
     await supabase!
       .from('profiles')
       .update({ verified: status === 'verified' })
@@ -681,5 +683,118 @@ export const databaseService = {
       license_type: 'NCK License',
       state_country: 'Kenya'
     };
-  }
+  },
+
+  // ==========================================
+  // ACCOUNT DELETION — wipes profile + related rows + storage + auth
+  // ==========================================
+  async deleteAccount(userId: string): Promise<void> {
+    if (!isSupabaseConfigured) {
+      throw new Error('Supabase is not configured.');
+    }
+    if (!userId) {
+      throw new Error('A user id is required to delete an account.');
+    }
+
+    // 1. Delete child rows (best-effort — if a table doesn't exist, we log and continue)
+    //    Order: children first so foreign keys don't block the profile deletion.
+    const childTables: Array<{ table: string; cleanup: () => Promise<any> }> = [
+      {
+        table: 'cv_downloads',
+        cleanup: () =>
+          supabase!
+            .from('cv_downloads')
+            .delete()
+            .or(`profile_id.eq.${userId},viewer_id.eq.${userId}`)
+      },
+      {
+        table: 'profile_endorsements',
+        cleanup: () =>
+          supabase!
+            .from('profile_endorsements')
+            .delete()
+            .or(`profile_id.eq.${userId},endorser_id.eq.${userId}`)
+      },
+      {
+        table: 'verification_requests',
+        cleanup: () =>
+          supabase!.from('verification_requests').delete().eq('user_id', userId)
+      },
+      {
+        table: 'uploaded_documents',
+        cleanup: () =>
+          supabase!.from('uploaded_documents').delete().eq('user_id', userId)
+      },
+      {
+        table: 'nurse_skills',
+        cleanup: () =>
+          supabase!.from('nurse_skills').delete().eq('user_id', userId)
+      },
+      {
+        table: 'experiences',
+        cleanup: () =>
+          supabase!.from('experiences').delete().eq('profile_id', userId)
+      },
+      {
+        table: 'educations',
+        cleanup: () =>
+          supabase!.from('educations').delete().eq('profile_id', userId)
+      },
+      {
+        table: 'certifications',
+        cleanup: () =>
+          supabase!.from('certifications').delete().eq('profile_id', userId)
+      },
+      {
+        table: 'research_projects',
+        cleanup: () =>
+          supabase!.from('research_projects').delete().eq('profile_id', userId)
+      },
+      {
+        table: 'analytics_events',
+        cleanup: () =>
+          supabase!.from('analytics_events').delete().eq('profile_id', userId)
+      }
+    ];
+
+    for (const { table, cleanup } of childTables) {
+      try {
+        await cleanup();
+      } catch (err) {
+        console.warn(`Cleanup skipped for ${table}:`, err);
+      }
+    }
+
+    // 2. Delete the profile row itself
+    const { error: profileError } = await supabase!
+      .from('profiles')
+      .delete()
+      .eq('id', userId);
+
+    if (profileError) {
+      console.error('Failed to delete profile row:', profileError);
+      throw profileError;
+    }
+
+    // 3. Delete stored files under the user's folder (best-effort)
+    try {
+      const { data: files } = await supabase!.storage
+        .from('profiles')
+        .list(userId);
+
+      if (files && files.length > 0) {
+        const paths = files.map(f => `${userId}/${f.name}`);
+        await supabase!.storage.from('profiles').remove(paths);
+      }
+    } catch (storageErr) {
+      console.warn('Storage cleanup skipped:', storageErr);
+    }
+
+    // 4. Sign out the user.
+    //    NOTE: Deleting the auth.users row itself requires the service_role key
+    //    and must run server-side (Supabase Edge Function). For the client app,
+    //    we wipe the profile and sign the user out, which leaves the auth row
+    //    orphaned but harmless — a fresh signup will create a new profile stub.
+    await supabase!.auth.signOut();
+  },
 };
