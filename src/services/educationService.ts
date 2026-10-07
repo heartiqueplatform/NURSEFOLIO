@@ -1,124 +1,132 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Education } from '../types';
 
-export const educationService = {
-  async getEducations(profileId: string): Promise<Education[]> {
-    try {
-      if (!isSupabaseConfigured || !profileId) return [];
+// ==========================================================
+// ROW → TYPED OBJECT
+// ==========================================================
+function mapRowToEducation(row: any): Education {
+  return {
+    id: row.id,
+    profile_id: row.profile_id || row.user_id,
+    institution: row.institution || '',
+    degree: row.degree || '',
+    field_of_study: row.field_of_study || '',
+    start_date: row.start_date || '',
+    end_date: row.end_date || undefined,
+    completed: row.completed ?? !!row.end_date,
+    gpa: row.gpa || undefined,
+    description: row.description || '',
+  };
+}
 
+// ==========================================================
+// SERVICE
+// ==========================================================
+export const educationService = {
+  // ----------------------------------------------------------
+  // READ — fetch all education rows for a profile
+  // ----------------------------------------------------------
+  async getEducations(profileId: string): Promise<Education[]> {
+    if (!isSupabaseConfigured || !profileId) return [];
+
+    try {
+      // Order by start_date (text "YYYY-MM") descending — works
+      // because ISO-formatted dates sort lexically.
       const { data, error } = await supabase!
         .from('education')
         .select('*')
-        .eq('user_id', profileId)
-        .order('start_year', { ascending: false });
+        .or(`profile_id.eq.${profileId},user_id.eq.${profileId}`)
+        .order('start_date', { ascending: false, nullsFirst: false });
 
       if (error) throw error;
-
-      return (data || []).map((row: any): Education => {
-        const courseText = row.course || '';
-        const parts = courseText.split(' in ');
-        const degree = parts[0] || 'Bachelor';
-        const field_of_study = parts.slice(1).join(' in ') || courseText;
-        
-        return {
-          id: row.id,
-          profile_id: row.user_id,
-          institution: row.institution || '',
-          degree,
-          field_of_study,
-          start_date: row.start_year ? `${row.start_year}-09` : '',
-          end_date: row.end_year ? `${row.end_year}-05` : undefined,
-          completed: !!row.end_year,
-          gpa: (row.description || '').startsWith('GPA: ') ? row.description.replace('GPA: ', '') : undefined,
-          description: row.description || ''
-        };
-      });
+      return (data || []).map(mapRowToEducation);
     } catch (err) {
-      console.error('educationService.getEducations failed:', err);
+      console.error('[educationService.getEducations] failed:', err);
       return [];
     }
   },
 
-  async saveEducation(edu: Omit<Education, 'id'> & { id?: string }): Promise<Education> {
+  // ----------------------------------------------------------
+  // WRITE — create or update
+  // ----------------------------------------------------------
+  async saveEducation(
+    edu: Omit<Education, 'id'> & { id?: string }
+  ): Promise<Education> {
+    if (!isSupabaseConfigured) {
+      throw new Error('Supabase client not configured.');
+    }
+
+    // Normalise month precision. The date inputs already send YYYY-MM,
+    // but if a caller sends YYYY-MM-DD we trim it down.
+    const normalizeMonth = (d?: string | null): string | null => {
+      if (!d) return null;
+      const trimmed = d.trim();
+      if (!trimmed) return null;
+      // YYYY-MM-DD → YYYY-MM
+      if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed.slice(0, 7);
+      // YYYY-MM → YYYY-MM
+      if (/^\d{4}-\d{2}$/.test(trimmed)) return trimmed;
+      // YYYY → YYYY-01
+      if (/^\d{4}$/.test(trimmed)) return `${trimmed}-01`;
+      return null;
+    };
+
+    const payload = {
+      // Keep both columns in sync during migration. Whichever the
+      // reader uses, the data is there.
+      user_id: edu.profile_id,
+      profile_id: edu.profile_id,
+      institution: (edu.institution || '').trim() || 'Nursing Academy',
+      degree: (edu.degree || '').trim() || '',
+      field_of_study: (edu.field_of_study || '').trim() || '',
+      start_date: normalizeMonth(edu.start_date),
+      end_date: edu.completed ? normalizeMonth(edu.end_date) : null,
+      completed: edu.completed ?? true,
+      gpa: edu.gpa?.trim() || null,
+      description: (edu.description || '').trim() || null,
+    };
+
     try {
-      if (!isSupabaseConfigured) {
-        throw new Error('Supabase client not configured');
-      }
-
-      const startYear = edu.start_date ? parseInt(edu.start_date.split('-')[0], 10) || null : null;
-      const endYear = edu.end_date ? parseInt(edu.end_date.split('-')[0], 10) || null : null;
-      
-      const dbPayload = {
-        user_id: edu.profile_id,
-        institution: (edu.institution || '').trim() || 'Nursing Academy',
-        course: edu.degree && edu.field_of_study ? `${edu.degree} in ${edu.field_of_study}` : (edu.field_of_study || edu.degree || 'Nursing Studies'),
-        start_year: startYear,
-        end_year: endYear,
-        description: edu.description || (edu.gpa ? `GPA: ${edu.gpa}` : '')
-      };
-
       if (edu.id) {
+        // ---- UPDATE ----
         const { data, error } = await supabase!
           .from('education')
-          .update(dbPayload)
+          .update(payload)
           .eq('id', edu.id)
           .select()
           .single();
 
         if (error) throw error;
-        
-        const parts = (data.course || '').split(' in ');
-        const degree = parts[0] || 'Bachelor';
-        const field_of_study = parts.slice(1).join(' in ') || data.course || '';
-        
-        return {
-          id: data.id,
-          profile_id: data.user_id,
-          institution: data.institution || '',
-          degree,
-          field_of_study,
-          start_date: data.start_year ? `${data.start_year}-09` : '',
-          end_date: data.end_year ? `${data.end_year}-05` : undefined,
-          completed: !!data.end_year,
-          gpa: (data.description || '').startsWith('GPA: ') ? data.description.replace('GPA: ', '') : undefined,
-          description: data.description || ''
-        };
-      } else {
-        const { data, error } = await supabase!
-          .from('education')
-          .insert(dbPayload)
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        const parts = (data.course || '').split(' in ');
-        const degree = parts[0] || 'Bachelor';
-        const field_of_study = parts.slice(1).join(' in ') || data.course || '';
-
-        return {
-          id: data.id,
-          profile_id: data.user_id,
-          institution: data.institution || '',
-          degree,
-          field_of_study,
-          start_date: data.start_year ? `${data.start_year}-09` : '',
-          end_date: data.end_year ? `${data.end_year}-05` : undefined,
-          completed: !!data.end_year,
-          gpa: (data.description || '').startsWith('GPA: ') ? data.description.replace('GPA: ', '') : undefined,
-          description: data.description || ''
-        };
+        return mapRowToEducation(data);
       }
-    } catch (err: any) {
-      console.error('educationService.saveEducation failed:', err);
+
+      // ---- INSERT ----
+      const { data, error } = await supabase!
+        .from('education')
+        .insert(payload)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return mapRowToEducation(data);
+    } catch (err) {
+      console.error('[educationService.saveEducation] failed:', err);
       throw err;
     }
   },
 
+  // ----------------------------------------------------------
+  // DELETE
+  // ----------------------------------------------------------
   async deleteEducation(id: string): Promise<void> {
-    try {
-      if (!isSupabaseConfigured || !id) return;
+    if (!isSupabaseConfigured || !id) return;
 
+    try {
       const { error } = await supabase!
         .from('education')
         .delete()
@@ -126,8 +134,8 @@ export const educationService = {
 
       if (error) throw error;
     } catch (err) {
-      console.error('educationService.deleteEducation failed:', err);
+      console.error('[educationService.deleteEducation] failed:', err);
       throw err;
     }
-  }
+  },
 };

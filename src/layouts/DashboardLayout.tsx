@@ -149,6 +149,9 @@ export const DashboardLayout: React.FC<{ children?: React.ReactNode }> = ({ chil
           {/* ============================================
               TOP BAR — mobile header + desktop page title
               ============================================ */}
+          {/* ============================================
+    TOP BAR — mobile header + desktop page title
+    ============================================ */}
           <header
             className="h-14 md:h-16 bg-white dark:bg-zinc-950 border-b border-slate-100 dark:border-zinc-900 flex items-center justify-between px-4 lg:px-8 flex-shrink-0"
             style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
@@ -182,23 +185,22 @@ export const DashboardLayout: React.FC<{ children?: React.ReactNode }> = ({ chil
             </div>
 
             {/* Actions — notifications + preview */}
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-2">
               {/* Notifications — inline, sits next to Preview */}
               <NotificationBell variant="inline" />
 
-              {/* Preview portfolio — icon-only on mobile, labeled on desktop */}
+              {/* Preview portfolio — always shows "My preview" on all screen sizes */}
               {user && (
                 <Link
                   to={`/nurse/${user.username}`}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-zinc-900 active:bg-slate-200 dark:active:bg-zinc-800 transition"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-zinc-900 active:bg-slate-200 dark:active:bg-zinc-800 transition whitespace-nowrap"
                 >
-                  <span className="hidden sm:inline">Preview</span>
-                  <ArrowUpRight className="w-3.5 h-3.5" />
+                  <span>My preview</span>
+                  <ArrowUpRight className="w-3.5 h-3.5 flex-shrink-0" />
                 </Link>
               )}
             </div>
           </header>
-
           {/* ============================================
               SCROLLABLE CONTENT
               ============================================ */}

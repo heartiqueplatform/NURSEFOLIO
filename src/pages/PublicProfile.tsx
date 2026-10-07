@@ -6,29 +6,22 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { databaseService } from '../services/databaseService';
+import { skillService } from '../services/skillService';
 import {
-  UserProfile, Experience, Education, Certification, ResearchProject, ClinicalProcedure
+  UserProfile, Experience, Education, Certification, ResearchProject,
+  ClinicalProcedure, NurseSkill,
 } from '../types';
 import { THEME_MAPS, ThemeStyles } from '../utils/themeMap';
 import { VerificationBadge } from '../components/VerificationBadge';
-import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import PageLoader from '../components/PageLoader';
 import {
   Briefcase, GraduationCap, Award, BookOpen, MapPin, Lock as LockIcon,
   Calendar, Building, Download, Link2, Check, ExternalLink, HelpCircle,
   ArrowLeft, Stethoscope, FileSignature, Clock, TrendingUp, Target, Flame, Crown,
-  Mail, Phone, Heart, Syringe, FileText, Shield, Users, Globe, Truck, Moon, Sun,
-  AlertCircle, Edit3, XCircle, Share2, ChevronRight, Loader2
+  Heart, Syringe, FileText, Shield, Users, Globe, Truck, Moon, Sun,
+  AlertCircle, Edit3, Share2, ChevronRight, Loader2, Quote, Sparkles,
 } from 'lucide-react';
-
-// ==========================================================
-// TYPES
-// ==========================================================
-interface PublicCVData {
-  file_url: string | null;
-  is_locked: boolean;
-}
 
 // ==========================================================
 // HELPERS
@@ -52,17 +45,62 @@ function formatMonthYear(dateStr: string | null | undefined): string {
   }
 }
 
+function yearsBetween(start: string | null | undefined, end?: string | null | undefined): number {
+  if (!start) return 0;
+  const startDate = new Date(start);
+  const endDate = end ? new Date(end) : new Date();
+  if (isNaN(startDate.getTime())) return 0;
+  const months = (endDate.getFullYear() - startDate.getFullYear()) * 12
+    + (endDate.getMonth() - startDate.getMonth());
+  return Math.max(0, Math.floor(months / 12));
+}
+
+interface EndorsementWithAuthor {
+  id: string;
+  specialty: string | null;
+  message: string | null;
+  created_at: string;
+  endorser: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    full_name?: string;
+    username: string;
+    avatar_url: string | null;
+    qualification: string | null;
+    nursing_level: string | null;
+  } | null;
+}
+
+function endorsementAuthorName(e: EndorsementWithAuthor): string {
+  const p = e.endorser;
+  if (!p) return 'A colleague';
+  if (p.full_name) return p.full_name;
+  const name = `${p.first_name || ''} ${p.last_name || ''}`.trim();
+  if (name) return name;
+  return p.username || 'A colleague';
+}
+
 // ==========================================================
 // SHARED SUBCOMPONENTS
 // ==========================================================
-const SectionHeading = React.memo<{ icon: any; title: string }>(({ icon: Icon, title }) => (
-  <div className="flex items-center gap-2.5 mb-4">
+const SectionHeading = React.memo<{
+  icon: any;
+  title: string;
+  count?: number;
+}>(({ icon: Icon, title, count }) => (
+  <div className="flex items-center gap-2.5 mb-5">
     <div className="w-8 h-8 rounded-2xl bg-teal-50 dark:bg-teal-950/40 flex items-center justify-center flex-shrink-0">
       <Icon className="w-4 h-4 text-teal-600 dark:text-teal-400" />
     </div>
     <h2 className="text-base md:text-lg font-display font-bold text-slate-900 dark:text-white">
       {title}
     </h2>
+    {typeof count === 'number' && count > 0 && (
+      <span className="text-xs font-bold text-slate-400 dark:text-slate-500 tabular-nums">
+        {count}
+      </span>
+    )}
   </div>
 ));
 SectionHeading.displayName = 'SectionHeading';
@@ -89,10 +127,12 @@ export default function PublicProfile() {
   const [certifications, setCertifications] = useState<Certification[]>([]);
   const [research, setResearch] = useState<ResearchProject[]>([]);
   const [clinicalProcedures, setClinicalProcedures] = useState<ClinicalProcedure[]>([]);
+  const [skills, setSkills] = useState<NurseSkill[]>([]);
+  const [endorsements, setEndorsements] = useState<EndorsementWithAuthor[]>([]);
 
   // CV state
   const [cvUrl, setCvUrl] = useState<string | null>(null);
-  const [isCvPublic, setIsCvPublic] = useState(false); // ← was isPermanentlyLocked inverted
+  const [isCvPublic, setIsCvPublic] = useState(false);
   const [unlockedThisSession, setUnlockedThisSession] = useState(false);
 
   // UI state
@@ -102,6 +142,7 @@ export default function PublicProfile() {
   const [downloading, setDownloading] = useState(false);
   const [showOwnerBanner, setShowOwnerBanner] = useState(true);
   const [togglingCv, setTogglingCv] = useState(false);
+  const [shareFeedback, setShareFeedback] = useState('');
 
   const isOwner = !!(user && profile && user.id === profile.id);
 
@@ -126,8 +167,29 @@ export default function PublicProfile() {
         }
         setProfile(p);
 
-        // Public CV state
-        const cvData: PublicCVData | null = await databaseService.getPublicCV(p.id);
+        // Everything in parallel
+        const [
+          cvData,
+          exp,
+          edu,
+          cert,
+          res,
+          skillsData,
+          endorsementsData,
+          procedures,
+        ] = await Promise.all([
+          databaseService.getPublicCV(p.id),
+          databaseService.getExperiences(p.id),
+          databaseService.getEducations(p.id),
+          databaseService.getCertifications(p.id),
+          databaseService.getResearchProjects(p.id),
+          skillService.getSkills(p.id),
+          databaseService.getProfileEndorsements(p.id),
+          p.role === 'student'
+            ? skillService.getVerifiedProcedures(p.id, 20)
+            : Promise.resolve([]),
+        ]);
+
         if (cancelled) return;
 
         if (cvData) {
@@ -135,34 +197,13 @@ export default function PublicProfile() {
           setIsCvPublic(!cvData.is_locked);
         }
 
-        // Parallel fetch of everything else
-        const [exp, edu, cert, res] = await Promise.all([
-          databaseService.getExperiences(p.id),
-          databaseService.getEducations(p.id),
-          databaseService.getCertifications(p.id),
-          databaseService.getResearchProjects(p.id),
-        ]);
-
-        if (cancelled) return;
         setExperiences(exp || []);
         setEducations(edu || []);
         setCertifications(cert || []);
         setResearch(res || []);
-
-        // Clinical procedures (students only, verified only)
-        if (p.role === 'student') {
-          const { data, error } = await supabase
-            .from('clinical_procedures')
-            .select('id, procedure_name, date_performed, competency_level, facility_name, verification_status, attempts_count')
-            .eq('user_id', p.id)
-            .eq('verification_status', 'verified')
-            .order('date_performed', { ascending: false })
-            .limit(20);
-
-          if (!cancelled && !error && data) {
-            setClinicalProcedures(data as ClinicalProcedure[]);
-          }
-        }
+        setSkills(skillsData || []);
+        setEndorsements((endorsementsData || []) as EndorsementWithAuthor[]);
+        setClinicalProcedures(procedures || []);
 
         // View tracking — only for non-owners, once per session
         if (user?.id !== p.id) {
@@ -196,13 +237,32 @@ export default function PublicProfile() {
     if (!profile.nursing_council_id) missing.push('NCK ID');
     if (!profile.license_expiry_date) missing.push('License expiry');
     if (!profile.avatar_url) missing.push('Photo');
-    if ((profile.vaccinations?.length || 0) === 0) missing.push('Vaccinations');
-    if ((profile.languages_spoken?.length || 0) === 0) missing.push('Languages');
-    if (experiences.length === 0) missing.push('Experience');
+    if (skills.length === 0) missing.push('Skills');
+    if (experiences.length === 0) missing.push('Work experience');
     if (educations.length === 0) missing.push('Education');
     if (certifications.length === 0) missing.push('Certifications');
     return missing;
-  }, [profile, isOwner, experiences.length, educations.length, certifications.length]);
+  }, [profile, isOwner, experiences.length, educations.length, certifications.length, skills.length]);
+
+  // ----------------------------------------------------------
+  // DERIVED
+  // ----------------------------------------------------------
+  const displayName = profile
+    ? [profile.first_name, profile.last_name].filter(Boolean).join(' ') || profile.username
+    : '';
+
+  const totalYearsExperience = useMemo(() => {
+    if ((profile?.years_experience || 0) > 0) return profile!.years_experience!;
+    // Fallback: sum up experience entries
+    return experiences.reduce(
+      (total, exp) => total + yearsBetween(exp.start_date, exp.current ? null : exp.end_date),
+      0
+    );
+  }, [profile, experiences]);
+
+  const level = getStudentLevel(clinicalProcedures.length);
+  const LevelIcon = level.icon;
+  const baseStyles: ThemeStyles = profile ? (THEME_MAPS[profile.profile_theme] || THEME_MAPS.modern) : THEME_MAPS.modern;
 
   // ----------------------------------------------------------
   // HANDLERS
@@ -218,9 +278,10 @@ export default function PublicProfile() {
   }, []);
 
   const handleShare = useCallback(async () => {
+    if (!profile) return;
     const shareData = {
-      title: `${profile?.first_name} ${profile?.last_name} — Nursefolio`,
-      text: `Check out ${profile?.first_name}'s nursing portfolio on Nursefolio`,
+      title: `${displayName} — Nursefolio`,
+      text: `Check out ${displayName}'s professional nursing portfolio on Nursefolio.`,
       url: window.location.href,
     };
     if (navigator.share) {
@@ -232,12 +293,14 @@ export default function PublicProfile() {
       }
     }
     handleCopyLink();
-  }, [profile, handleCopyLink]);
+    setShareFeedback('Link copied');
+    setTimeout(() => setShareFeedback(''), 2000);
+  }, [profile, displayName, handleCopyLink]);
 
   const handleDownloadCv = useCallback(async () => {
     if (!profile) return;
 
-    // First tap: unlock for this visitor
+    // First tap: reveal the download action
     if (!unlockedThisSession) {
       setUnlockedThisSession(true);
       return;
@@ -268,7 +331,7 @@ export default function PublicProfile() {
     if (!profile || togglingCv) return;
     setTogglingCv(true);
     try {
-      const nextIsLocked = isCvPublic; // if currently public, lock it
+      const nextIsLocked = isCvPublic;
       await databaseService.toggleCvLock(profile.id, nextIsLocked);
       setIsCvPublic(!nextIsLocked);
     } catch (err) {
@@ -282,14 +345,7 @@ export default function PublicProfile() {
   // STATES
   // ----------------------------------------------------------
   if (loading) return <PageLoader />;
-
-  if (notFound || !profile) {
-    return <ProfileNotFound username={username} />;
-  }
-
-  const baseStyles: ThemeStyles = THEME_MAPS[profile.profile_theme] || THEME_MAPS.modern;
-  const level = getStudentLevel(clinicalProcedures.length);
-  const LevelIcon = level.icon;
+  if (notFound || !profile) return <ProfileNotFound username={username} />;
 
   // ==========================================================
   // RENDER
@@ -352,7 +408,7 @@ export default function PublicProfile() {
       <div className="max-w-3xl mx-auto px-4 mt-6">
 
         {/* ============================================
-            HERO CARD
+            HERO
             ============================================ */}
         <section>
           {/* Cover */}
@@ -371,16 +427,15 @@ export default function PublicProfile() {
             </div>
           </div>
 
-          {/* Avatar + Name + Actions — avatar sits OUTSIDE the clipped cover */}
+          {/* Avatar + Name + Actions */}
           <div className="relative px-4 md:px-6 -mt-12 md:-mt-14">
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-              {/* Avatar + name */}
               <div className="flex items-end gap-4">
                 {profile.avatar_url ? (
                   <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white dark:border-zinc-950 bg-slate-100 dark:bg-zinc-900 flex-shrink-0">
                     <img
                       src={profile.avatar_url}
-                      alt={`${profile.first_name} ${profile.last_name}`}
+                      alt={displayName}
                       loading="eager"
                       decoding="async"
                       className="w-full h-full object-cover"
@@ -395,9 +450,9 @@ export default function PublicProfile() {
                 <div className="pb-1 min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h1 className="text-xl md:text-2xl font-display font-extrabold text-slate-900 dark:text-white truncate">
-                      {profile.first_name} {profile.last_name}
+                      {displayName}
                     </h1>
-                    <VerificationBadge status={profile.verification_status} showText={false} />
+                    <VerificationBadge status={profile.verification_status} showText={false} size="sm" />
                   </div>
                   <p className="text-sm font-semibold text-teal-600 dark:text-teal-400 mt-0.5 truncate">
                     {profile.qualification || profile.nursing_level || 'Registered Nurse'}
@@ -409,8 +464,8 @@ export default function PublicProfile() {
                         {profile.location}
                       </span>
                     )}
-                    {(profile.years_experience || 0) > 0 && (
-                      <span>{profile.years_experience} yrs experience</span>
+                    {totalYearsExperience > 0 && (
+                      <span>{totalYearsExperience} {totalYearsExperience === 1 ? 'year' : 'years'} experience</span>
                     )}
                   </div>
                 </div>
@@ -440,8 +495,17 @@ export default function PublicProfile() {
                   className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-teal-600 active:bg-teal-700 text-white text-xs font-bold transition"
                   aria-label="Share profile"
                 >
-                  <Share2 className="w-3.5 h-3.5" />
-                  Share
+                  {shareFeedback ? (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      {shareFeedback}
+                    </>
+                  ) : (
+                    <>
+                      <Share2 className="w-3.5 h-3.5" />
+                      Share
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -452,6 +516,47 @@ export default function PublicProfile() {
             </div>
           </div>
         </section>
+
+        {/* ============================================
+            TRUST BAR — quick stats
+            ============================================ */}
+        {(endorsements.length > 0 || certifications.length > 0 || experiences.length > 0 || clinicalProcedures.length > 0) && (
+          <section className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <QuickStat
+              icon={Briefcase}
+              value={experiences.length}
+              label={experiences.length === 1 ? 'Role' : 'Roles'}
+              tone="teal"
+            />
+            <QuickStat
+              icon={Award}
+              value={certifications.length}
+              label={certifications.length === 1 ? 'Certification' : 'Certifications'}
+              tone="amber"
+            />
+            <QuickStat
+              icon={Users}
+              value={endorsements.length}
+              label={endorsements.length === 1 ? 'Endorsement' : 'Endorsements'}
+              tone="indigo"
+            />
+            {profile.role === 'student' ? (
+              <QuickStat
+                icon={FileSignature}
+                value={clinicalProcedures.length}
+                label="Verified procedures"
+                tone="emerald"
+              />
+            ) : (
+              <QuickStat
+                icon={BookOpen}
+                value={research.length}
+                label={research.length === 1 ? 'Publication' : 'Publications'}
+                tone="emerald"
+              />
+            )}
+          </section>
+        )}
 
         {/* ============================================
             OWNER: CV VISIBILITY CONTROL
@@ -493,31 +598,21 @@ export default function PublicProfile() {
         {/* ============================================
             VISITOR: CV DOWNLOAD
             ============================================ */}
-        {!isOwner && (
+        {!isOwner && isCvPublic && cvUrl && (
           <section className="mt-6">
-            {!isCvPublic ? (
-              <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-slate-100 dark:bg-zinc-900 text-slate-500 dark:text-slate-400 text-sm font-semibold">
-                <LockIcon className="w-4 h-4" />
-                CV is set to private by the owner
-              </div>
-            ) : !cvUrl ? (
-              <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-slate-100 dark:bg-zinc-900 text-slate-500 dark:text-slate-400 text-sm font-semibold">
-                <FileText className="w-4 h-4" />
-                No CV uploaded yet
-              </div>
-            ) : !unlockedThisSession ? (
+            {!unlockedThisSession ? (
               <button
                 onClick={handleDownloadCv}
-                className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 text-sm font-bold active:opacity-70 transition"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-full bg-teal-600 active:bg-teal-700 text-white text-sm font-bold transition"
               >
-                <HelpCircle className="w-4 h-4" />
-                Tap to unlock CV
+                <Download className="w-4 h-4" />
+                Download CV
               </button>
             ) : (
               <button
                 onClick={handleDownloadCv}
                 disabled={downloading}
-                className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-teal-600 active:bg-teal-700 text-white text-sm font-bold transition disabled:opacity-50"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-full bg-teal-600 active:bg-teal-700 text-white text-sm font-bold transition disabled:opacity-50"
               >
                 {downloading ? (
                   <>
@@ -547,7 +642,26 @@ export default function PublicProfile() {
         )}
 
         {/* ============================================
-            PROFESSIONAL INFO
+            ENDORSEMENTS — social proof, shown early
+            ============================================ */}
+        {endorsements.length > 0 && (
+          <section className="mt-8 pt-8 border-t border-slate-100 dark:border-zinc-900">
+            <SectionHeading icon={Users} title="Peer endorsements" count={endorsements.length} />
+            <div className="space-y-3">
+              {endorsements.slice(0, 3).map(e => (
+                <EndorsementCard key={e.id} endorsement={e} />
+              ))}
+            </div>
+            {endorsements.length > 3 && (
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-3 text-center">
+                + {endorsements.length - 3} more endorsement{endorsements.length - 3 === 1 ? '' : 's'}
+              </p>
+            )}
+          </section>
+        )}
+
+        {/* ============================================
+            PROFESSIONAL DETAILS
             ============================================ */}
         {(profile.nursing_council_id || profile.license_expiry_date || profile.specialty || profile.preferred_shift) && (
           <section className="mt-8 pt-8 border-t border-slate-100 dark:border-zinc-900">
@@ -566,12 +680,8 @@ export default function PublicProfile() {
                   label="License expires"
                   value={formatMonthYear(profile.license_expiry_date)}
                   icon={Calendar}
-                  tone={
-                    new Date(profile.license_expiry_date) < new Date() ? 'danger' : 'neutral'
-                  }
-                  suffix={
-                    new Date(profile.license_expiry_date) < new Date() ? 'Expired' : undefined
-                  }
+                  tone={new Date(profile.license_expiry_date) < new Date() ? 'danger' : 'neutral'}
+                  suffix={new Date(profile.license_expiry_date) < new Date() ? 'Expired' : undefined}
                 />
               )}
               {profile.specialty && (
@@ -600,7 +710,7 @@ export default function PublicProfile() {
         {/* ============================================
             SPECIALTIES & SKILLS
             ============================================ */}
-        {(profile.specialties?.length || profile.skills?.length) ? (
+        {(profile.specialties?.length || skills.length > 0) && (
           <section className="mt-8 pt-8 border-t border-slate-100 dark:border-zinc-900">
             <SectionHeading icon={Award} title="Specialties & skills" />
             <div className="space-y-5">
@@ -621,63 +731,26 @@ export default function PublicProfile() {
                   </div>
                 </div>
               )}
-              {profile.skills && profile.skills.length > 0 && (
+              {skills.length > 0 && (
                 <div>
                   <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
                     Clinical skills
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {profile.skills.map(skill => (
+                    {skills.map(skill => (
                       <span
-                        key={skill}
-                        className="text-xs font-semibold px-3 py-1.5 rounded-full bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-slate-300"
+                        key={skill.id}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-slate-300"
                       >
-                        {skill}
+                        {skill.skill_name}
+                        {skill.proficiency && skill.proficiency !== 'Intermediate' && (
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400">
+                            {skill.proficiency}
+                          </span>
+                        )}
                       </span>
                     ))}
                   </div>
-                </div>
-              )}
-            </div>
-          </section>
-        ) : null}
-
-        {/* ============================================
-            LANGUAGES & RELOCATION
-            ============================================ */}
-        {(profile.languages_spoken?.length || profile.available_for_relocation !== null) && (
-          <section className="mt-8 pt-8 border-t border-slate-100 dark:border-zinc-900">
-            <SectionHeading icon={Globe} title="Languages & mobility" />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {profile.languages_spoken && profile.languages_spoken.length > 0 && (
-                <div>
-                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
-                    Languages
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {profile.languages_spoken.map(lang => (
-                      <span
-                        key={lang}
-                        className="text-xs font-semibold px-3 py-1.5 rounded-full bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-slate-300"
-                      >
-                        {lang}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {profile.available_for_relocation !== null && (
-                <div>
-                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
-                    Relocation
-                  </p>
-                  <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full ${profile.available_for_relocation
-                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400'
-                    : 'bg-slate-100 dark:bg-zinc-900 text-slate-600 dark:text-slate-400'
-                    }`}>
-                    <Truck className="w-3.5 h-3.5" />
-                    {profile.available_for_relocation ? 'Open to relocation' : 'Not relocating'}
-                  </span>
                 </div>
               )}
             </div>
@@ -685,16 +758,20 @@ export default function PublicProfile() {
         )}
 
         {/* ============================================
-            EXPERIENCE
+            WORK EXPERIENCE
             ============================================ */}
         <section className="mt-8 pt-8 border-t border-slate-100 dark:border-zinc-900">
-          <SectionHeading icon={Briefcase} title="Work experience" />
+          <SectionHeading icon={Briefcase} title="Work experience" count={experiences.length} />
           {experiences.length === 0 ? (
             <EmptySection message="No work experience added yet." />
           ) : (
-            <div className="space-y-5">
+            <div className="space-y-6">
               {experiences.map(exp => (
-                <div key={exp.id}>
+                <article key={exp.id} className="relative pl-6">
+                  {/* Timeline dot */}
+                  <span className="absolute left-0 top-1.5 w-3 h-3 rounded-full bg-teal-500 ring-4 ring-teal-50 dark:ring-teal-950/40" />
+                  <span className="absolute left-[5px] top-5 bottom-[-24px] w-0.5 bg-slate-100 dark:bg-zinc-900 last:hidden" />
+
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <h3 className="text-sm md:text-base font-bold text-slate-900 dark:text-white">
                       {exp.title}
@@ -709,12 +786,18 @@ export default function PublicProfile() {
                       {exp.facility}{exp.department ? ` · ${exp.department}` : ''}
                     </span>
                   </p>
+                  {exp.location && (
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1.5">
+                      <MapPin className="w-3 h-3 flex-shrink-0" />
+                      {exp.location}
+                    </p>
+                  )}
                   {exp.description && (
                     <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed mt-2 whitespace-pre-line">
                       {exp.description}
                     </p>
                   )}
-                </div>
+                </article>
               ))}
             </div>
           )}
@@ -724,7 +807,7 @@ export default function PublicProfile() {
             EDUCATION
             ============================================ */}
         <section className="mt-8 pt-8 border-t border-slate-100 dark:border-zinc-900">
-          <SectionHeading icon={GraduationCap} title="Education" />
+          <SectionHeading icon={GraduationCap} title="Education" count={educations.length} />
           {educations.length === 0 ? (
             <EmptySection message="No education history added yet." />
           ) : (
@@ -733,18 +816,15 @@ export default function PublicProfile() {
                 <div key={edu.id}>
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <h3 className="text-sm md:text-base font-bold text-slate-900 dark:text-white">
-                      {edu.degree}
+                      {edu.degree}{edu.field_of_study ? ` · ${edu.field_of_study}` : ''}
                     </h3>
                     <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                       {formatMonthYear(edu.start_date)} — {edu.completed ? formatMonthYear(edu.end_date) : 'Ongoing'}
                     </span>
                   </div>
-                  <p className="text-xs font-semibold text-teal-600 dark:text-teal-400 mt-0.5">
-                    {edu.field_of_study}
-                  </p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
                     {edu.institution}
-                    {edu.gpa && ` · GPA ${edu.gpa}`}
+                    {edu.gpa && <span className="text-slate-400 dark:text-slate-500"> · GPA {edu.gpa}</span>}
                   </p>
                 </div>
               ))}
@@ -756,7 +836,7 @@ export default function PublicProfile() {
             CERTIFICATIONS
             ============================================ */}
         <section className="mt-8 pt-8 border-t border-slate-100 dark:border-zinc-900">
-          <SectionHeading icon={Award} title="Certifications" />
+          <SectionHeading icon={Award} title="Certifications" count={certifications.length} />
           {certifications.length === 0 ? (
             <EmptySection message="No certifications added yet." />
           ) : (
@@ -773,6 +853,7 @@ export default function PublicProfile() {
                       </p>
                       <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                         Issued {formatMonthYear(cert.issue_date)}
+                        {cert.expiration_date && ` · Expires ${formatMonthYear(cert.expiration_date)}`}
                         {cert.credential_id && ` · ID ${cert.credential_id}`}
                       </p>
                     </div>
@@ -799,10 +880,10 @@ export default function PublicProfile() {
             ============================================ */}
         {research.length > 0 && (
           <section className="mt-8 pt-8 border-t border-slate-100 dark:border-zinc-900">
-            <SectionHeading icon={BookOpen} title="Research & publications" />
-            <div className="space-y-4">
+            <SectionHeading icon={BookOpen} title="Research & publications" count={research.length} />
+            <div className="space-y-5">
               {research.map(proj => (
-                <div key={proj.id}>
+                <article key={proj.id}>
                   <h3 className="text-sm md:text-base font-bold text-slate-900 dark:text-white leading-snug">
                     {proj.title}
                   </h3>
@@ -810,6 +891,11 @@ export default function PublicProfile() {
                     <p className="text-xs font-semibold text-teal-600 dark:text-teal-400 mt-0.5">
                       {proj.journal_or_publisher}
                       {proj.publication_date && ` · ${formatMonthYear(proj.publication_date)}`}
+                    </p>
+                  )}
+                  {proj.co_authors && (
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                      With {proj.co_authors}
                     </p>
                   )}
                   {proj.abstract_text && (
@@ -828,7 +914,7 @@ export default function PublicProfile() {
                       <ExternalLink className="w-3 h-3" />
                     </a>
                   )}
-                </div>
+                </article>
               ))}
             </div>
           </section>
@@ -849,7 +935,7 @@ export default function PublicProfile() {
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
               <StatTile value={clinicalProcedures.length} label="Verified procedures" tone="teal" />
-              <StatTile value={profile.years_experience || 0} label="Years of study" tone="indigo" />
+              <StatTile value={totalYearsExperience} label="Years of study" tone="indigo" />
               <StatTile value={clinicalProcedures.length >= 20 ? '✓' : `${clinicalProcedures.length}/20`} label="NCK logbook" tone="amber" />
             </div>
 
@@ -898,7 +984,49 @@ export default function PublicProfile() {
         )}
 
         {/* ============================================
-            HEALTH & VACCINATIONS (only if owner OR if public fields exist)
+            LANGUAGES & MOBILITY
+            ============================================ */}
+        {(profile.languages_spoken?.length || profile.available_for_relocation !== null) && (
+          <section className="mt-8 pt-8 border-t border-slate-100 dark:border-zinc-900">
+            <SectionHeading icon={Globe} title="Languages & mobility" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {profile.languages_spoken && profile.languages_spoken.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
+                    Languages
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {profile.languages_spoken.map(lang => (
+                      <span
+                        key={lang}
+                        className="text-xs font-semibold px-3 py-1.5 rounded-full bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-slate-300"
+                      >
+                        {lang}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {profile.available_for_relocation !== null && (
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
+                    Relocation
+                  </p>
+                  <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full ${profile.available_for_relocation
+                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400'
+                    : 'bg-slate-100 dark:bg-zinc-900 text-slate-600 dark:text-slate-400'
+                    }`}>
+                    <Truck className="w-3.5 h-3.5" />
+                    {profile.available_for_relocation ? 'Open to relocation' : 'Not relocating'}
+                  </span>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* ============================================
+            HEALTH INFO (owner OR publicly shared)
             ============================================ */}
         {(profile.vaccinations?.length || profile.blood_type || profile.health_insurance_type) && (
           <section className="mt-8 pt-8 border-t border-slate-100 dark:border-zinc-900">
@@ -933,11 +1061,11 @@ export default function PublicProfile() {
         )}
 
         {/* ============================================
-            EMERGENCY CONTACT (owner only — private by default)
+            EMERGENCY CONTACT (owner only)
             ============================================ */}
         {isOwner && (profile.emergency_contact_name || profile.emergency_contact_phone) && (
           <section className="mt-8 pt-8 border-t border-slate-100 dark:border-zinc-900">
-            <SectionHeading icon={Phone} title="Emergency contact" />
+            <SectionHeading icon={Heart} title="Emergency contact" />
             <div className="bg-rose-50 dark:bg-rose-950/30 rounded-2xl p-4">
               <p className="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider mb-2">
                 Private — visible only to you
@@ -957,20 +1085,37 @@ export default function PublicProfile() {
         )}
 
         {/* ============================================
-            FOOTER CTA (non-owner only)
+            FOOTER CTA (non-owner only) — SELLS THE APP
             ============================================ */}
         {!isOwner && (
-          <section className="mt-12 pt-8 border-t border-slate-100 dark:border-zinc-900 text-center">
-            <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed max-w-md mx-auto">
-              Want a portfolio like this? Nursefolio is free for every nurse and nursing student.
-            </p>
-            <Link
-              to="/register"
-              className="mt-4 inline-flex items-center gap-2 px-6 py-3 rounded-full bg-teal-600 active:bg-teal-700 text-white text-sm font-bold transition"
-            >
-              Create your portfolio
-              <ChevronRight className="w-4 h-4" />
-            </Link>
+          <section className="mt-12 pt-8 border-t border-slate-100 dark:border-zinc-900">
+            <div className="bg-slate-100 dark:bg-zinc-900 rounded-3xl p-6 md:p-8 text-center">
+              <div className="w-12 h-12 mx-auto rounded-2xl bg-teal-50 dark:bg-teal-950/40 flex items-center justify-center mb-4">
+                <Sparkles className="w-6 h-6 text-teal-600 dark:text-teal-400" />
+              </div>
+              <h3 className="text-lg md:text-xl font-display font-bold text-slate-900 dark:text-white">
+                Your career deserves its own home.
+              </h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed mt-3 max-w-md mx-auto">
+                Get a professional portfolio like this one. Free for every nurse and
+                nursing student. Set up in ten minutes.
+              </p>
+              <div className="mt-6 flex flex-col sm:flex-row justify-center gap-3">
+                <Link
+                  to="/register"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-teal-600 active:bg-teal-700 text-white text-sm font-bold transition min-h-[48px]"
+                >
+                  Create your portfolio
+                  <ChevronRight className="w-4 h-4" />
+                </Link>
+                <Link
+                  to="/explore"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-white dark:bg-zinc-950 text-slate-700 dark:text-slate-300 text-sm font-bold active:opacity-70 transition min-h-[48px]"
+                >
+                  Browse other nurses
+                </Link>
+              </div>
+            </div>
           </section>
         )}
 
@@ -1010,6 +1155,32 @@ const AvailabilityPill = React.memo<{ status?: string | null }>(({ status }) => 
   );
 });
 AvailabilityPill.displayName = 'AvailabilityPill';
+
+const QuickStat = React.memo<{
+  icon: any;
+  value: number;
+  label: string;
+  tone: 'teal' | 'emerald' | 'amber' | 'indigo';
+}>(({ icon: Icon, value, label, tone }) => {
+  const tones = {
+    teal: 'text-teal-600 dark:text-teal-400',
+    emerald: 'text-emerald-600 dark:text-emerald-400',
+    amber: 'text-amber-600 dark:text-amber-400',
+    indigo: 'text-indigo-600 dark:text-indigo-400',
+  };
+  return (
+    <div className="bg-slate-100 dark:bg-zinc-900 rounded-2xl p-3 text-center">
+      <Icon className={`w-4 h-4 mx-auto mb-1.5 ${tones[tone]}`} />
+      <p className="text-lg font-display font-extrabold text-slate-900 dark:text-white tabular-nums leading-none">
+        {value}
+      </p>
+      <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mt-1">
+        {label}
+      </p>
+    </div>
+  );
+});
+QuickStat.displayName = 'QuickStat';
 
 const InfoRow = React.memo<{
   label: string;
@@ -1064,6 +1235,63 @@ const StatTile = React.memo<{
   );
 });
 StatTile.displayName = 'StatTile';
+
+const EndorsementCard = React.memo<{ endorsement: EndorsementWithAuthor }>(
+  ({ endorsement }) => {
+    const name = endorsementAuthorName(endorsement);
+    const author = endorsement.endorser;
+    const initial = name.charAt(0).toUpperCase();
+    const role = author?.qualification || author?.nursing_level || 'Nurse';
+
+    return (
+      <div className="bg-slate-100 dark:bg-zinc-900 rounded-2xl p-4">
+        <div className="flex items-start gap-3">
+          {author?.avatar_url ? (
+            <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-200 dark:bg-zinc-800 flex-shrink-0">
+              <img
+                src={author.avatar_url}
+                alt={name}
+                loading="lazy"
+                decoding="async"
+                className="w-full h-full object-cover"
+              />
+            </div>
+          ) : (
+            <div className="w-10 h-10 rounded-full bg-teal-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+              {initial}
+            </div>
+          )}
+
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                {name}
+              </p>
+              {endorsement.specialty && (
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400">
+                  {endorsement.specialty}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+              {role}
+            </p>
+
+            {endorsement.message && (
+              <div className="mt-2.5 flex gap-2">
+                <Quote className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed italic">
+                  {endorsement.message}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+);
+EndorsementCard.displayName = 'EndorsementCard';
 
 // ==========================================================
 // NOT FOUND

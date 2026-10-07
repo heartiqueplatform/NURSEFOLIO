@@ -64,6 +64,13 @@ export interface LocumOffer {
     };
 }
 
+/** One row of the server-generated batch */
+export interface LocumBatchItem {
+    request_id: string;
+    match_score: number;
+    is_matched: boolean;
+}
+
 // ==========================================
 // SHARED HELPER — hydrate request IDs
 // ==========================================
@@ -71,27 +78,60 @@ export interface LocumOffer {
  * Takes an array of request IDs and returns fully hydrated
  * LocumRequest objects (with requester profile + offer counts),
  * preserving the original order of the IDs.
+ *
+ * Uses the `locum_requests_active` view when available (which
+ * automatically hides expired shifts), but falls back to the
+ * base table if the view doesn't exist yet.
  */
 async function hydrateRequests(ids: string[]): Promise<LocumRequest[]> {
     if (!isSupabaseConfigured || ids.length === 0) return [];
 
-    // 1. Fetch request rows with requester profile
-    const { data, error } = await supabase
-        .from('locum_requests')
+    // 1. Fetch request rows with requester profile.
+    //    Try the "active" view first — it filters expired shifts server-side.
+    let data: any[] | null = null;
+    let error: any = null;
+
+    const viewResult = await supabase
+        .from('locum_requests_active')
         .select(`
-      *,
-      requester:profiles!requester_id (
-        id,
-        first_name,
-        last_name,
-        full_name,
-        username,
-        avatar_url,
-        qualification,
-        verification_status
-      )
-    `)
+            *,
+            requester:profiles!requester_id (
+                id,
+                first_name,
+                last_name,
+                full_name,
+                username,
+                avatar_url,
+                qualification,
+                verification_status
+            )
+        `)
         .in('id', ids);
+
+    if (viewResult.error) {
+        // View may not exist yet — fall back to base table
+        console.warn('locum_requests_active view unavailable, falling back:', viewResult.error.message);
+        const baseResult = await supabase
+            .from('locum_requests')
+            .select(`
+                *,
+                requester:profiles!requester_id (
+                    id,
+                    first_name,
+                    last_name,
+                    full_name,
+                    username,
+                    avatar_url,
+                    qualification,
+                    verification_status
+                )
+            `)
+            .in('id', ids);
+        data = baseResult.data;
+        error = baseResult.error;
+    } else {
+        data = viewResult.data;
+    }
 
     if (error) {
         console.error('hydrateRequests fetch error:', error);
@@ -124,9 +164,64 @@ async function hydrateRequests(ids: string[]): Promise<LocumRequest[]> {
 // ==========================================
 export const locumService = {
     /**
-     * Get personalized list of open locum requests for a user.
+     * ⭐ NEW: Get a cached batch of locum request IDs for the user.
+     *
+     * The server (get_locum_batch RPC) does the heavy lifting:
+     *   - scores requests by specialty / location / urgency match
+     *   - excludes expired shifts (shift_date < today) and non-open requests
+     *   - excludes the user's own requests
+     *   - excludes requests the user already applied to
+     *   - caches the result in locum_batches for 6 hours
+     *
+     * Pass forceFresh = true (e.g. on pull-to-refresh) to rebuild the batch.
+     *
+     * This is the ONLY method the browse tab needs to call.
+     */
+    async getLocumBatch(
+        userId: string,
+        limit = 20,
+        forceFresh = false
+    ): Promise<LocumBatchItem[]> {
+        if (!isSupabaseConfigured) return [];
+
+        const { data, error } = await supabase.rpc('get_locum_batch', {
+            p_user_id: userId,
+            p_limit: limit,
+            p_force_fresh: forceFresh,
+        });
+
+        if (error) {
+            console.error('get_locum_batch error:', error);
+            return [];
+        }
+
+        return (data || []) as LocumBatchItem[];
+    },
+
+    /**
+     * Convenience: get the batch, then hydrate it into full LocumRequest[]
+     * in one call. Returns a flat array in batch order (matched + filler
+     * interleaved as the RPC returned them).
+     *
+     * Most callers should use getLocumBatch directly so they can split
+     * matched vs filler themselves.
+     */
+    async getBatchedRequests(
+        userId: string,
+        limit = 20,
+        forceFresh = false
+    ): Promise<LocumRequest[]> {
+        const batch = await this.getLocumBatch(userId, limit, forceFresh);
+        const ids = batch.map(b => b.request_id);
+        return hydrateRequests(ids);
+    },
+
+    /**
+     * LEGACY: Get personalized list of open locum requests for a user.
      * Uses SQL get_locum_matches → returns requests where
      * the user's location OR specialty matches the request.
+     *
+     * Prefer getLocumBatch for new code — it's cached and faster.
      */
     async getMatches(userId: string, limit = 20): Promise<LocumRequest[]> {
         if (!isSupabaseConfigured) return [];
@@ -144,9 +239,8 @@ export const locumService = {
     },
 
     /**
-     * Get ALL open locum requests (not filtered by match).
-     * Used for the "All Locums" fallback section that never
-     * leaves the user with an empty page.
+     * LEGACY: Get ALL open locum requests (not filtered by match).
+     * Prefer getLocumBatch for new code.
      */
     async getAllRequests(userId: string, limit = 40): Promise<LocumRequest[]> {
         if (!isSupabaseConfigured) return [];
@@ -172,18 +266,18 @@ export const locumService = {
         const { data, error } = await supabase
             .from('locum_requests')
             .select(`
-        *,
-        requester:profiles!requester_id (
-          id,
-          first_name,
-          last_name,
-          full_name,
-          username,
-          avatar_url,
-          qualification,
-          verification_status
-        )
-      `)
+                *,
+                requester:profiles!requester_id (
+                    id,
+                    first_name,
+                    last_name,
+                    full_name,
+                    username,
+                    avatar_url,
+                    qualification,
+                    verification_status
+                )
+            `)
             .eq('requester_id', userId)
             .order('created_at', { ascending: false });
 
@@ -235,6 +329,15 @@ export const locumService = {
             .single();
 
         if (error) throw error;
+
+        // Invalidate the user's cached batch so the new request shows up
+        // next time they browse (optional, best-effort).
+        supabase
+            .from('locum_batches')
+            .delete()
+            .eq('user_id', payload.requester_id)
+            .then(() => { /* ignore */ });
+
         return data as LocumRequest;
     },
 
@@ -282,6 +385,15 @@ export const locumService = {
             .single();
 
         if (error) throw error;
+
+        // Invalidate this user's cached batch — they've now applied,
+        // so the request should disappear from their browse feed.
+        supabase
+            .from('locum_batches')
+            .delete()
+            .eq('user_id', payload.applicant_id)
+            .then(() => { /* ignore */ });
+
         return data as LocumOffer;
     },
 
@@ -309,21 +421,21 @@ export const locumService = {
         const { data, error } = await supabase
             .from('locum_offers')
             .select(`
-        *,
-        applicant:profiles!applicant_id (
-          id,
-          first_name,
-          last_name,
-          full_name,
-          username,
-          avatar_url,
-          qualification,
-          nursing_level,
-          verification_status,
-          phone_number,
-          whatsapp_number
-        )
-      `)
+                *,
+                applicant:profiles!applicant_id (
+                    id,
+                    first_name,
+                    last_name,
+                    full_name,
+                    username,
+                    avatar_url,
+                    qualification,
+                    nursing_level,
+                    verification_status,
+                    phone_number,
+                    whatsapp_number
+                )
+            `)
             .eq('request_id', requestId)
             .order('created_at', { ascending: false });
 

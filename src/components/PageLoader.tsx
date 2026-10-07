@@ -1,111 +1,90 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import React from 'react';
 
+// ==========================================================
+// TYPES
+// ==========================================================
 interface PageLoaderProps {
     title?: string;
     subtitle?: string;
 }
 
+// ==========================================================
+// MAIN
+// ==========================================================
 export default function PageLoader({
-    title = 'Assembling the Team',
-    subtitle = 'Nursefolio Huddle in progress...',
+    title = 'Loading',
+    subtitle,
 }: PageLoaderProps) {
     return (
         <div
             id="protected-route-loading"
-            className="min-h-screen bg-slate-50 dark:bg-zinc-950 flex flex-col items-center justify-center gap-10 overflow-hidden"
+            className="min-h-screen bg-white dark:bg-zinc-950 flex flex-col items-center justify-center gap-6"
         >
-            {/* Gooey Loader Container */}
-            <div className="relative flex items-center justify-center">
-                <div className="goo-container relative w-40 h-40">
-                    {/* Dot 1: Indigo */}
-                    <div className="dot dot-1 bg-indigo-600 dark:bg-indigo-500"></div>
-                    {/* Dot 2: Rose/Pink */}
-                    <div className="dot dot-2 bg-rose-500 dark:bg-rose-400"></div>
-                    {/* Dot 3: Emerald/Green */}
-                    <div className="dot dot-3 bg-emerald-500 dark:bg-emerald-400"></div>
-                </div>
-
-                {/* The SVG Filter - This creates the "melting" effect */}
-                <svg xmlns="http://www.w3.org/2000/svg" className="absolute invisible">
-                    <defs>
-                        <filter id="goo">
-                            <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur" />
-                            <feColorMatrix
-                                in="blur"
-                                mode="matrix"
-                                values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 21 -7"
-                                result="goo"
-                            />
-                            <feBlend in="SourceGraphic" in2="goo" />
-                        </filter>
-                    </defs>
-                </svg>
+            {/* Three pulsing dots — same pattern as index.html */}
+            <div className="flex items-center gap-2">
+                <span className="page-loader-dot" />
+                <span className="page-loader-dot" />
+                <span className="page-loader-dot" />
             </div>
 
             {/* Label */}
-            <div className="text-center z-10">
-                <h2 className="text-xl font-display font-bold text-slate-800 dark:text-white tracking-tight">
+            <div className="text-center px-6">
+                <h2 className="text-sm font-bold text-slate-700 dark:text-slate-300">
                     {title}
                 </h2>
-                <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 animate-pulse">
-                    {subtitle}
-                </p>
+                {subtitle && (
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
+                        {subtitle}
+                    </p>
+                )}
             </div>
 
-            <style dangerouslySetInnerHTML={{
-                __html: `
-                .goo-container {
-                    filter: url('#goo');
-                    position: relative;
-                    width: 120px;
-                    height: 120px;
-                }
+            <style>{`
+        .page-loader-dot {
+          display: block;
+          width: 8px;
+          height: 8px;
+          border-radius: 9999px;
+          background-color: #0d9488;
+          opacity: 0.4;
+          animation: page-loader-pulse 1.4s ease-in-out infinite;
+        }
 
-                .dot {
-                    position: absolute;
-                    top: 50%;
-                    left: 50%;
-                    width: 32px;
-                    height: 32px;
-                    margin-top: -16px;
-                    margin-left: -16px;
-                    border-radius: 50%;
-                    animation-iteration-count: infinite;
-                    animation-duration: 3s;
-                    animation-timing-function: ease-in-out;
-                }
+        .page-loader-dot:nth-child(2) {
+          animation-delay: 0.2s;
+        }
 
-                .dot-1 {
-                    animation-name: dot-1-move;
-                }
+        .page-loader-dot:nth-child(3) {
+          animation-delay: 0.4s;
+        }
 
-                .dot-2 {
-                    animation-name: dot-2-move;
-                }
+        :is(.dark) .page-loader-dot {
+          background-color: #2dd4bf;
+        }
 
-                .dot-3 {
-                    animation-name: dot-3-move;
-                }
+        @keyframes page-loader-pulse {
+          0%, 80%, 100% {
+            opacity: 0.4;
+            transform: scale(1);
+          }
+          40% {
+            opacity: 1;
+            transform: scale(1.3);
+          }
+        }
 
-                @keyframes dot-1-move {
-                    0%, 100% { transform: translate(0, 0) scale(1); }
-                    33% { transform: translate(-40px, -20px) scale(1.2); }
-                    66% { transform: translate(30px, 40px) scale(0.8); }
-                }
-
-                @keyframes dot-2-move {
-                    0%, 100% { transform: translate(0, 0) scale(1); }
-                    33% { transform: translate(40px, -20px) scale(0.9); }
-                    66% { transform: translate(-30px, 40px) scale(1.1); }
-                }
-
-                @keyframes dot-3-move {
-                    0%, 100% { transform: translate(0, 0) scale(1.2); }
-                    33% { transform: translate(0px, 50px) scale(0.8); }
-                    66% { transform: translate(0px, -50px) scale(1); }
-                }
-                `
-            }} />
+        @media (prefers-reduced-motion: reduce) {
+          .page-loader-dot {
+            animation: none;
+            opacity: 0.7;
+          }
+        }
+      `}</style>
         </div>
     );
 }

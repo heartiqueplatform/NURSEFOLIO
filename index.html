@@ -40,26 +40,24 @@
   <meta name="twitter:site" content="@nursefolio" />
   <meta name="twitter:creator" content="@nursefolio" />
 
-  <!-- Additional SEO & Verification -->
-  <meta name="google-site-verification" content="your-verification-code-here" />
-  <meta name="yandex-verification" content="your-yandex-code" />
+  <!-- SEO & Verification -->
   <link rel="canonical" href="https://nursefolio.app/" />
 
   <!-- iOS & Apple Meta -->
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Nursefolio" />
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="apple-touch-icon" href="/192.png" />
 
-  <!-- PWA & Icons (aligned with Vite PWA config) -->
-  <link rel="icon" type="image/png" href="/pwa-192x192.png" />
-  <link rel="mask-icon" href="/masked-icon.svg" color="#0f172a" />
-  <link rel="shortcut icon" href="/favicon.ico" />
-  <meta name="theme-color" content="#0f172a" />
+  <!-- PWA & Icons -->
+  <link rel="icon" type="image/png" href="/192.png" />
+  <link rel="shortcut icon" href="/192.png" />
+  <link rel="mask-icon" href="/192.png" color="#0f172a" />
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#09090b" media="(prefers-color-scheme: dark)" />
   <meta name="msapplication-TileColor" content="#0f172a" />
-  <meta name="msapplication-TileImage" content="/mstile-144x144.png" />
 
-  <!-- Structured Data (JSON-LD) for Organization & Mobile App (No screenshots) -->
+  <!-- Structured Data — Organization + App -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -68,77 +66,126 @@
     "applicationCategory": "HealthApplication",
     "operatingSystem": "Web, iOS, Android",
     "description": "Nursefolio helps nurses track clinical skills, maintain an updated CV, connect with other nurses and institutions, and includes a daily diary for nursing students to record their clinical experiences and achievements.",
-    "aggregateRating": {
-      "@type": "AggregateRating",
-      "ratingValue": "4.8",
-      "reviewCount": "1247"
-    },
     "offers": {
       "@type": "Offer",
       "price": "0",
-      "priceCurrency": "USD"
+      "priceCurrency": "KES"
     },
     "creator": {
       "@type": "Organization",
       "name": "Nursefolio",
       "url": "https://nursefolio.app",
-      "logo": "https://nursefolio.app/logo.png",
-      "sameAs": [
-        "https://twitter.com/nursefolio",
-        "https://linkedin.com/company/nursefolio",
-        "https://instagram.com/nursefolio"
-      ]
+      "logo": "https://nursefolio.app/192.png"
     },
-    "featureList": "Skills Tracker, CV Builder & Updater, Nurse Networking, Employer Job Matching, Daily Clinical Diary, Portfolio Export, Student Mode, Analytics Dashboard"
+    "featureList": "Skills Tracker, CV Builder, Nurse Networking, Locum Shift Board, Clinical Logbook, Portfolio Export, Student Mode, Analytics Dashboard"
   }
   </script>
 
-  <!-- Additional Structured Data for Web Application -->
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "WebApplication",
-    "name": "Nursefolio",
-    "url": "https://nursefolio.app",
-    "applicationCategory": "Lifestyle",
-    "about": "Nursing portfolio, skills management, CV maintenance, peer networking, and daily logbook for nurses and nursing students",
-    "audience": {
-      "@type": "Audience",
-      "audienceType": "Nurses, Nursing Students, Healthcare Institutions"
-    },
-    "keywords": "nurse portfolio, nursing skills tracker, CV builder, nurse diary, nurse networking, nurse jobs",
-    "inLanguage": "en"
-  }
-  </script>
+  <!-- ============================================================
+       THEME + LOADING SCREEN
+       Runs before React mounts. Prevents any flash of wrong color.
+       Uses the exact same colors as the app: white / zinc-950.
+       ============================================================ -->
+  <style>
+    /* --- Set base colors that match the app exactly --- */
+    html {
+      background-color: #ffffff;
+    }
 
-  <!-- Theme Flash Prevention (preserved) -->
+    html.dark {
+      background-color: #09090b;
+    }
+
+    body {
+      margin: 0;
+      background-color: inherit;
+      /* Prevent iOS rubber-band flash revealing a white strip in dark mode */
+      overscroll-behavior: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* --- Blank loading screen: a soft pulsing dot in the app's accent color --- */
+    #initial-loader {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: inherit;
+      z-index: 9999;
+    }
+
+    /* Three dots — subtle, brand-colored, no text */
+    .initial-loader-dots {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .initial-loader-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 9999px;
+      background-color: #0d9488;
+      /* teal-600 — the app accent */
+      opacity: 0.4;
+      animation: initial-loader-pulse 1.4s ease-in-out infinite;
+    }
+
+    .initial-loader-dot:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .initial-loader-dot:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+
+    html.dark .initial-loader-dot {
+      background-color: #2dd4bf;
+      /* teal-400 — the accent in dark mode */
+    }
+
+    @keyframes initial-loader-pulse {
+
+      0%,
+      80%,
+      100% {
+        opacity: 0.4;
+        transform: scale(1);
+      }
+
+      40% {
+        opacity: 1;
+        transform: scale(1.25);
+      }
+    }
+
+    /* When React mounts and removes the loader, no gap should show */
+    #root {
+      min-height: 100vh;
+      min-height: 100dvh;
+      background-color: inherit;
+    }
+  </style>
+
+  <!-- Inline script: set theme class BEFORE CSS renders (no flash) -->
   <script>
     (function () {
-      let storedTheme = localStorage.getItem('theme-mode');
-      if (!storedTheme) {
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        storedTheme = prefersDark ? 'dark' : 'light';
-        localStorage.setItem('theme-mode', storedTheme);
+      try {
+        let stored = localStorage.getItem('theme-mode');
+        if (!stored) {
+          const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          stored = prefersDark ? 'dark' : 'light';
+          localStorage.setItem('theme-mode', stored);
+        }
+        if (stored === 'dark') {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      } catch (e) {
+        // localStorage unavailable — fall through to light
       }
-      if (storedTheme === 'dark') {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
-      const style = document.createElement('style');
-      style.textContent = `
-        html:not(.dark) {
-          background-color: #f8fafc;
-        }
-        html.dark {
-          background-color: #020617;
-        }
-        body {
-          background-color: inherit;
-          transition: background-color 0.2s ease;
-        }
-      `;
-      document.head.appendChild(style);
     })();
   </script>
 
@@ -146,13 +193,39 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 
-  <!-- PWA manifest link (matches VitePWA config) -->
+  <!-- PWA manifest -->
   <link rel="manifest" href="/manifest.webmanifest" />
 </head>
 
 <body>
+  <!-- Blank loading screen — removed automatically once React mounts -->
+  <div id="initial-loader" aria-hidden="true">
+    <div class="initial-loader-dots">
+      <div class="initial-loader-dot"></div>
+      <div class="initial-loader-dot"></div>
+      <div class="initial-loader-dot"></div>
+    </div>
+  </div>
+
   <div id="root"></div>
-  <script type="module" src="/src/main.tsx"></script>
+
+  <script type="module">
+    // Remove the initial loader as soon as React's first paint happens.
+    // Using requestAnimationFrame so we don't remove it before content exists.
+    import('/src/main.tsx').then(() => {
+      // main.tsx has imported and mounted. Queue removal after paint.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const loader = document.getElementById('initial-loader');
+          if (loader) {
+            loader.style.opacity = '0';
+            loader.style.transition = 'opacity 0.15s ease-out';
+            setTimeout(() => loader.remove(), 200);
+          }
+        });
+      });
+    });
+  </script>
 </body>
 
 </html>

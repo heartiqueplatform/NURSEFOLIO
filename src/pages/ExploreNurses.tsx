@@ -609,9 +609,7 @@ export default function ExploreNurses() {
 
         {/* Page Header — hidden on mobile to feel more native */}
         <div className="hidden md:block mb-8">
-          <span className="inline-block text-xs bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-400 font-bold px-2.5 py-1 rounded-full uppercase tracking-wider font-mono">
-            Nurse Registry
-          </span>
+
           <h1 className="text-3xl lg:text-4xl font-display font-extrabold tracking-tight text-slate-900 dark:text-white mt-2">
             Discover Certified Clinicians
           </h1>

@@ -11,7 +11,7 @@ import {
     Heart, Share2, ThumbsUp, Send, Loader2, MessageCircle,
     Clock, CheckCircle2, X, Sparkles, TrendingUp, Users,
     Lightbulb, Smile, Coffee, HeartHandshake,
-    GraduationCap
+    GraduationCap, Eye,
 } from 'lucide-react';
 
 // ==========================================================
@@ -35,6 +35,7 @@ interface NursePost {
     };
     like_count: number;
     share_count: number;
+    view_count: number;
     is_liked_by_user: boolean;
 }
 
@@ -153,6 +154,12 @@ const getRelativeTime = (timestamp: string): string => {
     return postDate.toLocaleDateString();
 };
 
+const formatViewCount = (n: number): string => {
+    if (n < 1000) return `${n}`;
+    if (n < 1000000) return `${(n / 1000).toFixed(n < 10000 ? 1 : 0)}K`;
+    return `${(n / 1000000).toFixed(1)}M`;
+};
+
 const getAuthorDisplayName = (author: NursePost['author']): string => {
     if (!author) return 'Anonymous Nurse';
     if (author.full_name && author.full_name !== 'null') return author.full_name;
@@ -164,7 +171,7 @@ const getAuthorDisplayName = (author: NursePost['author']): string => {
 };
 
 // ==========================================================
-// SKELETON — flat, edge-to-edge
+// SKELETON
 // ==========================================================
 const PostSkeleton = React.memo(() => (
     <div className="bg-white dark:bg-zinc-950 p-4 border-b border-slate-100 dark:border-zinc-900 animate-pulse">
@@ -188,7 +195,7 @@ const PostSkeleton = React.memo(() => (
 ));
 
 // ==========================================================
-// POST CARD — memoized, no framer-motion
+// POST CARD — with IntersectionObserver view tracking
 // ==========================================================
 const PostCard: React.FC<{
     post: NursePost;
@@ -197,7 +204,8 @@ const PostCard: React.FC<{
     onLike: (postId: string) => void;
     onShare: (postId: string) => void;
     onEndorse: (author: NursePost['author']) => void;
-}> = React.memo(({ post, currentUserId, likeState, onLike, onShare, onEndorse }) => {
+    onView: (postId: string) => void;
+}> = React.memo(({ post, currentUserId, likeState, onLike, onShare, onEndorse, onView }) => {
     const currentLikeState = likeState[post.id] || {
         count: post.like_count || 0,
         isLiked: post.is_liked_by_user || false
@@ -206,6 +214,32 @@ const PostCard: React.FC<{
     const isOwnPost = currentUserId === post.user_id;
     const [shareFeedback, setShareFeedback] = useState<string | null>(null);
     const feedbackTimerRef = useRef<number | null>(null);
+
+    // View tracking — only count if 50% visible for 2 seconds
+    const cardRef = useRef<HTMLElement | null>(null);
+    const hasReportedViewRef = useRef(false);
+
+    useEffect(() => {
+        if (hasReportedViewRef.current) return;
+        if (!cardRef.current) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting && !hasReportedViewRef.current) {
+                        hasReportedViewRef.current = true;
+                        onView(post.id);
+                        observer.disconnect(); // done — one view per card per session
+                    }
+                });
+            },
+            { threshold: 0.3 } // 30% visible is enough
+        );
+
+        observer.observe(cardRef.current);
+
+        return () => observer.disconnect();
+    }, [post.id, post.user_id, currentUserId, onView]);
 
     const showFeedback = useCallback((msg: string) => {
         setShareFeedback(msg);
@@ -228,7 +262,7 @@ const PostCard: React.FC<{
                 await navigator.share({ title: 'Nursefolio Post', text: `"${preview}"`, url });
                 onShare(post.id);
                 return;
-            } catch { /* cancelled — fall through */ }
+            } catch { /* cancelled */ }
         }
 
         try {
@@ -241,7 +275,10 @@ const PostCard: React.FC<{
     }, [post.id, post.content, onShare, showFeedback]);
 
     return (
-        <article className="bg-white dark:bg-zinc-950 px-4 py-4 border-b border-slate-100 dark:border-zinc-900 md:last:border-0">
+        <article
+            ref={cardRef as any}
+            className="bg-white dark:bg-zinc-950 px-4 py-4 border-b border-slate-100 dark:border-zinc-900 md:last:border-0"
+        >
             {/* Author */}
             <div className="flex items-start gap-3 mb-3">
                 <img
@@ -267,6 +304,10 @@ const PostCard: React.FC<{
                         <span className="text-slate-300 dark:text-zinc-700">·</span>
                         <span className="text-slate-500 dark:text-slate-400 flex-shrink-0">
                             {getRelativeTime(post.created_at)}
+                        </span>
+                        <span className="ml-auto flex items-center gap-1 text-slate-400 dark:text-slate-500 flex-shrink-0">
+                            <Eye className="w-3 h-3" />
+                            {formatViewCount(post.view_count)}
                         </span>
                     </div>
                 </div>
@@ -326,7 +367,7 @@ const PostCard: React.FC<{
 PostCard.displayName = 'PostCard';
 
 // ==========================================================
-// COMPOSER MODAL — flat, no drag, CSS animation
+// COMPOSER MODAL
 // ==========================================================
 const PostComposerModal: React.FC<{
     isOpen: boolean;
@@ -386,7 +427,6 @@ const PostComposerModal: React.FC<{
                     <div className="w-12 h-1.5 bg-slate-300 dark:bg-zinc-700 rounded-full" />
                 </div>
 
-                {/* Header */}
                 <div className="flex items-center justify-between px-4 md:px-5 py-3 md:py-4 flex-shrink-0">
                     <div className="flex items-center gap-2">
                         <Sparkles className="w-5 h-5 text-indigo-500" />
@@ -403,7 +443,6 @@ const PostComposerModal: React.FC<{
                     </button>
                 </div>
 
-                {/* Body */}
                 <div className="flex-1 overflow-y-auto px-4 md:px-5 py-4 space-y-4">
                     <textarea
                         ref={textareaRef}
@@ -466,7 +505,6 @@ const PostComposerModal: React.FC<{
                     </div>
                 </div>
 
-                {/* Footer */}
                 <div className="flex items-center justify-end gap-3 px-4 md:px-5 py-3 md:py-4 flex-shrink-0">
                     <button
                         onClick={handleClose}
@@ -500,12 +538,14 @@ const PostComposerModal: React.FC<{
 PostComposerModal.displayName = 'PostComposerModal';
 
 // ==========================================================
-// MAIN FEED
+// MAIN FEED — Pull-to-refresh + Load More button
 // ==========================================================
 export default function NurseFeed() {
     const [posts, setPosts] = useState<NursePost[]>([]);
     const [likeState, setLikeState] = useState<LikeState>({});
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [hasMore, setHasMore] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [isComposerOpen, setIsComposerOpen] = useState(false);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -514,8 +554,18 @@ export default function NurseFeed() {
         profile: UserProfile | null;
     }>({ isOpen: false, profile: null });
 
+    // Pull-to-refresh state
+    const [isPulling, setIsPulling] = useState(false);
+    const [pullDistance, setPullDistance] = useState(0);
+    const touchStartYRef = useRef<number>(0);
+    const isPullingRef = useRef(false);
+
     const recordedViewIds = useRef<Set<string>>(new Set());
     const loadedForUserRef = useRef<string | null>(null);
+    const loadedPostIdsRef = useRef<Set<string>>(new Set());
+
+    const PAGE_SIZE = 20;
+    const PULL_THRESHOLD = 70;
 
     // ---------- Auth ----------
     useEffect(() => {
@@ -527,70 +577,109 @@ export default function NurseFeed() {
         return () => { cancelled = true; };
     }, []);
 
-    // ---------- Record views (batched) ----------
-    const recordViews = useCallback(async (postIds: string[], userId: string) => {
-        const newIds = postIds.filter(id => !recordedViewIds.current.has(id));
-        if (newIds.length === 0) return;
-        newIds.forEach(id => recordedViewIds.current.add(id));
+    // ---------- Per-post view recording ----------
+    // ---------- Per-post view recording (batched, instant) ----------
+    // ---------- Per-post view recording (throttled batch) ----------
+    const pendingViewsRef = useRef<Set<string>>(new Set());
+    const flushViewsTimerRef = useRef<number | null>(null);
+    const firstPendingViewTimeRef = useRef<number | null>(null);
 
-        try {
-            await supabase.from('post_views').insert(
-                newIds.map(post_id => ({ post_id, user_id: userId, view_type: 'shown' }))
-            );
-        } catch (err) {
-            console.warn('Failed to record views:', err);
+    const flushPendingViews = useCallback(async () => {
+        const ids = Array.from(pendingViewsRef.current);
+        pendingViewsRef.current.clear();
+        firstPendingViewTimeRef.current = null;
+        if (ids.length === 0 || !currentUserId) return;
+
+        // Verify live session
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user?.id) {
+            console.warn('flushPendingViews: no live session');
+            return;
         }
-    }, []);
 
-    // ---------- Load feed ----------
-    const loadFeed = useCallback(async (userId: string) => {
-        setLoading(true);
-        try {
-            let postIds: string[] = [];
+        const payload = ids.map(post_id => ({
+            post_id,
+            user_id: session.user.id,
+            view_type: 'shown',      // ← must match CHECK constraint: 'shown' or 'read'
+        }));
 
-            // 1. Cached batch
-            const { data: existingBatch } = await supabase
-                .from('feed_batches')
-                .select('post_ids')
-                .eq('user_id', userId)
-                .gt('expires_at', new Date().toISOString())
-                .order('expires_at', { ascending: false })
-                .limit(1)
-                .maybeSingle();
+        const { error } = await supabase
+            .from('post_views')
+            .upsert(payload, { onConflict: 'post_id,user_id', ignoreDuplicates: true });
 
-            if (existingBatch?.post_ids?.length) {
-                postIds = existingBatch.post_ids;
-            } else {
-                // 2. Fresh batch via RPC
-                const { data: fresh, error: rpcErr } = await supabase
-                    .rpc('get_feed_batch', {
-                        p_user_id: userId,
-                        p_limit: 20,
-                        p_view_window_days: 7
-                    });
+        if (error) {
+            console.error('post_views upsert failed:', {
+                message: error.message,
+                details: error.details,
+                hint: error.hint,
+                code: error.code,
+                payload,
+            });
+        }
+    }, [currentUserId]);
 
-                if (rpcErr) throw rpcErr;
-                postIds = (fresh || []).map((row: any) => row.post_id);
+    const recordView = useCallback((postId: string) => {
+        if (!currentUserId) return;
+        if (recordedViewIds.current.has(postId)) return;
 
-                if (postIds.length > 0) {
-                    supabase
-                        .rpc('save_feed_batch', {
-                            p_user_id: userId,
-                            p_post_ids: postIds,
-                            p_ttl_hours: 4
-                        })
-                        .then(({ error }) => {
-                            if (error) console.warn('Could not save feed batch:', error);
-                        });
-                }
+        recordedViewIds.current.add(postId);
+        pendingViewsRef.current.add(postId);
+
+        if (firstPendingViewTimeRef.current === null) {
+            firstPendingViewTimeRef.current = Date.now();
+        }
+
+        // Optimistic local bump
+        setPosts(prev =>
+            prev.map(p =>
+                p.id === postId ? { ...p, view_count: (p.view_count || 0) + 1 } : p
+            )
+        );
+
+        // Throttle: schedule flush if none pending
+        if (flushViewsTimerRef.current === null) {
+            flushViewsTimerRef.current = window.setTimeout(() => {
+                flushViewsTimerRef.current = null;
+                flushPendingViews();
+            }, 2000);
+        }
+
+        // Safety: force flush after 5s of accumulation
+        const firstTime = firstPendingViewTimeRef.current;
+        if (firstTime !== null && Date.now() - firstTime > 5000) {
+            if (flushViewsTimerRef.current !== null) {
+                window.clearTimeout(flushViewsTimerRef.current);
+                flushViewsTimerRef.current = null;
             }
+            flushPendingViews();
+        }
+    }, [currentUserId, flushPendingViews]);
 
-            if (postIds.length === 0) {
-                setPosts([]);
+    // ---------- Load one page ----------
+    const loadPage = useCallback(async (userId: string, isFirstPage: boolean) => {
+        if (isFirstPage) setLoading(true);
+        else setLoadingMore(true);
+
+        try {
+            const { data: batch, error: rpcErr } = await supabase.rpc('get_feed_batch', {
+                p_user_id: userId,
+                p_limit: PAGE_SIZE,
+                p_view_window_days: 7,
+            });
+            if (rpcErr) throw rpcErr;
+
+            const freshIds = (batch || [])
+                .map((row: any) => row.post_id)
+                .filter((id: string) => !loadedPostIdsRef.current.has(id));
+
+            if (freshIds.length === 0) {
+                setHasMore(false);
+                if (isFirstPage) setPosts([]);
                 return;
             }
 
-            // 3. Fetch posts + author
+            freshIds.forEach((id: string) => loadedPostIdsRef.current.add(id));
+
             const { data: postsData, error: postsError } = await supabase
                 .from('nurse_posts')
                 .select(`
@@ -600,40 +689,38 @@ export default function NurseFeed() {
                         avatar_url, qualification, verification_status
                     )
                 `)
-                .in('id', postIds);
-
+                .in('id', freshIds);
             if (postsError) throw postsError;
 
-            // Extract unique author IDs from the loaded posts
             const authorIds = Array.from(
                 new Set((postsData || []).map((p: any) => p.user_id).filter(Boolean))
             );
 
-            // 4. Fetch likes / shares / endorsement counts — SCOPED to this batch
-            const [likesRes, sharesRes, endorsementsRes] = await Promise.all([
-                supabase.from('post_likes').select('post_id, user_id').in('post_id', postIds),
-                supabase.from('post_shares').select('post_id').in('post_id', postIds),
-                // ✅ FIXED: was selecting ALL endorsements in the DB.
-                // Now scoped to only the post authors in this batch.
+            const [likesRes, sharesRes, endorsementsRes, viewsRes] = await Promise.all([
+                supabase.from('post_likes').select('post_id, user_id').in('post_id', freshIds),
+                supabase.from('post_shares').select('post_id').in('post_id', freshIds),
                 authorIds.length > 0
-                    ? supabase
-                        .from('profile_endorsements')
-                        .select('profile_id')
-                        .in('profile_id', authorIds)
-                    : Promise.resolve({ data: [] as { profile_id: string }[] })
+                    ? supabase.from('profile_endorsements').select('profile_id').in('profile_id', authorIds)
+                    : Promise.resolve({ data: [] as { profile_id: string }[] }),
+                supabase.from('post_views').select('post_id').in('post_id', freshIds),
             ]);
 
             const likesMap = new Map<string, number>();
             const sharesMap = new Map<string, number>();
+            const viewsMap = new Map<string, number>();
             const userLikesSet = new Set<string>();
 
-            likesRes.data?.forEach(l => {
+            likesRes.data?.forEach((l: any) => {
                 likesMap.set(l.post_id, (likesMap.get(l.post_id) || 0) + 1);
                 if (l.user_id === userId) userLikesSet.add(l.post_id);
             });
 
-            sharesRes.data?.forEach(s => {
+            sharesRes.data?.forEach((s: any) => {
                 sharesMap.set(s.post_id, (sharesMap.get(s.post_id) || 0) + 1);
+            });
+
+            viewsRes.data?.forEach((v: any) => {
+                viewsMap.set(v.post_id, (viewsMap.get(v.post_id) || 0) + 1);
             });
 
             const endorsementCountsMap = new Map<string, number>();
@@ -644,48 +731,125 @@ export default function NurseFeed() {
                 );
             });
 
-            // 5. Preserve batch order
-            const orderedPosts: NursePost[] = postIds
-                .map(id => postsData?.find((p: any) => p.id === id))
+            const orderedPosts: NursePost[] = freshIds
+                .map((id: string) => postsData?.find((p: any) => p.id === id))
                 .filter(Boolean)
                 .map((post: any) => ({
                     ...post,
                     author: post.author
                         ? {
                             ...post.author,
-                            endorsement_count: endorsementCountsMap.get(post.user_id) || 0
+                            endorsement_count: endorsementCountsMap.get(post.user_id) || 0,
                         }
                         : undefined,
                     like_count: likesMap.get(post.id) || 0,
                     share_count: sharesMap.get(post.id) || 0,
-                    is_liked_by_user: userLikesSet.has(post.id)
+                    view_count: viewsMap.get(post.id) || 0,
+                    is_liked_by_user: userLikesSet.has(post.id),
                 }));
 
-            setPosts(orderedPosts);
+            setPosts(prev => isFirstPage ? orderedPosts : [...prev, ...orderedPosts]);
 
-            // 6. Seed like state
-            const nextLikeState: LikeState = {};
-            orderedPosts.forEach(p => {
-                nextLikeState[p.id] = { count: p.like_count, isLiked: p.is_liked_by_user };
+            setLikeState(prev => {
+                const next = { ...prev };
+                orderedPosts.forEach(p => {
+                    next[p.id] = { count: p.like_count, isLiked: p.is_liked_by_user };
+                });
+                return next;
             });
-            setLikeState(nextLikeState);
 
-            // 7. Record views
-            recordViews(postIds, userId);
+            if (orderedPosts.length < PAGE_SIZE) {
+                setHasMore(false);
+            }
         } catch (err) {
-            console.error('Error loading feed:', err);
-            setPosts([]);
+            console.error('Error loading feed page:', err);
+            if (isFirstPage) setPosts([]);
         } finally {
-            setLoading(false);
+            if (isFirstPage) setLoading(false);
+            else setLoadingMore(false);
         }
-    }, [recordViews]);
+    }, []);
 
+    // ---------- Boot: first page ----------
     useEffect(() => {
         if (!currentUserId) return;
         if (loadedForUserRef.current === currentUserId) return;
         loadedForUserRef.current = currentUserId;
-        loadFeed(currentUserId);
-    }, [currentUserId, loadFeed]);
+
+        loadedPostIdsRef.current = new Set();
+        recordedViewIds.current = new Set();
+        setHasMore(true);
+
+        loadPage(currentUserId, true);
+    }, [currentUserId, loadPage]);
+
+    // ---------- Refresh ----------
+    const handleRefresh = useCallback(async () => {
+        if (!currentUserId) return;
+        await supabase.from('feed_batches').delete().eq('user_id', currentUserId);
+        recordedViewIds.current = new Set();
+        loadedPostIdsRef.current = new Set();
+        setHasMore(true);
+        await loadPage(currentUserId, true);
+    }, [currentUserId, loadPage]);
+    // ---------- Cleanup debounce timer on unmount ----------
+    // ---------- Cleanup: flush pending views before unmount ----------
+    useEffect(() => {
+        return () => {
+            if (flushViewsTimerRef.current !== null) {
+                window.clearTimeout(flushViewsTimerRef.current);
+                flushViewsTimerRef.current = null;
+            }
+            if (pendingViewsRef.current.size > 0) {
+                flushPendingViews();
+            }
+        };
+    }, [flushPendingViews]);
+    // ---------- Pull-to-refresh handlers ----------
+    const handleTouchStart = useCallback((e: React.TouchEvent) => {
+        // Only start a pull gesture if the user is at the top of the page
+        if (window.scrollY > 5) return;
+        if (isPulling) return;
+        touchStartYRef.current = e.touches[0].clientY;
+        isPullingRef.current = true;
+    }, [isPulling]);
+
+    const handleTouchMove = useCallback((e: React.TouchEvent) => {
+        if (!isPullingRef.current) return;
+        const delta = e.touches[0].clientY - touchStartYRef.current;
+        if (delta > 0) {
+            // Resistance curve — feels like native pull-to-refresh
+            setPullDistance(Math.min(delta * 0.5, 100));
+        }
+    }, []);
+
+    const handleTouchEnd = useCallback(async () => {
+        if (!isPullingRef.current) return;
+        isPullingRef.current = false;
+
+        if (pullDistance >= PULL_THRESHOLD && currentUserId && !isPulling) {
+            setIsPulling(true);
+            setPullDistance(0);
+            try {
+                await handleRefresh();
+            } finally {
+                setIsPulling(false);
+            }
+        } else {
+            setPullDistance(0);
+        }
+    }, [pullDistance, currentUserId, isPulling, handleRefresh]);
+
+    // ---------- Load more (manual) ----------
+    const handleLoadMore = useCallback(async () => {
+        if (loadingMore || !currentUserId) return;
+        setLoadingMore(true);
+        try {
+            await loadPage(currentUserId, false);
+        } finally {
+            setLoadingMore(false);
+        }
+    }, [loadingMore, currentUserId, loadPage]);
 
     // ---------- Create post ----------
     const handleCreatePost = useCallback(async (content: string) => {
@@ -694,7 +858,6 @@ export default function NurseFeed() {
 
         const tempId = `temp-${Date.now()}`;
 
-        // Fetch only what we need for the optimistic card
         const { data: myProfile } = await supabase
             .from('profiles')
             .select('full_name, first_name, last_name, username, avatar_url, qualification, verification_status')
@@ -718,6 +881,7 @@ export default function NurseFeed() {
             },
             like_count: 0,
             share_count: 0,
+            view_count: 0,
             is_liked_by_user: false
         };
 
@@ -739,6 +903,7 @@ export default function NurseFeed() {
                         : p
                 )
             );
+            loadedPostIdsRef.current.add(data.id);
             window.scrollTo({ top: 0, behavior: 'smooth' });
         } catch (err) {
             console.error('Error creating post:', err);
@@ -805,7 +970,6 @@ export default function NurseFeed() {
     // ---------- Share ----------
     const handleShare = useCallback(async (postId: string) => {
         if (!currentUserId) return;
-        // Optimistic
         setPosts(prev =>
             prev.map(p =>
                 p.id === postId ? { ...p, share_count: (p.share_count || 0) + 1 } : p
@@ -844,15 +1008,6 @@ export default function NurseFeed() {
         setEndorsementModal({ isOpen: true, profile });
     }, [currentUserId]);
 
-    // ---------- Refresh ----------
-    const handleRefresh = useCallback(async () => {
-        if (!currentUserId) return;
-        await supabase.from('feed_batches').delete().eq('user_id', currentUserId);
-        recordedViewIds.current.clear();
-        loadFeed(currentUserId);
-    }, [currentUserId, loadFeed]);
-
-    // Memoized endorsement display name
     const endorsementDisplayName = useMemo(() => {
         if (!endorsementModal.profile) return '';
         return getAuthorDisplayName({
@@ -869,9 +1024,31 @@ export default function NurseFeed() {
 
     // ---------- Render ----------
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-zinc-950">
+        <div
+            className="min-h-screen bg-slate-50 dark:bg-zinc-950"
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+        >
+            {/* Pull-to-refresh indicator */}
+            <div
+                className="flex items-center justify-center overflow-hidden transition-[height] duration-150"
+                style={{ height: isPulling ? 60 : pullDistance }}
+            >
+                {isPulling ? (
+                    <Loader2 className="w-5 h-5 text-indigo-500 animate-spin" />
+                ) : pullDistance > 0 ? (
+                    <div
+                        className="w-6 h-6 rounded-full border-2 border-slate-300 dark:border-zinc-700 border-t-indigo-500 transition-transform"
+                        style={{
+                            transform: `rotate(${(pullDistance / PULL_THRESHOLD) * 360}deg)`,
+                            opacity: Math.min(pullDistance / PULL_THRESHOLD, 1),
+                        }}
+                    />
+                ) : null}
+            </div>
+
             <div className="max-w-2xl mx-auto md:px-4 md:py-8">
-                {/* Header — hidden on mobile for native feel */}
                 <div className="hidden md:block mb-6">
                     <h1 className="text-3xl font-display font-extrabold text-slate-900 dark:text-white tracking-tight">
                         Nurse Daily Pulse
@@ -881,7 +1058,6 @@ export default function NurseFeed() {
                     </p>
                 </div>
 
-                {/* Composer trigger — flat, edge-to-edge on mobile */}
                 <div className="bg-white dark:bg-zinc-950 p-3 border-b border-slate-100 dark:border-zinc-900 md:border-0 md:mb-6">
                     <button
                         onClick={() => setIsComposerOpen(true)}
@@ -926,13 +1102,39 @@ export default function NurseFeed() {
                                 onLike={handleLike}
                                 onShare={handleShare}
                                 onEndorse={handleEndorse}
+                                onView={recordView}
                             />
                         ))}
+
+                        {/* Load more button / all-caught-up message */}
+                        {posts.length > 0 && (
+                            <div className="py-8 px-6 flex justify-center">
+                                {hasMore ? (
+                                    <button
+                                        onClick={handleLoadMore}
+                                        disabled={loadingMore}
+                                        className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-slate-300 text-sm font-bold active:opacity-70 transition disabled:opacity-50 min-h-[44px]"
+                                    >
+                                        {loadingMore ? (
+                                            <>
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                Loading
+                                            </>
+                                        ) : (
+                                            'Load more posts'
+                                        )}
+                                    </button>
+                                ) : (
+                                    <p className="text-xs text-slate-400 dark:text-slate-500">
+                                        You're all caught up — check back later for new posts
+                                    </p>
+                                )}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
 
-            {/* Composer Modal */}
             <PostComposerModal
                 isOpen={isComposerOpen}
                 onClose={() => setIsComposerOpen(false)}
@@ -940,7 +1142,6 @@ export default function NurseFeed() {
                 submitting={submitting}
             />
 
-            {/* Endorsement Manager */}
             {endorsementModal.isOpen && endorsementModal.profile && currentUserId && (
                 <EndorsementManager
                     isOpen={endorsementModal.isOpen}
@@ -949,7 +1150,7 @@ export default function NurseFeed() {
                     profileName={endorsementDisplayName}
                     currentUserId={currentUserId}
                     onEndorsementChange={() => {
-                        if (currentUserId) loadFeed(currentUserId);
+                        if (currentUserId) loadPage(currentUserId, true);
                     }}
                 />
             )}

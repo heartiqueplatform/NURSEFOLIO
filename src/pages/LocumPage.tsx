@@ -378,37 +378,61 @@ export default function LocumPage() {
     }, []);
 
     // ---------- Load everything ----------
+    //
+    // Uses the server-side batched RPC `get_locum_batch`:
+    //   • scores matches by specialty / location / urgency
+    //   • hides expired shifts and non-open requests
+    //   • excludes the user's own requests
+    //   • excludes requests the user already applied to
+    //   • caches the result in `locum_batches` for 6h
+    //
+    // One RPC + one hydration query = 3 roundtrips total (batch, hydrate, my requests).
     const loadAll = useCallback(async (userId: string, forceFresh = false) => {
         try {
             if (forceFresh) setRefreshing(true);
             else setLoading(true);
 
-            const [matchedData, allData, mine] = await Promise.all([
-                locumService.getMatches(userId, 20),
-                locumService.getAllRequests(userId, 40),
-                locumService.getMyRequests(userId)
-            ]);
+            // 1. Ask the server for a fixed batch of 20 IDs (matched + filler)
+            const batch = await locumService.getLocumBatch(userId, 20, forceFresh);
 
-            setMatched(matchedData);
-            setAllRequests(allData);
+            const matchedIds = new Set(
+                batch.filter(b => b.is_matched).map(b => b.request_id)
+            );
+
+            // 2. Hydrate those IDs into full LocumRequest objects
+            const hydrated = await locumService.getBatchedRequests(userId, 20, false);
+
+            // (getBatchedRequests re-fetches the batch — cheap because it's cached.
+            //  If you want a single trip, swap to hydrateRequests(batch.map(b => b.request_id))
+            //  after exporting hydrateRequests from the service.)
+
+            // 3. Split into "Matched for You" vs "All Locums"
+            const matchedList = hydrated.filter(r => matchedIds.has(r.id));
+            const otherList = hydrated.filter(r => !matchedIds.has(r.id));
+
+            // 4. My own requests (separate tab, always fresh)
+            const mine = await locumService.getMyRequests(userId);
+
+            setMatched(matchedList);
+            setAllRequests(otherList);
             setMyRequests(mine);
 
-            // ✅ FIXED: was making one query per request (40 requests = 40 roundtrips).
-            // Now: one batched query for all offers by this user.
-            const allIds = allData.map(r => r.id);
-            if (allIds.length > 0) {
+            // 5. Applied IDs — one batched query for all visible requests
+            const visibleIds = hydrated.map(r => r.id);
+            if (visibleIds.length > 0) {
                 const { data: myOffers } = await supabase
                     .from('locum_offers')
                     .select('request_id, status')
                     .eq('applicant_id', userId)
-                    .in('request_id', allIds);
+                    .in('request_id', visibleIds);
 
-                const applied = new Set(
-                    (myOffers || [])
-                        .filter(o => o.status !== 'withdrawn')
-                        .map(o => o.request_id)
+                setAppliedIds(
+                    new Set(
+                        (myOffers || [])
+                            .filter(o => o.status !== 'withdrawn')
+                            .map(o => o.request_id)
+                    )
                 );
-                setAppliedIds(applied);
             } else {
                 setAppliedIds(new Set());
             }
@@ -435,12 +459,18 @@ export default function LocumPage() {
         if (!currentUserId || !applySheet.request) return;
         setIsSubmitting(true);
         try {
+            const appliedId = applySheet.request.id;
+
             await locumService.applyToRequest({
-                request_id: applySheet.request.id,
+                request_id: appliedId,
                 applicant_id: currentUserId,
                 message
             });
-            setAppliedIds(prev => new Set(prev).add(applySheet.request!.id));
+
+            // Optimistically mark as applied AND remove from the browse lists
+            setAppliedIds(prev => new Set(prev).add(appliedId));
+            setMatched(prev => prev.filter(r => r.id !== appliedId));
+            setAllRequests(prev => prev.filter(r => r.id !== appliedId));
             setApplySheet({ isOpen: false, request: null });
         } catch (err) {
             console.error('Apply error:', err);
@@ -452,6 +482,7 @@ export default function LocumPage() {
 
     const handleRefresh = useCallback(() => {
         if (!currentUserId) return;
+        // forceFresh = true → server rebuilds the batch (expired/applied filtered out)
         loadAll(currentUserId, true);
     }, [currentUserId, loadAll]);
 
@@ -494,9 +525,7 @@ export default function LocumPage() {
 
                 {/* Header — hidden on mobile */}
                 <div className="hidden md:block mb-8">
-                    <span className="inline-block text-xs bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 font-bold px-2.5 py-1 rounded-full uppercase tracking-wider font-mono">
-                        Locum & Cover
-                    </span>
+
                     <h1 className="text-3xl lg:text-4xl font-display font-extrabold tracking-tight text-slate-900 dark:text-white mt-2">
                         Find or Offer Shift Cover
                     </h1>

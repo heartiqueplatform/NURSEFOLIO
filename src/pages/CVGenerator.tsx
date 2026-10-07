@@ -1,45 +1,57 @@
 /**
- * CVGenerator.tsx
- *
- * The CV Generator page.
- *
- * Turn F changes:
- * - Header is no longer sticky. The floating bar with backdrop-blur was
- *   covering the CV and adding visual noise. The CV now starts at the top
- *   of the viewport with no header stealing space. Back navigation lives
- *   in the browser and the button still works if the user scrolls back up.
- * - Desktop horizontal scrollbar hidden. Mobile keeps it (users need the
- *   scroll affordance), but on desktop the bar is invisible.
- * - Header contact line renders phone + WhatsApp from the profile.
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     ArrowLeft, Download, Printer, SlidersHorizontal, Pencil,
+    Loader2, AlertCircle, FileText, Smartphone,
 } from 'lucide-react';
-import { motion } from 'framer-motion';
 import { PDFViewer } from '@react-pdf/renderer';
 import { useCVBundle } from '../hooks/useCVBundle';
 import { useCVPreferences } from '../hooks/useCVPreferences';
 import { CVTemplate } from '../components/cv/CVTemplate';
 import { CVPrintFallback } from '../components/cv/CVPrintFallback';
 import { CustomizeSheet } from '../components/cv/CustomizeSheet';
+import { PDFErrorBoundary } from '../components/cv/PDFErrorBoundary';
 import { downloadCV } from '../lib/pdfExport';
 import { supabase } from '../lib/supabase';
-import { PDFErrorBoundary } from '../components/cv/PDFErrorBoundary';
 import '../lib/cvPrint.css';
 
+// ==========================================================
+// ENVIRONMENT DETECTION
+// ==========================================================
+// iOS Safari and many Android browsers fail to render an
+// embedded PDFViewer iframe when the parent has a fixed pixel
+// width inside an overflow-x-auto container. We detect this
+// and fall back to the print-layout preview instead.
+const isIOS = typeof navigator !== 'undefined' &&
+    /iPad|iPhone|iPod/.test(navigator.userAgent);
+const isSmallScreen = typeof window !== 'undefined' && window.innerWidth < 768;
+const useFallbackPreview = isIOS || isSmallScreen;
+
+// ==========================================================
+// MAIN
+// ==========================================================
 export default function CVGenerator() {
     const navigate = useNavigate();
     const { data, loading, error, refresh } = useCVBundle();
 
     const [userId, setUserId] = useState<string | null>(null);
+    const [sheetOpen, setSheetOpen] = useState(false);
+    const [exporting, setExporting] = useState(false);
+    const [exportError, setExportError] = useState<string | null>(null);
+
+    // Load user id
     useEffect(() => {
-        void (async () => {
+        let cancelled = false;
+        (async () => {
             const { data: session } = await supabase.auth.getSession();
-            setUserId(session.session?.user.id ?? null);
+            if (!cancelled) setUserId(session.session?.user.id ?? null);
         })();
+        return () => { cancelled = true; };
     }, []);
 
     const {
@@ -50,10 +62,7 @@ export default function CVGenerator() {
         reset,
     } = useCVPreferences(userId);
 
-    const [sheetOpen, setSheetOpen] = useState(false);
-    const [exporting, setExporting] = useState(false);
-    const [exportError, setExportError] = useState<string | null>(null);
-
+    // Page title
     useEffect(() => {
         if (data) {
             document.title = `${data.header.name} — CV`;
@@ -61,7 +70,10 @@ export default function CVGenerator() {
         }
     }, [data]);
 
-    const handleDownload = async () => {
+    // ----------------------------------------------------------
+    // Handlers
+    // ----------------------------------------------------------
+    const handleDownload = useCallback(async () => {
         if (!data || exporting) return;
         setExporting(true);
         setExportError(null);
@@ -69,68 +81,77 @@ export default function CVGenerator() {
             await downloadCV({ bundle: data, prefs });
         } catch (e) {
             setExportError(
-                e instanceof Error ? e.message : 'Could not generate the PDF. Try again.'
+                e instanceof Error ? e.message : 'Could not generate the PDF. Please try again.'
             );
         } finally {
             setExporting(false);
         }
-    };
+    }, [data, prefs, exporting]);
 
-    const handlePrint = () => {
+    const handlePrint = useCallback(() => {
         window.print();
-    };
+    }, []);
 
+    const openCustomize = useCallback(() => setSheetOpen(true), []);
+    const closeCustomize = useCallback(() => setSheetOpen(false), []);
+
+    // ==========================================================
+    // RENDER
+    // ==========================================================
     return (
-        <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
-            {/* Non-sticky header. WHY: the sticky version floated over the CV and
-          made the page feel cramped. Back navigation still works via the
-          browser gesture or by scrolling to the top. */}
-            <header className="bg-zinc-50 dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800">
-                <div className="flex items-center gap-3 px-4 h-14">
+        <div className="w-full min-h-screen bg-slate-50 dark:bg-zinc-950">
+            <div className="max-w-2xl mx-auto md:px-6 md:py-8 pb-28 md:pb-8">
+
+                {/* ============================================
+            HEADER
+            ============================================ */}
+                <div className="px-4 md:px-0 pt-4 md:pt-0 pb-4 md:pb-6 flex items-center gap-3">
                     <button
                         onClick={() => navigate(-1)}
+                        className="p-2 -ml-2 rounded-full text-slate-600 dark:text-slate-400 active:bg-slate-100 dark:active:bg-zinc-900 transition flex-shrink-0"
                         aria-label="Back"
-                        className="p-2 -ml-2 rounded-xl active:scale-[98%] transition"
                     >
                         <ArrowLeft className="w-5 h-5" />
                     </button>
-                    <h1 className="font-semibold text-base">Your CV</h1>
-                    <div className="ml-auto flex items-center gap-1">
-                        <button
-                            onClick={() => navigate('/cv/edit')}
-                            aria-label="Edit CV content"
-                            className="p-2 rounded-xl active:scale-[98%] transition"
-                        >
-                            <Pencil className="w-5 h-5" />
-                        </button>
-                        <button
-                            onClick={handlePrint}
-                            aria-label="Print CV"
-                            className="p-2 rounded-xl active:scale-[98%] transition"
-                        >
-                            <Printer className="w-5 h-5" />
-                        </button>
-                        <button
-                            onClick={() => setSheetOpen(true)}
-                            aria-label="Customize CV layout"
-                            className="p-2 rounded-xl active:scale-[98%] transition"
-                        >
-                            <SlidersHorizontal className="w-5 h-5" />
-                        </button>
+                    <div className="flex-1 min-w-0">
+                        <h1 className="text-lg md:text-2xl font-display font-extrabold tracking-tight text-slate-900 dark:text-white">
+                            Your CV
+                        </h1>
+                        <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                            Live preview, updates with your profile
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                        <IconButton onClick={() => navigate('/cv/edit')} label="Edit CV content">
+                            <Pencil className="w-4 h-4" />
+                        </IconButton>
+                        <IconButton onClick={handlePrint} label="Print CV">
+                            <Printer className="w-4 h-4" />
+                        </IconButton>
+                        <IconButton onClick={openCustomize} label="Customize layout">
+                            <SlidersHorizontal className="w-4 h-4" />
+                        </IconButton>
                     </div>
                 </div>
-            </header>
 
-            <main className="pb-32 md:pb-12">
+                {/* ============================================
+            LOADING
+            ============================================ */}
                 {loading && !data && (
-                    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3 px-6">
-                        <div className="w-8 h-8 rounded-full border-2 border-zinc-300 dark:border-zinc-700 border-t-zinc-900 dark:border-t-zinc-100 animate-spin" />
-                        <p className="text-sm text-zinc-500">Building your CV…</p>
+                    <div className="flex flex-col items-center justify-center py-24 gap-3">
+                        <Loader2 className="w-6 h-6 text-teal-600 dark:text-teal-400 animate-spin" />
+                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                            Building your CV…
+                        </p>
                     </div>
                 )}
 
+                {/* ============================================
+            ERROR — not signed in
+            ============================================ */}
                 {error === 'not-authenticated' && (
-                    <EmptyState
+                    <SimpleEmptyState
+                        icon={AlertCircle}
                         title="Sign in to build your CV"
                         body="Your CV is built from your Nursefolio profile. Sign in and we'll assemble it in seconds."
                         cta="Sign in"
@@ -138,8 +159,13 @@ export default function CVGenerator() {
                     />
                 )}
 
+                {/* ============================================
+            ERROR — build failed
+            ============================================ */}
                 {error && error !== 'not-authenticated' && (
-                    <EmptyState
+                    <SimpleEmptyState
+                        icon={AlertCircle}
+                        tone="rose"
                         title="We couldn't build your CV"
                         body={error}
                         cta="Try again"
@@ -147,85 +173,84 @@ export default function CVGenerator() {
                     />
                 )}
 
+                {/* ============================================
+            SUCCESS — CV preview
+            ============================================ */}
                 {data && (
-                    <div className="px-3 md:px-6 pt-4 md:pt-6">
-                        <p className="text-xs md:text-sm text-zinc-500 dark:text-zinc-400 mb-3 md:mb-4 md:text-center">
-                            Live preview — updates as your profile changes
-                        </p>
-
-                        {/* Horizontal-scroll container.
-                Mobile: scroll bar hidden but scroll gesture active — users
-                swipe to pan the CV. WHY we don't fit-to-width: A4 at 360px
-                viewport shrinks 9.5pt text to ~6.7pt, unreadable.
-                Desktop: no scroll needed, and the scrollbar is hidden via
-                the .no-scrollbar class defined below. */}
-                        <div
-                            className="
-                overflow-x-auto overflow-y-hidden -mx-3 px-3 no-scrollbar
-                md:overflow-visible md:mx-auto md:px-0 md:max-w-[760px]
-              "
-                            style={{ WebkitOverflowScrolling: 'touch' }}
-                        >
-                            <div className="min-w-[680px] md:min-w-0">
-                                <div
-                                    className="rounded-2xl overflow-hidden shadow-xl bg-white"
-                                    style={{ height: 'clamp(560px, 140vw, 1000px)' }}
-                                >
-                                    <PDFErrorBoundary fallback={<CVPrintFallback bundle={data} prefs={prefs} />}>
-                                        <PDFViewer
-                                            width="100%"
-                                            height="100%"
-                                            showToolbar={false}
-                                            style={{ border: 'none' }}
-                                        >
-                                            <CVTemplate bundle={data} prefs={prefs} />
-                                        </PDFViewer>
-                                    </PDFErrorBoundary>
-                                </div>
-                            </div>
-                        </div>
+                    <>
+                        {useFallbackPreview ? (
+                            /* MOBILE / iOS: use the print-layout preview.
+                               The PDFViewer iframe doesn't render reliably in these
+                               environments. The print fallback is styled to match. */
+                            <MobilePreview
+                                bundle={data}
+                                prefs={prefs}
+                            />
+                        ) : (
+                            /* DESKTOP: full PDFViewer with horizontal pan.
+                               Only renders on screens where the iframe works reliably. */
+                            <DesktopPreview
+                                bundle={data}
+                                prefs={prefs}
+                            />
+                        )}
 
                         {exportError && (
-                            <p className="text-sm text-red-600 dark:text-red-400 mt-3 text-center md:mt-4">
-                                {exportError}
-                            </p>
+                            <div className="mx-4 md:mx-0 mt-4 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 px-4 py-3 rounded-2xl text-sm font-semibold flex items-start gap-2">
+                                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                                <span>{exportError}</span>
+                            </div>
                         )}
-                    </div>
+                    </>
                 )}
-            </main>
 
+            </div>
+
+            {/* ============================================
+          MOBILE ACTION BAR
+          ============================================ */}
             {data && (
                 <div
-                    className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-zinc-50/95 dark:bg-zinc-950/95 backdrop-blur border-t border-zinc-200 dark:border-zinc-800"
-                    style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+                    className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white dark:bg-zinc-950 border-t border-slate-100 dark:border-zinc-900"
+                    style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
                 >
                     <div className="px-4 py-3 flex gap-2">
-                        <motion.button
-                            whileTap={{ scale: 0.98 }}
+                        <button
                             onClick={() => navigate('/cv/edit')}
+                            className="shrink-0 w-[52px] h-[52px] rounded-2xl bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-slate-300 flex items-center justify-center active:opacity-70 transition"
                             aria-label="Edit CV content"
-                            className="shrink-0 min-h-[52px] w-[52px] rounded-2xl border border-zinc-300 dark:border-zinc-700 flex items-center justify-center"
                         >
                             <Pencil className="w-5 h-5" />
-                        </motion.button>
-                        <motion.button
-                            whileTap={{ scale: 0.98 }}
+                        </button>
+                        <button
                             onClick={handleDownload}
                             disabled={exporting}
-                            className="flex-1 min-h-[52px] rounded-2xl bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-medium flex items-center justify-center gap-2 disabled:opacity-60"
+                            className="flex-1 h-[52px] rounded-2xl bg-teal-600 active:bg-teal-700 text-white font-bold text-sm flex items-center justify-center gap-2 transition disabled:opacity-50"
                         >
-                            <Download className="w-5 h-5" />
-                            {exporting ? 'Preparing…' : 'Download PDF'}
-                        </motion.button>
+                            {exporting ? (
+                                <>
+                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                    Preparing
+                                </>
+                            ) : (
+                                <>
+                                    <Download className="w-5 h-5" />
+                                    Download PDF
+                                </>
+                            )}
+                        </button>
                     </div>
                 </div>
             )}
 
+            {/* ============================================
+          DESKTOP ACTION BAR
+          ============================================ */}
             {data && (
-                <div className="hidden md:flex justify-center gap-3 mt-6 mb-12">
+                <div className="hidden md:flex justify-center gap-3 mb-8 -mt-2">
                     <button
                         onClick={() => navigate('/cv/edit')}
-                        className="min-h-[44px] px-5 rounded-xl border border-zinc-300 dark:border-zinc-700 text-sm font-medium active:scale-[98%] transition flex items-center gap-2"
+                        className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-slate-300 text-sm font-bold active:opacity-70 transition min-h-[44px]"
                     >
                         <Pencil className="w-4 h-4" />
                         Edit content
@@ -233,14 +258,26 @@ export default function CVGenerator() {
                     <button
                         onClick={handleDownload}
                         disabled={exporting}
-                        className="min-h-[44px] px-6 rounded-xl bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-sm font-medium active:scale-[98%] transition flex items-center gap-2 disabled:opacity-60"
+                        className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-teal-600 active:bg-teal-700 text-white text-sm font-bold transition disabled:opacity-50 min-h-[44px]"
                     >
-                        <Download className="w-4 h-4" />
-                        {exporting ? 'Preparing…' : 'Download PDF'}
+                        {exporting ? (
+                            <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Preparing
+                            </>
+                        ) : (
+                            <>
+                                <Download className="w-4 h-4" />
+                                Download PDF
+                            </>
+                        )}
                     </button>
                 </div>
             )}
 
+            {/* ============================================
+          HIDDEN PRINT LAYOUT
+          ============================================ */}
             {data && (
                 <div
                     aria-hidden="true"
@@ -255,48 +292,136 @@ export default function CVGenerator() {
                 </div>
             )}
 
+            {/* ============================================
+          CUSTOMIZE SHEET
+          ============================================ */}
             <CustomizeSheet
                 open={sheetOpen}
-                onClose={() => setSheetOpen(false)}
+                onClose={closeCustomize}
                 prefs={prefs}
                 onToggle={setSectionVisible}
                 onReorder={setOrder}
                 onSetShowPhoto={setShowPhoto}
                 onReset={reset}
             />
-
-            {/* Local utility: hide the horizontal scrollbar everywhere it isn't
-          wanted. Mobile keeps its scroll gesture; the bar itself is visual
-          noise at phone sizes. */}
-            <style>{`
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-      `}</style>
         </div>
     );
 }
 
-function EmptyState({
-    title,
-    body,
-    cta,
-    onCta,
-}: {
+// ==========================================================
+// DESKTOP PREVIEW — full PDF viewer
+// ==========================================================
+const DesktopPreview = React.memo<{
+    bundle: any;
+    prefs: any;
+}>(({ bundle, prefs }) => (
+    <div className="px-6">
+        <div className="max-w-3xl mx-auto">
+            <div
+                className="rounded-3xl overflow-hidden bg-white"
+                style={{ height: 'clamp(700px, 90vh, 1000px)' }}
+            >
+                <PDFErrorBoundary fallback={<CVPrintFallback bundle={bundle} prefs={prefs} />}>
+                    <PDFViewer
+                        width="100%"
+                        height="100%"
+                        showToolbar={false}
+                        style={{ border: 'none' }}
+                    >
+                        <CVTemplate bundle={bundle} prefs={prefs} />
+                    </PDFViewer>
+                </PDFErrorBoundary>
+            </div>
+
+            <p className="text-xs text-center text-slate-500 dark:text-slate-400 mt-3">
+                This is what recruiters see when they download your CV
+            </p>
+        </div>
+    </div>
+));
+DesktopPreview.displayName = 'DesktopPreview';
+
+// ==========================================================
+// MOBILE PREVIEW — print layout instead of iframe
+// ==========================================================
+const MobilePreview = React.memo<{
+    bundle: any;
+    prefs: any;
+}>(({ bundle, prefs }) => (
+    <div className="px-4">
+        {/* Notice for mobile users */}
+        <div className="bg-slate-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 mb-4 flex items-start gap-3">
+            <Smartphone className="w-4 h-4 text-slate-500 dark:text-slate-400 flex-shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Preview mode
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                    Tap <strong className="text-slate-700 dark:text-slate-300">Download PDF</strong> below to see the exact A4 version.
+                    This is the readable preview.
+                </p>
+            </div>
+        </div>
+
+        {/* Print-layout preview card */}
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 md:p-6">
+            <CVPrintFallback bundle={bundle} prefs={prefs} />
+        </div>
+    </div>
+));
+MobilePreview.displayName = 'MobilePreview';
+
+// ==========================================================
+// ICON BUTTON
+// ==========================================================
+const IconButton = React.memo<{
+    onClick: () => void;
+    label: string;
+    children: React.ReactNode;
+}>(({ onClick, label, children }) => (
+    <button
+        onClick={onClick}
+        aria-label={label}
+        className="p-2 rounded-full text-slate-600 dark:text-slate-400 active:bg-slate-100 dark:active:bg-zinc-900 transition"
+    >
+        {children}
+    </button>
+));
+IconButton.displayName = 'IconButton';
+
+// ==========================================================
+// SIMPLE EMPTY STATE
+// ==========================================================
+const SimpleEmptyState = React.memo<{
+    icon: any;
+    tone?: 'neutral' | 'rose';
     title: string;
     body: string;
     cta: string;
     onCta: () => void;
-}) {
+}>(({ icon: Icon, tone = 'neutral', title, body, cta, onCta }) => {
+    const tones = {
+        neutral: 'bg-slate-100 dark:bg-zinc-900 text-slate-500 dark:text-slate-400',
+        rose: 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400',
+    };
     return (
-        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 px-6 text-center">
-            <h2 className="text-lg font-semibold">{title}</h2>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-sm">{body}</p>
+        <div className="text-center py-16 px-6">
+            <div className={`w-16 h-16 rounded-full ${tones[tone]} flex items-center justify-center mx-auto mb-5`}>
+                <Icon className="w-7 h-7" />
+            </div>
+            <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                {title}
+            </h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 max-w-sm mx-auto leading-relaxed">
+                {body}
+            </p>
             <button
                 onClick={onCta}
-                className="min-h-[44px] px-6 rounded-2xl bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-sm font-medium active:scale-[98%] transition"
+                className="mt-6 inline-flex items-center justify-center px-6 py-3 rounded-full bg-teal-600 active:bg-teal-700 text-white text-sm font-bold transition min-h-[48px]"
             >
                 {cta}
             </button>
         </div>
     );
-}
+});
+SimpleEmptyState.displayName = 'SimpleEmptyState';

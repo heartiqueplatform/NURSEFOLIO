@@ -10,13 +10,11 @@
  *
  * Ordering rule: the array order is the DEFAULT order. User preferences
  * (in useCVPreferences) override it. Sections are grouped by column —
- * reordering within a column never moves a section across columns, because
- * left/right is a layout decision, not a user preference. This keeps the
- * design coherent no matter how the user rearranges.
+ * reordering within a column never moves a section across columns.
  *
- * v3 (Turn D): leadership and referees. Both live in the right column.
- * Leadership sits next to Experience (both are "roles you held"), and
- * referees sit near the end as a credibility close.
+ * Turn F addition: work_preferences. Nurses care about shift preference,
+ * relocation willingness, and locum availability — these are hard facts
+ * that belong on the CV, not buried in profile settings.
  */
 
 export type CVSectionId =
@@ -33,6 +31,7 @@ export type CVSectionId =
     | 'interests'
     | 'referees'
     | 'languages'
+    | 'work_preferences'
     | 'availability';
 
 export type CVColumn = 'left' | 'right';
@@ -48,20 +47,6 @@ export interface CVSectionMeta {
 
 /**
  * Left column = credentials and facts. Right column = narrative and proof.
- * This split is intentional: a matron scanning the left edge sees the
- * hard qualifications; a reader engaging with the CV reads the right.
- *
- * Array order determines default order within a column. Right column flow:
- *   summary (who) ->
- *   experience (paid roles) ->
- *   leadership (unpaid roles) ->
- *   education (training) ->
- *   endorsements (external proof) ->
- *   awards (recognition) ->
- *   strengths (values) ->
- *   interests (focus) ->
- *   referees (contacts) ->
- *   availability (call to action)
  */
 export const CV_SECTIONS: CVSectionMeta[] = [
     {
@@ -143,6 +128,12 @@ export const CV_SECTIONS: CVSectionMeta[] = [
         description: 'Languages you speak',
     },
     {
+        id: 'work_preferences',
+        label: 'Work Preferences',
+        column: 'left',
+        description: 'Shift preference, relocation, and locum availability',
+    },
+    {
         id: 'availability',
         label: 'Availability',
         column: 'right',
@@ -150,11 +141,6 @@ export const CV_SECTIONS: CVSectionMeta[] = [
     },
 ];
 
-/**
- * Default order: left column first, then right, matching the layout.
- * The order array is column-agnostic — orderedVisibleSections() filters by
- * column at render time.
- */
 export function defaultSectionOrder(): CVSectionId[] {
     return [
         ...CV_SECTIONS.filter((s) => s.column === 'left').map((s) => s.id),
@@ -168,5 +154,4 @@ export function sectionMeta(id: CVSectionId): CVSectionMeta {
     return found;
 }
 
-/** Sections that must always render — the user cannot hide them. */
 export const REQUIRED_SECTIONS: CVSectionId[] = ['summary'];
