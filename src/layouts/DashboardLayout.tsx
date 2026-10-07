@@ -171,7 +171,7 @@ export const DashboardLayout: React.FC<{ children?: React.ReactNode }> = ({ chil
                 </p>
                 {isDashboardHome && user && (
                   <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
-                    {getGreeting()} — let's make progress today
+                    {getGreeting()}
                   </p>
                 )}
               </div>
