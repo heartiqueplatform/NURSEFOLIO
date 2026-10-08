@@ -271,10 +271,7 @@ function PrivacyPolicy() {
   return (
     <>
       <header className="mb-8">
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400 text-xs font-bold">
-          <Shield className="w-3.5 h-3.5" />
-          Kenya DPA 2019 & GDPR aligned
-        </span>
+
         <h2 className="text-xl md:text-3xl font-display font-bold tracking-tight text-slate-900 dark:text-white mt-4">
           Privacy Policy
         </h2>
@@ -470,10 +467,7 @@ function TermsOfService() {
   return (
     <>
       <header className="mb-8">
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400 text-xs font-bold">
-          <FileText className="w-3.5 h-3.5" />
-          User agreement
-        </span>
+
         <h2 className="text-xl md:text-3xl font-display font-bold tracking-tight text-slate-900 dark:text-white mt-4">
           Terms of Service
         </h2>
@@ -647,10 +641,7 @@ function Compliance() {
   return (
     <>
       <header className="mb-8">
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400 text-xs font-bold">
-          <Scale className="w-3.5 h-3.5" />
-          Kenya & African Union frameworks
-        </span>
+
         <h2 className="text-xl md:text-3xl font-display font-bold tracking-tight text-slate-900 dark:text-white mt-4">
           Regulatory Compliance
         </h2>

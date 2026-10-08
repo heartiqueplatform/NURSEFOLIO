@@ -114,10 +114,7 @@ export default function Contact() {
             HEADER
             ============================================ */}
         <header className="max-w-2xl mb-10 md:mb-14">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400 text-xs font-bold">
-            <MessageSquare className="w-3.5 h-3.5" />
-            Get help
-          </span>
+
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-display font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight mt-4">
             We read every message.
           </h1>

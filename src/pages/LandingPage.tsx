@@ -45,10 +45,6 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8">
 
           <div className="max-w-3xl mx-auto text-center">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400 text-xs font-bold">
-              <MapPin className="w-3.5 h-3.5" />
-              Built for Kenyan nurses
-            </span>
 
             <h1 className="mt-5 text-4xl md:text-5xl lg:text-6xl font-display font-extrabold tracking-tight text-slate-900 dark:text-white leading-[1.05]">
               Your nursing career,

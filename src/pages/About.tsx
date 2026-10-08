@@ -80,10 +80,7 @@ export default function About() {
             HEADER
             ============================================ */}
         <header className="max-w-2xl mb-12 md:mb-16">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400 text-xs font-bold">
-            <Heart className="w-3.5 h-3.5" />
-            Why we exist
-          </span>
+
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-display font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight mt-4">
             Every nurse deserves a career page as serious as their work.
           </h1>
