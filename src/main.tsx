@@ -10,7 +10,7 @@ import './index.css';
 // ==========================================================
 // Setting this in one place means we can detect stale clients
 // (users stuck on old cached versions) and force a refresh.
-const APP_VERSION = '1.0.01';
+const APP_VERSION = '1.0.011';
 
 // ==========================================================
 // PWA REGISTRATION — auto-update, no user prompt

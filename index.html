@@ -82,9 +82,9 @@
   </script>
 
   <!-- ============================================================
-       THEME + LOADING SCREEN
+       THEME BOOTSTRAP
        Runs before React mounts. Prevents any flash of wrong color.
-       Uses the exact same colors as the app: white / zinc-950.
+       No loader markup — React's own loader handles UI feedback.
        ============================================================ -->
   <style>
     /* --- Set base colors that match the app exactly --- */
@@ -104,63 +104,6 @@
       -webkit-tap-highlight-color: transparent;
     }
 
-    /* --- Blank loading screen: a soft pulsing dot in the app's accent color --- */
-    #initial-loader {
-      position: fixed;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background-color: inherit;
-      z-index: 9999;
-    }
-
-    /* Three dots — subtle, brand-colored, no text */
-    .initial-loader-dots {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-
-    .initial-loader-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 9999px;
-      background-color: #0d9488;
-      /* teal-600 — the app accent */
-      opacity: 0.4;
-      animation: initial-loader-pulse 1.4s ease-in-out infinite;
-    }
-
-    .initial-loader-dot:nth-child(2) {
-      animation-delay: 0.2s;
-    }
-
-    .initial-loader-dot:nth-child(3) {
-      animation-delay: 0.4s;
-    }
-
-    html.dark .initial-loader-dot {
-      background-color: #2dd4bf;
-      /* teal-400 — the accent in dark mode */
-    }
-
-    @keyframes initial-loader-pulse {
-
-      0%,
-      80%,
-      100% {
-        opacity: 0.4;
-        transform: scale(1);
-      }
-
-      40% {
-        opacity: 1;
-        transform: scale(1.25);
-      }
-    }
-
-    /* When React mounts and removes the loader, no gap should show */
     #root {
       min-height: 100vh;
       min-height: 100dvh;
@@ -198,34 +141,9 @@
 </head>
 
 <body>
-  <!-- Blank loading screen — removed automatically once React mounts -->
-  <div id="initial-loader" aria-hidden="true">
-    <div class="initial-loader-dots">
-      <div class="initial-loader-dot"></div>
-      <div class="initial-loader-dot"></div>
-      <div class="initial-loader-dot"></div>
-    </div>
-  </div>
-
   <div id="root"></div>
 
-  <script type="module">
-    // Remove the initial loader as soon as React's first paint happens.
-    // Using requestAnimationFrame so we don't remove it before content exists.
-    import('/src/main.tsx').then(() => {
-      // main.tsx has imported and mounted. Queue removal after paint.
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          const loader = document.getElementById('initial-loader');
-          if (loader) {
-            loader.style.opacity = '0';
-            loader.style.transition = 'opacity 0.15s ease-out';
-            setTimeout(() => loader.remove(), 200);
-          }
-        });
-      });
-    });
-  </script>
+  <script type="module" src="/src/main.tsx"></script>
 </body>
 
 </html>
